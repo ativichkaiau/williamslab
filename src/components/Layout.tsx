@@ -21,6 +21,7 @@ const NAV = [
       { to: '/prisma', label: 'PRISMA Flow', icon: '⇉', color: '#0891b2' },
       { to: '/studies', label: 'Studies', icon: '☰', color: '#6366f1' },
       { to: '/meta', label: 'Meta-analysis', icon: '⬦', color: '#db2777' },
+      { to: '/manuscript', label: 'Manuscript', icon: '¶', color: '#ea580c' },
     ],
   },
   {
@@ -62,6 +63,7 @@ const TITLES: Record<string, string> = {
   '/prisma': 'PRISMA Flow',
   '/studies': 'Included Studies',
   '/meta': 'Meta-analysis',
+  '/manuscript': 'Manuscript',
   '/hypotheses': 'Hypotheses',
   '/mechanism': 'Mechanism Map',
   '/assays': 'Assays',

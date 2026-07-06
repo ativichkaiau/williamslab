@@ -15,6 +15,7 @@ import SrmaProtocol from './pages/SrmaProtocol'
 import Prisma from './pages/Prisma'
 import Studies from './pages/Studies'
 import MetaAnalysis from './pages/MetaAnalysis'
+import Manuscript from './pages/Manuscript'
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="prisma" element={<Prisma />} />
         <Route path="studies" element={<Studies />} />
         <Route path="meta" element={<MetaAnalysis />} />
+        <Route path="manuscript" element={<Manuscript />} />
       </Route>
     </Routes>
   )

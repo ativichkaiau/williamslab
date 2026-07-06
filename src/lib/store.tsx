@@ -50,6 +50,7 @@ interface StoreCtx {
   updateReview: (patch: Partial<Review>) => void
   updatePrisma: (patch: Partial<Review['prisma']>) => void
   addStudy: (s: Omit<Study, 'id'> & { id?: string }) => string
+  addStudies: (list: (Omit<Study, 'id'> & { id?: string })[]) => void
   updateStudy: (id: string, patch: Partial<Study>) => void
   removeStudy: (id: string) => void
   reset: () => void
@@ -183,6 +184,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, review: { ...s.review, studies: [...s.review.studies, { ...st, id }] } }))
       return id
     },
+    addStudies: (list) =>
+      setState((s) => ({ ...s, review: { ...s.review, studies: [...s.review.studies, ...list.map((st) => ({ ...st, id: st.id ?? uid('st') }))] } })),
     updateStudy: (id, patch) =>
       setState((s) => ({ ...s, review: { ...s.review, studies: s.review.studies.map((x) => (x.id === id ? { ...x, ...patch } : x)) } })),
     removeStudy: (id) => setState((s) => ({ ...s, review: { ...s.review, studies: s.review.studies.filter((x) => x.id !== id) } })),
