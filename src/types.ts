@@ -144,15 +144,35 @@ export interface Study {
   year: number
   pmid?: string
   design?: string
-  // 2×2 for a binary outcome: exposed = index group, ctrl = comparator
+  // 2×2 for a binary outcome (OR / RR / RD): exposed = index, ctrl = comparator
   expEvents?: number
   expTotal?: number
   ctrlEvents?: number
   ctrlTotal?: number
+  // continuous outcome (SMD): mean / SD / n per group
+  mean1?: number
+  sd1?: number
+  n1?: number
+  mean2?: number
+  sd2?: number
+  n2?: number
   rob?: Record<string, RobLevel>
   subgroup?: string // free-text subgroup label for subgroup analysis
   include: boolean // counts toward the pooled estimate
   note?: string
+}
+
+export type EffectMeasure = 'OR' | 'RR' | 'RD' | 'SMD'
+
+export type GradeJudgment = 'not serious' | 'serious' | 'very serious'
+export interface GradeState {
+  design: 'observational' | 'rct'
+  rob?: GradeJudgment
+  inconsistency?: GradeJudgment
+  indirectness?: GradeJudgment
+  imprecision?: GradeJudgment
+  pubBias?: 'undetected' | 'serious'
+  largeEffect?: 'none' | 'large' | 'very large'
 }
 
 export interface Review {
@@ -168,9 +188,10 @@ export interface Review {
   outcomeLabel: string
   indexLabel: string // the exposed/index group
   comparatorLabel: string
-  effect: 'OR' | 'RR'
+  effect: EffectMeasure
   model: 'random' | 'fixed'
   robDomains: string[]
+  grade?: GradeState
   prisma: {
     dbRecords: number
     otherRecords: number

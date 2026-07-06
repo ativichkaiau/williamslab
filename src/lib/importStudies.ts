@@ -18,6 +18,10 @@ const toNum = (v: string) => {
   const n = parseInt((v || '').replace(/[^0-9-]/g, ''), 10)
   return Number.isNaN(n) ? undefined : n
 }
+const toFloat = (v: string) => {
+  const n = parseFloat((v || '').replace(/[^0-9.eE+-]/g, ''))
+  return Number.isNaN(n) ? undefined : n
+}
 
 export function detectFormat(text: string): 'csv' | 'ris' {
   return /^\s*TY\s{0,2}-\s?/m.test(text) ? 'ris' : 'csv'
@@ -68,6 +72,12 @@ function parseCSV(text: string): { studies: NewStudy[]; warnings: string[] } {
     expTotal: idx(['exptotal', 'indextotal', 'spontaneoustotal', 'nexposed', 'nindex', 'n1', 'totalindex']),
     ctrlEvents: idx(['ctrlevents', 'controlevents', 'comparatorevents', 'druginducedevents', 'eventscontrol', 'e2', 'ci']),
     ctrlTotal: idx(['ctrltotal', 'controltotal', 'comparatortotal', 'ncontrol', 'n2', 'totalcontrol']),
+    mean1: idx(['mean1', 'indexmean', 'meanindex', 'm1']),
+    sd1: idx(['sd1', 'indexsd', 'stdev1', 'sdindex']),
+    n1: idx(['n1', 'indexn', 'ngroup1']),
+    mean2: idx(['mean2', 'controlmean', 'comparatormean', 'meancontrol', 'm2']),
+    sd2: idx(['sd2', 'controlsd', 'stdev2', 'sdcontrol']),
+    n2: idx(['n2', 'controln', 'ngroup2']),
     subgroup: idx(['subgroup', 'group', 'stratum']),
   }
   const studies: NewStudy[] = []
@@ -84,6 +94,12 @@ function parseCSV(text: string): { studies: NewStudy[]; warnings: string[] } {
       expTotal: toNum(g(cols.expTotal)),
       ctrlEvents: toNum(g(cols.ctrlEvents)),
       ctrlTotal: toNum(g(cols.ctrlTotal)),
+      mean1: toFloat(g(cols.mean1)),
+      sd1: toFloat(g(cols.sd1)),
+      n1: toNum(g(cols.n1)),
+      mean2: toFloat(g(cols.mean2)),
+      sd2: toFloat(g(cols.sd2)),
+      n2: toNum(g(cols.n2)),
       subgroup: g(cols.subgroup) || undefined,
       include: true,
     })
