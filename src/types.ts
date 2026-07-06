@@ -119,8 +119,9 @@ export interface Instability {
   severity: Severity
   target: string // node/edge id
   targetLabel?: string
-  signal: string // the warning sign (telemetry)
-  repair: string // the counter-actuation
+  signal: string // one-line warning sign
+  comment: string // substantive reviewer comment — the specific problem, in context
+  repair: string // the concrete fix
   status: 'open' | 'acknowledged' | 'resolved'
 }
 
