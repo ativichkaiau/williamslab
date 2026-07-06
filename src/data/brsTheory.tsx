@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { MechanismFlow, ActionPotential, EcgTypes, GeneticsChart, EpiRegulation } from '../components/brsDiagrams'
 
 // ============================================================
 // Comprehensive Brugada Syndrome reference content.
@@ -38,6 +39,7 @@ export const THEORY: TheorySection[] = [
           <li>Events are characteristically <b>nocturnal / at rest</b>, at low heart rates, and are dynamically modulated by <b>fever</b> and autonomic tone.</li>
           <li>The heart is usually structurally normal on standard imaging, though subtle <b>right-ventricular outflow tract (RVOT)</b> abnormalities are increasingly recognised.</li>
         </ul>
+        <MechanismFlow />
         <KB kind="hy" label="High-yield">
           The single organising fact: BrS is a <b>reduced-I<sub>Na</sub></b> disease. Genetics, ECG, triggers, risk and therapy all orbit that sodium-current axis.
         </KB>
@@ -87,6 +89,7 @@ export const THEORY: TheorySection[] = [
     body: (
       <>
         <p>Inheritance is classically <b>autosomal dominant</b> with <b>incomplete penetrance</b> and <b>variable expressivity</b>. <span className="term">SCN5A</span> (Na<sub>v</sub>1.5) is the only gene with <b>definitive</b> evidence and accounts for only <b>~20–30%</b> of cases — leaving a large <b>genotype-negative majority</b>.</p>
+        <GeneticsChart />
         <div className="tbl-scroll">
           <table>
             <thead><tr><th>Gene</th><th>Product</th><th>Effect</th><th>Evidence</th></tr></thead>
@@ -127,6 +130,7 @@ export const THEORY: TheorySection[] = [
             </tbody>
           </table>
         </div>
+        <ActionPotential />
         <h3>Naᵥ1.5 & I_Na</h3>
         <p><b>Na<sub>v</sub>1.5</b> (a four-domain α-subunit with voltage sensors and a fast-inactivation gate) carries the phase-0 current that drives rapid conduction. BrS variants reduce functional I<sub>Na</sub> via <b>reduced expression/trafficking</b>, <b>altered gating</b> (enhanced/earlier inactivation, slowed recovery, negative shift of steady-state inactivation), or <b>non-functional</b> channels. It works in a <b>macromolecular complex</b> with β-subunits and trafficking partners, so its <b>membrane density</b> is a tightly regulated — and epigenetically controllable — quantity.</p>
         <KB kind="hy" label="High-yield">
@@ -213,6 +217,7 @@ export const THEORY: TheorySection[] = [
             </tbody>
           </table>
         </div>
+        <EcgTypes />
         <p>Only the <b>type-1</b> pattern is diagnostic. Morphology criteria (e.g. the <b>β-angle</b> and the width of the r′ triangle base) help flag type-2 ECGs likely to convert. Sensitivity rises markedly with <b>high right precordial leads</b> at the 2nd–3rd intercostal space.</p>
         <h3>Dynamic modulators</h3>
         <p>Fever, sodium-channel blockers (<b>unmask</b>), vagal tone, a heavy meal / glucose-insulin, alcohol, ischaemia, electrolyte shifts and testosterone all accentuate or attenuate the pattern.</p>
@@ -354,6 +359,7 @@ export const THEORY: TheorySection[] = [
           <li><b>3D architecture</b> — enhancer–promoter looping across the <b>SCN5A–SCN10A</b> locus (4C, Hi-C).</li>
           <li><b>Non-coding RNAs</b> — miRNAs (e.g. reported miR-24 / miR-98 / miR-200 family effects on Na<sub>v</sub>1.5) and lncRNAs (small-RNA-seq).</li>
         </ul>
+        <EpiRegulation />
         <p>Functional causality is tested in <b>iPSC-derived cardiomyocytes</b> with patch clamp and multi-electrode arrays, including demethylation / rescue experiments.</p>
         <KB kind="research" label="Your project">
           This is the thesis of <b>WilliamsLab / BrS-EPI</b>: promoter/enhancer methylation, repressive histone remodeling and ncRNAs reduce Na<sub>v</sub>1.5-dependent I<sub>Na</sub> <i>independently of, and additively to,</i> SCN5A coding mutations — potentially explaining variable penetrance. See the <Link to="/mechanism">Mechanism Map</Link>, <Link to="/hypotheses">Hypotheses</Link> and <Link to="/assays">Assays</Link>.

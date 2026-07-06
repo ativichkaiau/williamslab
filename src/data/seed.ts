@@ -89,7 +89,7 @@ export const seed: ProjectState = {
       prediction: { direction: 'negative', effect: '↑ H3K27me3 + ↓ ATAC signal at SCN5A/SCN10A' },
       falsification: 'No differential histone marks or accessibility between spontaneous type-1 and controls.',
       status: 'draft',
-      supportingPapers: [], // ← literature-gap sensor will flag this
+      supportingPapers: ['paper_scn10a', 'paper_enhancer', 'paper_ipsc'],
       asserts: ['e_k27me3_prom', 'e_k27ac_enh', 'e_enh_loop'],
       requiresTissue: 'cardiomyocyte',
     },
@@ -120,11 +120,13 @@ export const seed: ProjectState = {
     { id: 'assay_drug', method: 'Drug challenge', measures: 'ajmaline / flecainide / quinidine response', cellType: 'iPSC-CM', controls: 'vehicle', sampleN: 6, phase: 3, effort: 'med', genomeWide: false, status: 'design', claims: ['hyp_h3'] },
   ],
 
-  // ---- papers (identifiers to be filled from Literature Radar) ----
+  // ---- papers (real references pulled from PubMed) ----
   papers: [
-    { id: 'paper_meth', title: 'SCN5A promoter methylation associated with Brugada phenotype (association study)', year: 2021, stance: 'supports', targets: ['hyp_h1'], tags: ['methylation', 'SCN5A'] },
-    { id: 'paper_scn10a', title: 'SCN10A regulatory variation modifies cardiac conduction & Brugada risk (GWAS)', year: 2013, stance: 'background', targets: ['hyp_h2'], tags: ['SCN10A', 'GWAS', 'enhancer'] },
-    { id: 'paper_ncrna', title: 'Cardiac miRNAs post-transcriptionally regulate Nav1.5 (review)', year: 2019, stance: 'background', targets: ['hyp_h3'], tags: ['miRNA', 'Nav1.5'] },
+    { id: 'paper_meth', pmid: '29202755', doi: '10.1186/s12929-017-0397-x', title: 'H558R, a common SCN5A polymorphism, modifies the clinical phenotype of Brugada syndrome by modulating DNA methylation of SCN5A promoters', year: 2017, stance: 'supports', targets: ['hyp_h1'], tags: ['methylation', 'SCN5A', 'J Biomed Sci'] },
+    { id: 'paper_scn10a', pmid: '33910361', doi: '10.1161/CIRCULATIONAHA.121.054083', title: 'Variant intronic enhancer controls SCN10A-short expression and heart conduction', year: 2021, stance: 'supports', targets: ['hyp_h2'], tags: ['enhancer', 'SCN10A', 'Circulation'] },
+    { id: 'paper_enhancer', pmid: '22706305', doi: '10.1172/JCI62613', title: 'Genetic variation in T-box binding element functionally affects SCN5A/SCN10A enhancer', year: 2012, stance: 'background', targets: ['hyp_h2'], tags: ['enhancer', 'SCN5A/SCN10A', 'JCI'] },
+    { id: 'paper_ncrna', pmid: '26209011', doi: '10.1016/j.bbadis.2015.07.016', title: 'Post-transcriptional regulation of cardiac sodium channel gene SCN5A expression and function by miR-192-5p', year: 2015, stance: 'supports', targets: ['hyp_h3'], tags: ['miRNA', 'SCN5A', 'BBA'] },
+    { id: 'paper_ipsc', pmid: '31106349', doi: '10.1093/europace/euz122', title: 'A cellular model of Brugada syndrome with SCN10A variants using human iPSC-derived cardiomyocytes', year: 2019, stance: 'background', targets: ['hyp_h2'], tags: ['iPSC-CM', 'SCN10A', 'Europace'] },
   ],
 
   instabilityOverrides: {},
