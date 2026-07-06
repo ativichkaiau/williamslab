@@ -31,6 +31,7 @@ const NAV = [
     group: 'KNOWLEDGE',
     items: [
       { to: '/graph', label: 'Knowledge Graph', icon: '⬡' },
+      { to: '/theory', label: 'BrS Theory', icon: '§' },
       { to: '/review', label: 'Knowledge Review', icon: '✦' },
     ],
   },
@@ -46,6 +47,7 @@ const TITLES: Record<string, string> = {
   '/power': 'Statistical Power',
   '/suspension': 'Rigor Monitor',
   '/graph': 'Knowledge Graph',
+  '/theory': 'BrS Theory',
   '/review': 'Knowledge Review',
 }
 

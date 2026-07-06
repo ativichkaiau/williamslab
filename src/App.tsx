@@ -10,6 +10,7 @@ import Power from './pages/Power'
 import Suspension from './pages/Suspension'
 import Graph from './pages/Graph'
 import Review from './pages/Review'
+import Theory from './pages/Theory'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="power" element={<Power />} />
         <Route path="suspension" element={<Suspension />} />
         <Route path="graph" element={<Graph />} />
+        <Route path="theory" element={<Theory />} />
         <Route path="review" element={<Review />} />
       </Route>
     </Routes>
