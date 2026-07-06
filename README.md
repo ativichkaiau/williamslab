@@ -26,12 +26,13 @@ This is a **frontend-first MVP** — a thinking-and-planning cockpit over one sh
 
 - **Garage** — project home, chassis-stability score, top instabilities.
 - **Pit Wall** — the Brugada dashboard: central hypothesis, molecular + clinical axes, assay stints, expected outputs, bottlenecks, next actions.
-- **Hypotheses** — falsifiable claims with predicted direction, effect size, and kill-criteria.
+- **Hypotheses** — falsifiable claims with predicted direction, effect size, and kill-criteria. Add / edit / delete from the UI.
 - **Mechanism Map** — the causal chain, each edge coloured by evidence strength, with a weakest-link callout.
-- **Assays** — the assay ↔ claim matrix with live control / power / tissue-match audits.
-- **Literature Radar** — support/contradiction + a gap map (manual import in v1).
+- **Assays** — the assay ↔ claim matrix with live control / power / tissue-match audits. Add / edit / delete, including the power fields.
+- **Literature Radar** — **live PubMed search** (NCBI E-utilities, browser-side). Link a hit to a hypothesis and add it to the graph; linking clears that hypothesis's literature-gap flag on the spot.
+- **Power · Downforce** — a two-sample power / sample-size calculator (normal approximation, with the genome-wide multiple-testing tax on α) plus a per-assay power table. This is the same math the underpowered sensor now uses.
 - **Active Suspension** — the signature feature: nine rule-based instability sensors. Toggle pre-registration or set a primary endpoint and watch a flag clear itself.
-- **Knowledge Graph** — all node-types on one draggable, typed graph.
+- **Knowledge Graph** — all node-types on one draggable, typed graph. Add nodes and edges and delete them without touching code.
 
 ### The nine sensors
 `unclear_hypothesis` · `weak_mechanistic_chain` · `missing_control` · `assay_mismatch` · `underpowered_design` · `literature_gap` · `statistical_ambiguity` · `infeasible_protocol` · `manuscript_story_weakness` — implemented as pure functions over project state in [`src/lib/suspension.ts`](src/lib/suspension.ts).
@@ -55,10 +56,12 @@ src/
   data/seed.ts        # the Brugada seed project — single source of truth
   lib/
     suspension.ts     # the active-suspension sensor rules  ← the differentiator
-    store.tsx         # localStorage-backed React store
+    power.ts          # two-sample power / sample-size math
+    pubmed.ts         # NCBI E-utilities client (browser-side)
+    store.tsx         # localStorage-backed React store with full CRUD
     palette.ts        # Williams 1993 livery tokens
-  components/         # Layout (app shell), GraphView (SVG graph), ui
-  pages/             # Garage, PitWall, Hypotheses, Mechanism, Assays, Radar, Suspension, Graph
+  components/         # Layout (app shell), GraphView (SVG graph), Modal, ui
+  pages/             # Garage, PitWall, Hypotheses, Mechanism, Assays, Radar, Power, Suspension, Graph
 db/schema.sql        # future Postgres path (graph-over-relational)
 concept/             # the WilliamsLab concept microsite (design brief)
 ```
@@ -67,7 +70,8 @@ concept/             # the WilliamsLab concept microsite (design brief)
 
 ## Roadmap
 
-- **v1.x** — PubMed E-utilities auto-ingestion; power/sample-size calculators; figure-plan & IMRaD export; LLM-assisted hypothesis critique and edge-evidence grading.
+- **Shipped** — live PubMed search & import; the power / sample-size calculator + quantitative underpowered sensor; add / edit / delete for hypotheses, assays, nodes and edges.
+- **Next** — figure-plan & IMRaD export; LLM-assisted hypothesis critique and edge-evidence grading; saved PubMed queries with contradiction ranking; power for paired / ANOVA / survival designs.
 - **v2** — the Postgres backend in `db/schema.sql`; multi-project; collaborator roles; protocol → ethics draft generation.
 - **Deliberately out of scope for now** — running real bioinformatics/compute, full ELN/LIMS, automated ethics filing, mobile.
 

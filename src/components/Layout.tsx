@@ -23,6 +23,7 @@ const NAV = [
     group: 'SIGNAL',
     items: [
       { to: '/radar', label: 'Literature Radar', icon: '◎' },
+      { to: '/power', label: 'Power · Downforce', icon: '↓' },
       { to: '/suspension', label: 'Active Suspension', icon: '⚠' },
       { to: '/graph', label: 'Knowledge Graph', icon: '⬡' },
     ],
@@ -36,6 +37,7 @@ const TITLES: Record<string, string> = {
   '/mechanism': 'Mechanism Map',
   '/assays': 'Assays',
   '/radar': 'Literature Radar',
+  '/power': 'Power · Downforce',
   '/suspension': 'Active Suspension',
   '/graph': 'Knowledge Graph',
 }

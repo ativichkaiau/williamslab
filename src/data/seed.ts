@@ -109,7 +109,7 @@ export const seed: ProjectState = {
 
   // ---- assays ----
   assays: [
-    { id: 'assay_pyroseq', method: 'Pyrosequencing', measures: 'CpG methylation %', cellType: 'whole blood + iPSC-CM', controls: 'SCN5A-neg healthy', sampleN: 24, phase: 1, effort: 'low', genomeWide: false, status: 'running', claims: ['hyp_h1'] },
+    { id: 'assay_pyroseq', method: 'Pyrosequencing', measures: 'CpG methylation %', cellType: 'whole blood + iPSC-CM', controls: 'SCN5A-neg healthy', sampleN: 24, phase: 1, effort: 'low', genomeWide: false, expectedEffect: 1.3, status: 'running', claims: ['hyp_h1'] },
     { id: 'assay_rrbs', method: 'RRBS', measures: 'genome-wide methylation', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 6, phase: 1, effort: 'high', genomeWide: true, status: 'piloting', claims: ['hyp_h1', 'hyp_h2'] },
     { id: 'assay_rnaseq', method: 'RNA-seq + qRT-PCR', measures: 'Nav1.5 expression', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, status: 'piloting', claims: ['hyp_h1', 'hyp_h3'] },
     { id: 'assay_smallrna', method: 'Small RNA-seq', measures: 'miRNA profile', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, status: 'queued', claims: ['hyp_h3'] },

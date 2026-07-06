@@ -4,7 +4,7 @@ import { Kicker, Rule, StatCard, SevDot } from '../components/ui'
 import { INSTABILITY_LABEL } from '../lib/palette'
 
 export default function Garage() {
-  const { state, instabilities, stability } = useStore()
+  const { state, instabilities, stability, reset } = useStore()
   const open = instabilities.filter((i) => i.status === 'open')
   const highs = open.filter((i) => i.severity === 'high')
 
@@ -63,6 +63,10 @@ export default function Garage() {
           ))}
         </div>
         <p className="small" style={{ marginTop: 12 }}>Currently on <b>Protocol</b> — assays are being planned and the active-suspension array is calling setup changes before data collection.</p>
+      </div>
+
+      <div className="flex" style={{ marginTop: 18, justifyContent: 'flex-end' }}>
+        <button className="icon-btn danger" onClick={() => { if (confirm('Reset all edits back to the seed Brugada project?')) reset() }}>Reset to seed data</button>
       </div>
     </>
   )

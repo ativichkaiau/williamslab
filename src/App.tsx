@@ -6,6 +6,7 @@ import Hypotheses from './pages/Hypotheses'
 import Mechanism from './pages/Mechanism'
 import Assays from './pages/Assays'
 import Radar from './pages/Radar'
+import Power from './pages/Power'
 import Suspension from './pages/Suspension'
 import Graph from './pages/Graph'
 
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="mechanism" element={<Mechanism />} />
         <Route path="assays" element={<Assays />} />
         <Route path="radar" element={<Radar />} />
+        <Route path="power" element={<Power />} />
         <Route path="suspension" element={<Suspension />} />
         <Route path="graph" element={<Graph />} />
       </Route>
