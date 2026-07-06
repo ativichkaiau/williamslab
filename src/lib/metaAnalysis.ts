@@ -143,3 +143,144 @@ export function computeMeta(studies: Study[], model: 'random' | 'fixed'): MetaRe
 }
 
 export const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : '—')
+
+// ---- per-study log-OR / SE (for Egger, subgroups) ----
+export function studyLogSE(s: Study): { logor: number; se: number } | null {
+  if (!hasData(s)) return null
+  return cells(s)
+}
+
+// ---- leave-one-out sensitivity analysis ----
+export interface LooRow {
+  excluded: string
+  k: number
+  pooledOR: number
+  low: number
+  high: number
+}
+export function leaveOneOut(studies: Study[], model: 'random' | 'fixed'): LooRow[] {
+  const incl = studies.filter(usable)
+  if (incl.length < 3) return []
+  return incl.map((s) => {
+    const m = computeMeta(incl.filter((x) => x.id !== s.id), model)
+    return { excluded: `${s.author} ${s.year}`, k: m.k, pooledOR: m.pooledOR, low: m.pooledLow, high: m.pooledHigh }
+  })
+}
+
+// ---- subgroup analysis ----
+export interface SubgroupResult {
+  groups: { name: string; k: number; pooledOR: number; low: number; high: number; I2: number }[]
+  Qbetween: number
+  dfBetween: number
+  pBetween: number
+}
+export function subgroupAnalysis(studies: Study[], model: 'random' | 'fixed', key: (s: Study) => string): SubgroupResult {
+  const incl = studies.filter(usable)
+  const byGroup = new Map<string, Study[]>()
+  incl.forEach((s) => {
+    const g = key(s) || '—'
+    if (!byGroup.has(g)) byGroup.set(g, [])
+    byGroup.get(g)!.push(s)
+  })
+  const detailed = [...byGroup.entries()].map(([name, arr]) => {
+    const m = computeMeta(arr, model)
+    const logor = Math.log(m.pooledOR)
+    const se = (Math.log(m.pooledHigh) - Math.log(m.pooledLow)) / (2 * 1.96)
+    return { name, k: m.k, pooledOR: m.pooledOR, low: m.pooledLow, high: m.pooledHigh, I2: m.I2, logor, se }
+  })
+  const valid = detailed.filter((g) => Number.isFinite(g.se) && g.se > 0)
+  const w = valid.map((g) => 1 / (g.se * g.se))
+  const sumW = w.reduce((a, b) => a + b, 0)
+  const overall = sumW > 0 ? valid.reduce((a, g, i) => a + w[i] * g.logor, 0) / sumW : 0
+  const Qbetween = valid.reduce((a, g, i) => a + w[i] * (g.logor - overall) ** 2, 0)
+  const dfBetween = Math.max(0, valid.length - 1)
+  return {
+    groups: detailed.map(({ logor, se, ...g }) => g),
+    Qbetween,
+    dfBetween,
+    pBetween: dfBetween > 0 ? chiSqP(Qbetween, dfBetween) : 1,
+  }
+}
+
+// ---- Egger's regression test for small-study effects ----
+export interface EggerResult {
+  intercept: number
+  se: number
+  t: number
+  p: number
+  k: number
+}
+export function eggersTest(studies: Study[]): EggerResult | null {
+  const incl = studies.filter(usable).map(cells)
+  const n = incl.length
+  if (n < 3) return null
+  // OLS of the standard normal deviate (logOR/SE) on precision (1/SE)
+  const pts = incl.map((c) => ({ x: 1 / c.se, y: c.logor / c.se }))
+  const sx = pts.reduce((s, p) => s + p.x, 0)
+  const sy = pts.reduce((s, p) => s + p.y, 0)
+  const sxx = pts.reduce((s, p) => s + p.x * p.x, 0)
+  const sxy = pts.reduce((s, p) => s + p.x * p.y, 0)
+  const denom = n * sxx - sx * sx
+  if (denom === 0) return null
+  const b = (n * sxy - sx * sy) / denom
+  const a = (sy - b * sx) / n
+  const resid = pts.map((p) => p.y - (a + b * p.x))
+  const s2 = resid.reduce((s, r) => s + r * r, 0) / (n - 2)
+  const seA = Math.sqrt((s2 * sxx) / denom)
+  const t = a / seA
+  return { intercept: a, se: seA, t, p: tTwoTailedP(t, n - 2), k: n }
+}
+
+// ---- t / beta helpers (Numerical Recipes) ----
+function gammaln(x: number): number {
+  const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5]
+  let y = x
+  let tmp = x + 5.5
+  tmp -= (x + 0.5) * Math.log(tmp)
+  let ser = 1.000000000190015
+  for (let j = 0; j < 6; j++) ser += c[j] / ++y
+  return -tmp + Math.log((2.5066282746310005 * ser) / x)
+}
+function betacf(a: number, b: number, x: number): number {
+  const EPS = 3e-12
+  const FPMIN = 1e-300
+  let qab = a + b
+  let qap = a + 1
+  let qam = a - 1
+  let c = 1
+  let d = 1 - (qab * x) / qap
+  if (Math.abs(d) < FPMIN) d = FPMIN
+  d = 1 / d
+  let h = d
+  for (let m = 1; m <= 200; m++) {
+    const m2 = 2 * m
+    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2))
+    d = 1 + aa * d
+    if (Math.abs(d) < FPMIN) d = FPMIN
+    c = 1 + aa / c
+    if (Math.abs(c) < FPMIN) c = FPMIN
+    d = 1 / d
+    h *= d * c
+    aa = (-(a + m) * (qab + m) * x) / ((a + m2) * (qap + m2))
+    d = 1 + aa * d
+    if (Math.abs(d) < FPMIN) d = FPMIN
+    c = 1 + aa / c
+    if (Math.abs(c) < FPMIN) c = FPMIN
+    d = 1 / d
+    const del = d * c
+    h *= del
+    if (Math.abs(del - 1) < EPS) break
+  }
+  return h
+}
+function betai(a: number, b: number, x: number): number {
+  if (x <= 0) return 0
+  if (x >= 1) return 1
+  const bt = Math.exp(gammaln(a + b) - gammaln(a) - gammaln(b) + a * Math.log(x) + b * Math.log(1 - x))
+  return x < (a + 1) / (a + b + 2) ? (bt * betacf(a, b, x)) / a : 1 - (bt * betacf(b, a, 1 - x)) / b
+}
+// two-tailed p-value for a t statistic with df degrees of freedom
+export function tTwoTailedP(t: number, df: number): number {
+  if (df < 1) return 1
+  return betai(df / 2, 0.5, df / (df + t * t))
+}

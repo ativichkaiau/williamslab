@@ -3,6 +3,7 @@ import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { Modal, Field } from '../components/Modal'
 import { studyEffect, fmt } from '../lib/metaAnalysis'
+import { parseStudies, CSV_TEMPLATE, type ImportResult } from '../lib/importStudies'
 import type { Study, RobLevel } from '../types'
 
 const ROB_COLOR: Record<RobLevel, string> = { low: 'var(--green)', some: 'var(--amber)', high: 'var(--red)' }
@@ -32,9 +33,31 @@ function toDraft(s: Study, domains: string[]): Draft {
 }
 
 export default function Studies() {
-  const { state, addStudy, updateStudy, removeStudy } = useStore()
+  const { state, addStudy, addStudies, updateStudy, removeStudy } = useStore()
   const r = state.review
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null)
+  const [imp, setImp] = useState<{ text: string; result: ImportResult | null } | null>(null)
+
+  function onFile(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result || '')
+      setImp({ text, result: text.trim() ? parseStudies(text) : null })
+    }
+    reader.readAsText(file)
+  }
+  function downloadTemplate() {
+    const url = URL.createObjectURL(new Blob([CSV_TEMPLATE], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'studies-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  function confirmImport() {
+    if (imp?.result?.studies.length) addStudies(imp.result.studies)
+    setImp(null)
+  }
   const blank: Draft = { author: '', year: '2024', pmid: '', design: 'cohort', expEvents: '', expTotal: '', ctrlEvents: '', ctrlTotal: '', include: true, rob: Object.fromEntries(r.robDomains.map((d) => [d, 'some'])), note: '' }
 
   function save() {
@@ -63,6 +86,7 @@ export default function Studies() {
         <p>{r.indexLabel} vs {r.comparatorLabel} → {r.outcomeLabel}. Toggle inclusion, edit the extracted 2×2 counts, and rate risk of bias.</p>
         <div className="head-actions">
           <button className="btn primary sm" onClick={() => setEditing({ id: null, draft: { ...blank } })}>＋ Add study</button>
+          <button className="btn ghost sm" onClick={() => setImp({ text: '', result: null })}>⤓ Import CSV / RIS</button>
         </div>
       </div>
 
@@ -146,6 +170,34 @@ export default function Studies() {
           <div className="form-actions">
             <button className="btn ghost" onClick={() => setEditing(null)}>Cancel</button>
             <button className="btn primary" onClick={save}>{editing.id ? 'Save' : 'Add study'}</button>
+          </div>
+        </Modal>
+      )}
+
+      {imp && (
+        <Modal title="Import studies" onClose={() => setImp(null)} wide>
+          <p className="small" style={{ marginBottom: 12 }}>Paste or upload a <b>CSV</b> (with optional 2×2 counts) or an <b>RIS</b> export from your screener / reference manager. Columns are matched automatically.</p>
+          <div className="flex" style={{ gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+            <label className="btn ghost sm" style={{ cursor: 'pointer' }}>
+              Choose file
+              <input type="file" accept=".csv,.ris,.txt,.tsv,.nbib" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
+            </label>
+            <button className="btn ghost sm" onClick={downloadTemplate}>Download CSV template</button>
+          </div>
+          <textarea className="textarea" rows={7} style={{ width: '100%' }} placeholder="…or paste CSV / RIS here" value={imp.text} onChange={(e) => setImp({ text: e.target.value, result: e.target.value.trim() ? parseStudies(e.target.value) : null })} />
+          {imp.result && (
+            <div className="card" style={{ marginTop: 12, background: 'var(--card-2)' }}>
+              <div className="flex"><b>{imp.result.studies.length}</b>&nbsp;studies detected · <span className="chip" style={{ marginLeft: 6 }}>{imp.result.format.toUpperCase()}</span></div>
+              {imp.result.warnings.map((w, i) => <p key={i} className="small" style={{ color: 'var(--warn-ink)', marginTop: 6 }}>⚠ {w}</p>)}
+              <div className="wrap-gap" style={{ marginTop: 8 }}>
+                {imp.result.studies.slice(0, 8).map((s, i) => <span key={i} className="pill">{s.author} {s.year || ''}{s.expTotal ? ` · ${s.expEvents}/${s.expTotal} vs ${s.ctrlEvents}/${s.ctrlTotal}` : ''}</span>)}
+                {imp.result.studies.length > 8 && <span className="pill">+{imp.result.studies.length - 8} more</span>}
+              </div>
+            </div>
+          )}
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setImp(null)}>Cancel</button>
+            <button className="btn primary" onClick={confirmImport} disabled={!imp.result?.studies.length}>Add {imp.result?.studies.length || 0} studies</button>
           </div>
         </Modal>
       )}

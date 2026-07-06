@@ -3,13 +3,26 @@ import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard } from '../components/ui'
 import { Markdown } from '../components/Markdown'
 import { ForestPlot, FunnelPlot } from '../components/srmaPlots'
-import { computeMeta, fmt } from '../lib/metaAnalysis'
+import { computeMeta, leaveOneOut, subgroupAnalysis, eggersTest, fmt } from '../lib/metaAnalysis'
 import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
+import type { Study } from '../types'
+
+const GROUPINGS: Record<string, { label: string; key: (s: Study) => string }> = {
+  period: { label: 'Publication period', key: (s) => (s.year < 2018 ? 'Before 2018' : '2018 onwards') },
+  design: { label: 'Study design', key: (s) => s.design ?? '—' },
+  robSel: { label: 'Selection risk of bias', key: (s) => (s.rob?.Selection === 'low' ? 'Low RoB' : 'Some / high RoB') },
+  custom: { label: 'Custom subgroup', key: (s) => s.subgroup ?? '—' },
+}
 
 export default function MetaAnalysis() {
   const { state, updateReview } = useStore()
   const r = state.review
   const meta = useMemo(() => computeMeta(r.studies, r.model), [r.studies, r.model])
+  const [groupBy, setGroupBy] = useState<keyof typeof GROUPINGS>('period')
+  const sub = useMemo(() => subgroupAnalysis(r.studies, r.model, GROUPINGS[groupBy].key), [r.studies, r.model, groupBy])
+  const loo = useMemo(() => leaveOneOut(r.studies, r.model), [r.studies, r.model])
+  const egger = useMemo(() => eggersTest(r.studies), [r.studies])
+  const looRange = loo.length ? { min: Math.min(...loo.map((x) => x.pooledOR)), max: Math.max(...loo.map((x) => x.pooledOR)) } : null
   const totalEvents = meta.rows.reduce((a, x) => a + x.expEvents + x.ctrlEvents, 0)
   const totalN = meta.rows.reduce((a, x) => a + x.expTotal + x.ctrlTotal, 0)
   const sig = meta.k > 0 && (meta.pooledLow > 1 || meta.pooledHigh < 1)
@@ -79,6 +92,55 @@ export default function MetaAnalysis() {
         <div className="card lg">
           <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />FUNNEL PLOT · small-study effects</div>
           <FunnelPlot result={meta} />
+        </div>
+      </div>
+
+      <div className="card lg" style={{ marginTop: 16 }}>
+        <div className="card-h" style={{ justifyContent: 'space-between' }}>
+          <span><span className="sq" style={{ background: 'var(--violet)' }} />SUBGROUP ANALYSIS</span>
+          <select className="select" style={{ width: 210 }} value={groupBy} onChange={(e) => setGroupBy(e.target.value as keyof typeof GROUPINGS)}>
+            {Object.entries(GROUPINGS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </div>
+        <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+          <table>
+            <thead><tr><th>Subgroup</th><th>k</th><th>Pooled {r.effect} [95% CI]</th><th>I²</th></tr></thead>
+            <tbody>
+              {sub.groups.map((g) => (
+                <tr key={g.name}><td><b>{g.name}</b></td><td className="mono">{g.k}</td><td className="mono">{fmt(g.pooledOR)} [{fmt(g.low)}, {fmt(g.high)}]</td><td className="mono">{fmt(g.I2, 0)}%</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="small" style={{ marginTop: 10 }}>Test for subgroup differences: Q<sub>between</sub> = {fmt(sub.Qbetween)} (df = {sub.dfBetween}), <b>p = {fmt(sub.pBetween, 3)}</b> — {sub.pBetween < 0.05 ? 'subgroups differ significantly' : 'no significant difference between subgroups'}.</p>
+      </div>
+
+      <div className="grid g2" style={{ marginTop: 16 }}>
+        <div className="card lg">
+          <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />SENSITIVITY · LEAVE-ONE-OUT</div>
+          {loo.length === 0 ? <p className="empty">Needs ≥3 pooled studies.</p> : (
+            <>
+              <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+                <table>
+                  <thead><tr><th>Omitting</th><th>Pooled {r.effect} [95% CI]</th></tr></thead>
+                  <tbody>{loo.map((x) => <tr key={x.excluded}><td>{x.excluded}</td><td className="mono">{fmt(x.pooledOR)} [{fmt(x.low)}, {fmt(x.high)}]</td></tr>)}</tbody>
+                </table>
+              </div>
+              {looRange && <p className="small" style={{ marginTop: 10 }}>Pooled {r.effect} ranges <b>{fmt(looRange.min)}–{fmt(looRange.max)}</b> across omissions — {(looRange.min > 1) === (looRange.max > 1) ? 'the direction is robust to any single study' : 'the conclusion is sensitive to individual studies'}.</p>}
+            </>
+          )}
+        </div>
+        <div className="card lg">
+          <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />PUBLICATION BIAS · EGGER'S TEST</div>
+          {!egger ? <p className="empty">Needs ≥3 pooled studies.</p> : (
+            <>
+              <div className="kv"><span className="k">Intercept</span><span className="val">{fmt(egger.intercept)} (SE {fmt(egger.se)})</span></div>
+              <div className="kv"><span className="k">t ({egger.k - 2} df)</span><span className="val">{fmt(egger.t)}</span></div>
+              <div className="kv"><span className="k">p-value</span><span className="val"><b style={{ color: egger.p < 0.05 ? 'var(--red)' : 'var(--ink)' }}>{fmt(egger.p, 3)}</b></span></div>
+              <div className="divider" />
+              <p className="small">{egger.p < 0.05 ? <>Significant intercept → evidence of <b>small-study effects / funnel asymmetry</b>.</> : <>No significant asymmetry (intercept CI includes 0).</>} Egger's test is <b>underpowered with &lt; 10 studies</b> — read it alongside the funnel plot.</p>
+            </>
+          )}
         </div>
       </div>
 

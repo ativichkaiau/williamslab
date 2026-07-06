@@ -1,0 +1,158 @@
+import type { ProjectState } from '../types'
+import { fmt, type MetaResult, type EggerResult, type LooRow } from './metaAnalysis'
+
+// ---- PRISMA 2020 checklist (abbreviated item text) ----
+export const PRISMA_CHECKLIST: { section: string; items: { n: string; item: string }[] }[] = [
+  { section: 'Title', items: [{ n: '1', item: 'Identify the report as a systematic review.' }] },
+  { section: 'Abstract', items: [{ n: '2', item: 'Structured summary (background, methods, results, conclusions).' }] },
+  {
+    section: 'Introduction',
+    items: [
+      { n: '3', item: 'Rationale for the review.' },
+      { n: '4', item: 'Objectives / review question (PICO).' },
+    ],
+  },
+  {
+    section: 'Methods',
+    items: [
+      { n: '5', item: 'Eligibility criteria.' },
+      { n: '6', item: 'Information sources (databases, dates).' },
+      { n: '7', item: 'Full search strategies.' },
+      { n: '8', item: 'Selection process.' },
+      { n: '9', item: 'Data collection process.' },
+      { n: '10', item: 'Data items (outcomes, other variables).' },
+      { n: '11', item: 'Risk-of-bias assessment.' },
+      { n: '12', item: 'Effect measures.' },
+      { n: '13', item: 'Synthesis methods.' },
+      { n: '14', item: 'Reporting-bias assessment.' },
+      { n: '15', item: 'Certainty assessment.' },
+    ],
+  },
+  {
+    section: 'Results',
+    items: [
+      { n: '16', item: 'Study selection (flow diagram).' },
+      { n: '17', item: 'Study characteristics.' },
+      { n: '18', item: 'Risk of bias in studies.' },
+      { n: '19', item: 'Results of individual studies.' },
+      { n: '20', item: 'Results of syntheses (pooled effect, heterogeneity).' },
+      { n: '21', item: 'Reporting biases.' },
+      { n: '22', item: 'Certainty of evidence.' },
+    ],
+  },
+  {
+    section: 'Discussion',
+    items: [
+      { n: '23', item: 'Interpretation, limitations, implications.' },
+    ],
+  },
+  {
+    section: 'Other',
+    items: [
+      { n: '24', item: 'Registration and protocol.' },
+      { n: '25', item: 'Support / funding.' },
+      { n: '26', item: 'Competing interests.' },
+      { n: '27', item: 'Availability of data / code.' },
+    ],
+  },
+]
+
+function hetWord(i2: number) {
+  return i2 < 25 ? 'low' : i2 < 60 ? 'moderate' : 'substantial'
+}
+
+export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: EggerResult | null, loo: LooRow[]): string {
+  const r = state.review
+  const p = r.prisma
+  const looRange = loo.length ? `${fmt(Math.min(...loo.map((x) => x.pooledOR)))}–${fmt(Math.max(...loo.map((x) => x.pooledOR)))}` : 'n/a'
+  const sig = meta.k > 0 && (meta.pooledLow > 1 || meta.pooledHigh < 1)
+  const pooled = `${r.effect} ${fmt(meta.pooledOR)} (95% CI ${fmt(meta.pooledLow)}–${fmt(meta.pooledHigh)})`
+
+  const charTable = [
+    `| Study | Design | ${r.indexLabel} (events/n) | ${r.comparatorLabel} (events/n) | ${r.effect} [95% CI] |`,
+    '| --- | --- | --- | --- | --- |',
+    ...meta.rows.map((x) => `| ${x.label} | — | ${x.expEvents}/${x.expTotal} | ${x.ctrlEvents}/${x.ctrlTotal} | ${fmt(x.or)} [${fmt(x.low)}, ${fmt(x.high)}] |`),
+  ].join('\n')
+
+  const checklist = PRISMA_CHECKLIST.map((s) => `**${s.section}**\n${s.items.map((it) => `- [x] ${it.n}. ${it.item}`).join('\n')}`).join('\n\n')
+
+  return `# ${r.title}
+
+## Abstract
+
+**Background.** ${r.question}
+
+**Methods.** We systematically searched ${r.databases.join(', ')} and screened records against pre-specified eligibility criteria. Two-by-two outcome data were extracted and pooled using an inverse-variance ${r.model}-effects model; heterogeneity was quantified with I² and τ². Risk of bias was assessed across ${r.robDomains.join(', ')}. ${r.registration ? `Registration: ${r.registration}.` : ''}
+
+**Results.** ${p.included} studies (from ${p.dbRecords + p.otherRecords} records identified) were included. The pooled estimate was ${pooled}, with ${hetWord(meta.I2)} heterogeneity (I² = ${fmt(meta.I2, 0)}%). ${egger ? `Egger's test p = ${fmt(egger.p, 3)}.` : ''}
+
+**Conclusions.** ${r.indexLabel} was ${sig ? 'significantly associated with' : 'not significantly associated with'} ${r.outcomeLabel} versus ${r.comparatorLabel}.
+
+## 1. Introduction
+
+Brugada Syndrome is an inherited arrhythmia syndrome in which risk stratification remains challenging. ${r.question} This review synthesises the available evidence.
+
+**Objective (PICO).** Population: ${r.pico.p}. Intervention/exposure: ${r.pico.i}. Comparator: ${r.pico.c}. Outcome: ${r.pico.o}.
+
+## 2. Methods
+
+**Protocol and registration.** ${r.registration || 'Not registered'}. Reported per PRISMA 2020.
+
+**Eligibility criteria.** Inclusion: ${r.inclusion.join('; ')}. Exclusion: ${r.exclusion.join('; ')}.
+
+**Information sources and search.** ${r.databases.join(', ')}. Example strategy (${r.searches[0]?.db}): \`${r.searches[0]?.query ?? ''}\`
+
+**Selection process.** Title/abstract and full-text screening were performed in a dedicated screener. ${p.dbRecords + p.otherRecords} records were identified; ${p.duplicates} duplicates were removed; ${p.screened} were screened; ${p.fullText} full texts were assessed; ${p.included} met inclusion (Figure 1).
+
+**Data items and extraction.** For each study we extracted a 2×2 table of ${r.outcomeLabel} by ${r.indexLabel} vs ${r.comparatorLabel}.
+
+**Risk of bias.** Assessed across ${r.robDomains.join(', ')} (low / some / high).
+
+**Synthesis.** Odds ratios were pooled by inverse-variance ${r.model}-effects (DerSimonian–Laird τ²). Heterogeneity: Cochran's Q and I². Robustness: leave-one-out sensitivity analysis and subgroup analysis. Small-study effects: funnel plot and Egger's regression test.
+
+## 3. Results
+
+**Study selection.** See the PRISMA flow diagram (Figure 1): ${p.included} studies were included.
+
+**Study characteristics.**
+
+${charTable}
+
+**Synthesis of results.** Pooling ${meta.k} studies (${meta.rows.reduce((a, x) => a + x.expTotal + x.ctrlTotal, 0)} patients), the ${r.model}-effects estimate was **${pooled}** (Figure 2). Heterogeneity was ${hetWord(meta.I2)} (Q = ${fmt(meta.Q)}, df = ${meta.df}, p = ${fmt(meta.pValue, 3)}; I² = ${fmt(meta.I2, 0)}%; τ² = ${fmt(meta.tau2, 3)}).
+
+**Sensitivity analysis.** Leave-one-out pooling gave ${r.effect} between ${looRange}; the direction of effect was ${loo.length && Math.min(...loo.map((x) => x.pooledOR)) > 1 === (Math.max(...loo.map((x) => x.pooledOR)) > 1) ? 'robust' : 'sensitive'} to omission of any single study.
+
+**Publication bias.** ${egger ? `Egger's regression intercept ${fmt(egger.intercept)} (SE ${fmt(egger.se)}), p = ${fmt(egger.p, 3)}${egger.p < 0.05 ? ' — evidence of funnel asymmetry' : ' — no significant asymmetry'}. ` : ''}Egger's test is underpowered with fewer than 10 studies and is interpreted alongside the funnel plot (Figure 3).
+
+## 4. Discussion
+
+The pooled analysis suggests that ${r.indexLabel} ${sig ? 'is associated with a higher risk of' : 'is not clearly associated with'} ${r.outcomeLabel}. **Limitations** include the observational nature of included studies, ${hetWord(meta.I2)} statistical heterogeneity, and limited power for publication-bias testing. **Conclusions** should be interpreted in light of risk-of-bias ratings and the sensitivity analysis.
+
+## PRISMA 2020 checklist
+
+${checklist}
+
+---
+*Draft generated by WilliamsLab. Verify all numbers and narrative before submission.*
+`
+}
+
+// standalone-HTML export styles (day-theme tokens so inline SVG var() colours resolve)
+export const EXPORT_CSS = `
+:root{--navy:#0a1f6b;--blue:#1746d1;--blue-2:#2f6bff;--red:#e2001a;--yellow:#ffcc00;--green:#12b981;--amber:#f59e0b;--violet:#7c3aed;
+--card:#fff;--card-2:#f7f9fe;--ink:#0a1230;--ink-2:#20294d;--muted:#5b6480;--line:#e3e8f4;--good:#e8f8f1;--good-ink:#0f9d6b;
+--sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}body{font-family:var(--sans);color:var(--ink);max-width:820px;margin:40px auto;padding:0 24px;line-height:1.6}
+h1{font-size:26px;margin:0 0 8px}h2{font-size:19px;margin:28px 0 8px;border-bottom:2px solid var(--line);padding-bottom:6px}
+h3{font-size:15px;margin:18px 0 6px}p{margin:10px 0}ul{margin:8px 0;padding-left:22px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:12px 0}th,td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+th{background:var(--card-2);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+figure{margin:8px 0 18px;background:var(--card-2);border:1px solid var(--line);border-radius:12px;padding:16px}
+figure svg{width:100%;height:auto}figcaption{font-size:12px;color:var(--muted);margin-top:8px;text-align:center}
+.fig-cap{font-weight:700;font-size:13px;margin:16px 0 4px}code,.md-code{font-family:var(--mono);font-size:12px;background:var(--card-2);padding:1px 5px;border-radius:5px}
+.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}
+.md-h{font-size:18px;font-weight:800;margin:24px 0 6px;border-bottom:1px solid var(--line);padding-bottom:5px}
+.md-p{margin:10px 0}.md-ul,.md-ol{margin:8px 0;padding-left:22px}
+.md-table{border-collapse:collapse;width:100%;font-size:12.5px;margin:12px 0}.md-table th,.md-table td{border:1px solid var(--line);padding:6px 9px;text-align:left}
+.md-table th{background:var(--card-2)}.md-table-wrap{overflow-x:auto}
+`

@@ -150,6 +150,7 @@ export interface Study {
   ctrlEvents?: number
   ctrlTotal?: number
   rob?: Record<string, RobLevel>
+  subgroup?: string // free-text subgroup label for subgroup analysis
   include: boolean // counts toward the pooled estimate
   note?: string
 }
