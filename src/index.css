@@ -437,3 +437,5 @@ html[data-theme="night"] pre.query{background:#060b1f}
 .manuscript figure{margin:6px 0 20px; background:var(--card-2); border:1px solid var(--line); border-radius:14px; padding:16px}
 .manuscript figure svg{width:100%; height:auto; display:block}
 .manuscript .fig-cap{font-weight:700; font-size:13px; margin:18px 0 4px; color:var(--ink)}
+.grade-badge{color:#fff; font-weight:800; font-size:13px; padding:5px 15px; border-radius:999px; letter-spacing:.02em; box-shadow:inset 0 2px 3px rgba(255,255,255,.32), inset 0 -3px 6px rgba(0,0,0,.2)}
+@media(max-width:720px){.rob-figure{grid-template-columns:1fr !important}}

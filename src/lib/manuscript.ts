@@ -1,5 +1,5 @@
 import type { ProjectState } from '../types'
-import { fmt, type MetaResult, type EggerResult, type LooRow } from './metaAnalysis'
+import { fmt, measureInfo, type MetaResult, type EggerResult, type LooRow, type GradeResult } from './metaAnalysis'
 
 // ---- PRISMA 2020 checklist (abbreviated item text) ----
 export const PRISMA_CHECKLIST: { section: string; items: { n: string; item: string }[] }[] = [
@@ -61,18 +61,21 @@ function hetWord(i2: number) {
   return i2 < 25 ? 'low' : i2 < 60 ? 'moderate' : 'substantial'
 }
 
-export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: EggerResult | null, loo: LooRow[]): string {
+export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: EggerResult | null, loo: LooRow[], grade: GradeResult): string {
   const r = state.review
   const p = r.prisma
-  const looRange = loo.length ? `${fmt(Math.min(...loo.map((x) => x.pooledOR)))}–${fmt(Math.max(...loo.map((x) => x.pooledOR)))}` : 'n/a'
-  const sig = meta.k > 0 && (meta.pooledLow > 1 || meta.pooledHigh < 1)
-  const pooled = `${r.effect} ${fmt(meta.pooledOR)} (95% CI ${fmt(meta.pooledLow)}–${fmt(meta.pooledHigh)})`
+  const binary = measureInfo(r.effect).binary
+  const looRange = loo.length ? `${fmt(Math.min(...loo.map((x) => x.est)))}–${fmt(Math.max(...loo.map((x) => x.est)))}` : 'n/a'
+  const sig = meta.k > 0 && (meta.pooledLow > meta.refValue || meta.pooledHigh < meta.refValue)
+  const pooled = `${r.effect} ${fmt(meta.pooledEst)} (95% CI ${fmt(meta.pooledLow)}–${fmt(meta.pooledHigh)})`
 
+  const col = binary ? 'events/n' : 'n'
   const charTable = [
-    `| Study | Design | ${r.indexLabel} (events/n) | ${r.comparatorLabel} (events/n) | ${r.effect} [95% CI] |`,
+    `| Study | ${r.indexLabel} (${col}) | ${r.comparatorLabel} (${col}) | ${r.effect} [95% CI] | Weight |`,
     '| --- | --- | --- | --- | --- |',
-    ...meta.rows.map((x) => `| ${x.label} | — | ${x.expEvents}/${x.expTotal} | ${x.ctrlEvents}/${x.ctrlTotal} | ${fmt(x.or)} [${fmt(x.low)}, ${fmt(x.high)}] |`),
+    ...meta.rows.map((x) => `| ${x.label} | ${binary ? `${x.expEvents}/${x.expTotal}` : x.expTotal} | ${binary ? `${x.ctrlEvents}/${x.ctrlTotal}` : x.ctrlTotal} | ${fmt(x.est)} [${fmt(x.low)}, ${fmt(x.high)}] | ${fmt(x.weight, 1)}% |`),
   ].join('\n')
+  const gradeDrops = grade.domains.filter((d) => d.drop > 0).map((d) => `${d.label.toLowerCase()} (${d.judgment})`)
 
   const checklist = PRISMA_CHECKLIST.map((s) => `**${s.section}**\n${s.items.map((it) => `- [x] ${it.n}. ${it.item}`).join('\n')}`).join('\n\n')
 
@@ -84,7 +87,7 @@ export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: Egge
 
 **Methods.** We systematically searched ${r.databases.join(', ')} and screened records against pre-specified eligibility criteria. Two-by-two outcome data were extracted and pooled using an inverse-variance ${r.model}-effects model; heterogeneity was quantified with I² and τ². Risk of bias was assessed across ${r.robDomains.join(', ')}. ${r.registration ? `Registration: ${r.registration}.` : ''}
 
-**Results.** ${p.included} studies (from ${p.dbRecords + p.otherRecords} records identified) were included. The pooled estimate was ${pooled}, with ${hetWord(meta.I2)} heterogeneity (I² = ${fmt(meta.I2, 0)}%). ${egger ? `Egger's test p = ${fmt(egger.p, 3)}.` : ''}
+**Results.** ${p.included} studies (from ${p.dbRecords + p.otherRecords} records identified) were included. The pooled estimate was ${pooled}, with ${hetWord(meta.I2)} heterogeneity (I² = ${fmt(meta.I2, 0)}%). ${egger ? `Egger's test p = ${fmt(egger.p, 3)}.` : ''} Certainty of evidence (GRADE): **${grade.certainty}**.
 
 **Conclusions.** ${r.indexLabel} was ${sig ? 'significantly associated with' : 'not significantly associated with'} ${r.outcomeLabel} versus ${r.comparatorLabel}.
 
@@ -118,11 +121,15 @@ Brugada Syndrome is an inherited arrhythmia syndrome in which risk stratificatio
 
 ${charTable}
 
+**Risk of bias.** Risk of bias across ${r.robDomains.join(', ')} is summarised in Figure 4.
+
 **Synthesis of results.** Pooling ${meta.k} studies (${meta.rows.reduce((a, x) => a + x.expTotal + x.ctrlTotal, 0)} patients), the ${r.model}-effects estimate was **${pooled}** (Figure 2). Heterogeneity was ${hetWord(meta.I2)} (Q = ${fmt(meta.Q)}, df = ${meta.df}, p = ${fmt(meta.pValue, 3)}; I² = ${fmt(meta.I2, 0)}%; τ² = ${fmt(meta.tau2, 3)}).
 
-**Sensitivity analysis.** Leave-one-out pooling gave ${r.effect} between ${looRange}; the direction of effect was ${loo.length && Math.min(...loo.map((x) => x.pooledOR)) > 1 === (Math.max(...loo.map((x) => x.pooledOR)) > 1) ? 'robust' : 'sensitive'} to omission of any single study.
+**Sensitivity analysis.** Leave-one-out pooling gave ${r.effect} between ${looRange}; the direction of effect was ${loo.length && Math.min(...loo.map((x) => x.est)) > meta.refValue === (Math.max(...loo.map((x) => x.est)) > meta.refValue) ? 'robust' : 'sensitive'} to omission of any single study.
 
 **Publication bias.** ${egger ? `Egger's regression intercept ${fmt(egger.intercept)} (SE ${fmt(egger.se)}), p = ${fmt(egger.p, 3)}${egger.p < 0.05 ? ' — evidence of funnel asymmetry' : ' — no significant asymmetry'}. ` : ''}Egger's test is underpowered with fewer than 10 studies and is interpreted alongside the funnel plot (Figure 3).
+
+**Certainty of evidence (GRADE).** The overall certainty for ${r.outcomeLabel} was rated **${grade.certainty}** (${grade.startLabel}${gradeDrops.length ? `; downgraded for ${gradeDrops.join(', ')}` : ''}${grade.upgrade ? `; upgraded for a large effect (+${grade.upgrade})` : ''}).
 
 ## 4. Discussion
 
@@ -150,7 +157,7 @@ th{background:var(--card-2);font-family:var(--mono);font-size:11px;text-transfor
 figure{margin:8px 0 18px;background:var(--card-2);border:1px solid var(--line);border-radius:12px;padding:16px}
 figure svg{width:100%;height:auto}figcaption{font-size:12px;color:var(--muted);margin-top:8px;text-align:center}
 .fig-cap{font-weight:700;font-size:13px;margin:16px 0 4px}code,.md-code{font-family:var(--mono);font-size:12px;background:var(--card-2);padding:1px 5px;border-radius:5px}
-.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}.small{font-size:12px;color:var(--muted)}.mono{font-family:var(--mono)}
 .md-h{font-size:18px;font-weight:800;margin:24px 0 6px;border-bottom:1px solid var(--line);padding-bottom:5px}
 .md-p{margin:10px 0}.md-ul,.md-ol{margin:8px 0;padding-left:22px}
 .md-table{border-collapse:collapse;width:100%;font-size:12.5px;margin:12px 0}.md-table th,.md-table td{border:1px solid var(--line);padding:6px 9px;text-align:left}

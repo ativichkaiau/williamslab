@@ -1,181 +1,181 @@
-import type { Study } from '../types'
+import type { Study, EffectMeasure, Review, GradeJudgment } from '../types'
 
 // ============================================================
-// Meta-analysis of a binary outcome (odds ratio).
-// Inverse-variance pooling, fixed-effect and DerSimonian–Laird
-// random-effects, with Cochran's Q, I² and τ². Continuity
-// correction (0.5) applied when a 2×2 cell is zero.
+// Meta-analysis engine. Supports four effect measures:
+//   OR, RR  — ratio measures pooled on the log scale
+//   RD      — risk difference, linear scale
+//   SMD     — Hedges' g from continuous data, linear scale
+// Inverse-variance fixed & DerSimonian–Laird random effects,
+// Cochran's Q / I² / τ², leave-one-out, subgroup, Egger's test,
+// and a GRADE certainty assessment.
 // ============================================================
+
+export const MEASURES: { id: EffectMeasure; label: string; scale: 'log' | 'linear'; ref: number; binary: boolean }[] = [
+  { id: 'OR', label: 'Odds ratio', scale: 'log', ref: 1, binary: true },
+  { id: 'RR', label: 'Risk ratio', scale: 'log', ref: 1, binary: true },
+  { id: 'RD', label: 'Risk difference', scale: 'linear', ref: 0, binary: true },
+  { id: 'SMD', label: "Std. mean diff (Hedges' g)", scale: 'linear', ref: 0, binary: false },
+]
+export const measureInfo = (m: EffectMeasure) => MEASURES.find((x) => x.id === m)!
+const backTransform = (m: EffectMeasure, v: number) => (measureInfo(m).scale === 'log' ? Math.exp(v) : v)
+
+export function hasBinary(s: Study): boolean {
+  return !!s.expTotal && !!s.ctrlTotal && s.expEvents !== undefined && s.ctrlEvents !== undefined
+}
+export function hasCont(s: Study): boolean {
+  return [s.mean1, s.sd1, s.n1, s.mean2, s.sd2, s.n2].every((v) => v !== undefined) && !!s.n1 && !!s.n2 && (s.sd1! > 0 || s.sd2! > 0)
+}
+
+// per-study effect on the pooling scale
+function effectPool(s: Study, m: EffectMeasure): { pool: number; se: number } | null {
+  if (m === 'SMD') {
+    if (!hasCont(s)) return null
+    const n1 = s.n1!, n2 = s.n2!
+    const sp = Math.sqrt(((n1 - 1) * s.sd1! ** 2 + (n2 - 1) * s.sd2! ** 2) / (n1 + n2 - 2))
+    if (!(sp > 0)) return null
+    const d = (s.mean1! - s.mean2!) / sp
+    const J = 1 - 3 / (4 * (n1 + n2) - 9) // Hedges' small-sample correction
+    const g = d * J
+    const se = Math.sqrt((n1 + n2) / (n1 * n2) + (g * g) / (2 * (n1 + n2)))
+    return { pool: g, se }
+  }
+  if (!hasBinary(s)) return null
+  const a = s.expEvents!, c = s.ctrlEvents!, n1 = s.expTotal!, n2 = s.ctrlTotal!
+  const b = n1 - a, d = n2 - c
+  if (m === 'OR') {
+    let A = a, B = b, C = c, D = d
+    if (A === 0 || B === 0 || C === 0 || D === 0) { A += 0.5; B += 0.5; C += 0.5; D += 0.5 }
+    return { pool: Math.log((A * D) / (B * C)), se: Math.sqrt(1 / A + 1 / B + 1 / C + 1 / D) }
+  }
+  if (m === 'RR') {
+    let A = a, C = c, N1 = n1, N2 = n2
+    if (A === 0 || C === 0) { A += 0.5; C += 0.5; N1 += 1; N2 += 1 }
+    return { pool: Math.log((A / N1) / (C / N2)), se: Math.sqrt(1 / A - 1 / N1 + 1 / C - 1 / N2) }
+  }
+  // RD
+  const p1 = a / n1, p2 = c / n2
+  return { pool: p1 - p2, se: Math.sqrt((p1 * (1 - p1)) / n1 + (p2 * (1 - p2)) / n2) }
+}
+
+export function usable(s: Study, m: EffectMeasure): boolean {
+  return s.include && effectPool(s, m) !== null
+}
+
+// per-study effect + 95% CI (for the extraction table)
+export function studyEffect(s: Study, m: EffectMeasure): { est: number; low: number; high: number } | null {
+  const e = effectPool(s, m)
+  if (!e) return null
+  return { est: backTransform(m, e.pool), low: backTransform(m, e.pool - 1.96 * e.se), high: backTransform(m, e.pool + 1.96 * e.se) }
+}
 
 export interface MetaRow {
   id: string
   label: string
-  or: number
+  est: number
   low: number
   high: number
-  logor: number
+  pool: number
   se: number
-  weight: number // % of the pooled estimate
+  weight: number
   expEvents: number
   expTotal: number
   ctrlEvents: number
   ctrlTotal: number
 }
-
 export interface MetaResult {
   rows: MetaRow[]
   k: number
-  pooledOR: number
+  pooledEst: number
   pooledLow: number
   pooledHigh: number
+  pooledPool: number
   Q: number
   df: number
   I2: number
   tau2: number
   model: 'random' | 'fixed'
-  pValue: number // heterogeneity p (Q vs chi-square, approx)
+  pValue: number
+  measure: EffectMeasure
+  scale: 'log' | 'linear'
+  refValue: number
 }
 
-function cells(s: Study) {
-  let a = s.expEvents ?? 0
-  let b = (s.expTotal ?? 0) - a
-  let c = s.ctrlEvents ?? 0
-  let d = (s.ctrlTotal ?? 0) - c
-  if (a === 0 || b === 0 || c === 0 || d === 0) {
-    a += 0.5
-    b += 0.5
-    c += 0.5
-    d += 0.5
-  }
-  const logor = Math.log((a * d) / (b * c))
-  const se = Math.sqrt(1 / a + 1 / b + 1 / c + 1 / d)
-  return { logor, se }
-}
-
-export function usable(s: Study): boolean {
-  return s.include && !!s.expTotal && !!s.ctrlTotal && s.expEvents !== undefined && s.ctrlEvents !== undefined
-}
-
-export function hasData(s: Study): boolean {
-  return !!s.expTotal && !!s.ctrlTotal && s.expEvents !== undefined && s.ctrlEvents !== undefined
-}
-
-// per-study odds ratio with 95% CI (for the extraction table), regardless of include flag
-export function studyEffect(s: Study): { or: number; low: number; high: number } | null {
-  if (!hasData(s)) return null
-  const { logor, se } = cells(s)
-  return { or: Math.exp(logor), low: Math.exp(logor - 1.96 * se), high: Math.exp(logor + 1.96 * se) }
-}
-
-// upper-tail chi-square p-value via a small series (df ≥ 1) — approximate.
-function chiSqP(x: number, df: number): number {
-  if (x <= 0 || df < 1) return 1
-  // Wilson–Hilferty approximation to the chi-square upper tail
-  const t = Math.pow(x / df, 1 / 3)
-  const m = 1 - 2 / (9 * df)
-  const s = Math.sqrt(2 / (9 * df))
-  const z = (t - m) / s
-  // upper tail of standard normal
-  return 0.5 * erfc(z / Math.SQRT2)
-}
-function erfc(x: number): number {
-  const z = Math.abs(x)
-  const t = 1 / (1 + 0.5 * z)
-  const r =
-    t *
-    Math.exp(
-      -z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))),
-    )
-  return x >= 0 ? r : 2 - r
-}
-
-export function computeMeta(studies: Study[], model: 'random' | 'fixed'): MetaResult {
-  const incl = studies.filter(usable)
-  const raw = incl.map((s) => {
-    const { logor, se } = cells(s)
-    return { s, logor, se, w: 1 / (se * se) }
-  })
+export function computeMeta(studies: Study[], model: 'random' | 'fixed', measure: EffectMeasure): MetaResult {
+  const info = measureInfo(measure)
+  const raw = studies
+    .filter((s) => s.include)
+    .map((s) => ({ s, e: effectPool(s, measure) }))
+    .filter((x): x is { s: Study; e: { pool: number; se: number } } => x.e !== null)
+    .map((x) => ({ s: x.s, pool: x.e.pool, se: x.e.se, w: 1 / (x.e.se * x.e.se) }))
   const k = raw.length
-  if (k === 0) {
-    return { rows: [], k: 0, pooledOR: 1, pooledLow: 1, pooledHigh: 1, Q: 0, df: 0, I2: 0, tau2: 0, model, pValue: 1 }
+  const base: Omit<MetaResult, 'rows' | 'pooledEst' | 'pooledLow' | 'pooledHigh' | 'pooledPool' | 'Q' | 'I2' | 'tau2' | 'pValue' | 'k' | 'df'> = {
+    model,
+    measure,
+    scale: info.scale,
+    refValue: info.ref,
   }
+  if (k === 0) return { ...base, rows: [], k: 0, pooledEst: info.ref, pooledLow: info.ref, pooledHigh: info.ref, pooledPool: 0, Q: 0, df: 0, I2: 0, tau2: 0, pValue: 1 }
+
   const sumW = raw.reduce((a, r) => a + r.w, 0)
-  const fixedLog = raw.reduce((a, r) => a + r.w * r.logor, 0) / sumW
-  const Q = raw.reduce((a, r) => a + r.w * (r.logor - fixedLog) ** 2, 0)
+  const fixed = raw.reduce((a, r) => a + r.w * r.pool, 0) / sumW
+  const Q = raw.reduce((a, r) => a + r.w * (r.pool - fixed) ** 2, 0)
   const df = k - 1
   const C = sumW - raw.reduce((a, r) => a + r.w * r.w, 0) / sumW
   const tau2 = C > 0 ? Math.max(0, (Q - df) / C) : 0
   const I2 = Q > df ? Math.max(0, ((Q - df) / Q) * 100) : 0
-
   const wStar = raw.map((r) => (model === 'random' ? 1 / (r.se * r.se + tau2) : r.w))
   const sumWStar = wStar.reduce((a, b) => a + b, 0)
-  const pooledLog = raw.reduce((a, r, i) => a + wStar[i] * r.logor, 0) / sumWStar
+  const pooledPool = raw.reduce((a, r, i) => a + wStar[i] * r.pool, 0) / sumWStar
   const sePooled = Math.sqrt(1 / sumWStar)
 
   const rows: MetaRow[] = raw.map((r, i) => ({
     id: r.s.id,
     label: `${r.s.author} ${r.s.year}`,
-    or: Math.exp(r.logor),
-    low: Math.exp(r.logor - 1.96 * r.se),
-    high: Math.exp(r.logor + 1.96 * r.se),
-    logor: r.logor,
+    est: backTransform(measure, r.pool),
+    low: backTransform(measure, r.pool - 1.96 * r.se),
+    high: backTransform(measure, r.pool + 1.96 * r.se),
+    pool: r.pool,
     se: r.se,
     weight: (wStar[i] / sumWStar) * 100,
     expEvents: r.s.expEvents ?? 0,
-    expTotal: r.s.expTotal ?? 0,
+    expTotal: r.s.expTotal ?? r.s.n1 ?? 0,
     ctrlEvents: r.s.ctrlEvents ?? 0,
-    ctrlTotal: r.s.ctrlTotal ?? 0,
+    ctrlTotal: r.s.ctrlTotal ?? r.s.n2 ?? 0,
   }))
-
   return {
+    ...base,
     rows,
     k,
-    pooledOR: Math.exp(pooledLog),
-    pooledLow: Math.exp(pooledLog - 1.96 * sePooled),
-    pooledHigh: Math.exp(pooledLog + 1.96 * sePooled),
+    pooledEst: backTransform(measure, pooledPool),
+    pooledLow: backTransform(measure, pooledPool - 1.96 * sePooled),
+    pooledHigh: backTransform(measure, pooledPool + 1.96 * sePooled),
+    pooledPool,
     Q,
     df,
     I2,
     tau2,
-    model,
     pValue: chiSqP(Q, df),
   }
 }
 
-export const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : '—')
-
-// ---- per-study log-OR / SE (for Egger, subgroups) ----
-export function studyLogSE(s: Study): { logor: number; se: number } | null {
-  if (!hasData(s)) return null
-  return cells(s)
-}
-
-// ---- leave-one-out sensitivity analysis ----
-export interface LooRow {
-  excluded: string
-  k: number
-  pooledOR: number
-  low: number
-  high: number
-}
-export function leaveOneOut(studies: Study[], model: 'random' | 'fixed'): LooRow[] {
-  const incl = studies.filter(usable)
+export interface LooRow { excluded: string; k: number; est: number; low: number; high: number }
+export function leaveOneOut(studies: Study[], model: 'random' | 'fixed', measure: EffectMeasure): LooRow[] {
+  const incl = studies.filter((s) => usable(s, measure))
   if (incl.length < 3) return []
   return incl.map((s) => {
-    const m = computeMeta(incl.filter((x) => x.id !== s.id), model)
-    return { excluded: `${s.author} ${s.year}`, k: m.k, pooledOR: m.pooledOR, low: m.pooledLow, high: m.pooledHigh }
+    const m = computeMeta(incl.filter((x) => x.id !== s.id), model, measure)
+    return { excluded: `${s.author} ${s.year}`, k: m.k, est: m.pooledEst, low: m.pooledLow, high: m.pooledHigh }
   })
 }
 
-// ---- subgroup analysis ----
 export interface SubgroupResult {
-  groups: { name: string; k: number; pooledOR: number; low: number; high: number; I2: number }[]
+  groups: { name: string; k: number; est: number; low: number; high: number; I2: number }[]
   Qbetween: number
   dfBetween: number
   pBetween: number
 }
-export function subgroupAnalysis(studies: Study[], model: 'random' | 'fixed', key: (s: Study) => string): SubgroupResult {
-  const incl = studies.filter(usable)
+export function subgroupAnalysis(studies: Study[], model: 'random' | 'fixed', measure: EffectMeasure, key: (s: Study) => string): SubgroupResult {
+  const incl = studies.filter((s) => usable(s, measure))
   const byGroup = new Map<string, Study[]>()
   incl.forEach((s) => {
     const g = key(s) || '—'
@@ -183,39 +183,30 @@ export function subgroupAnalysis(studies: Study[], model: 'random' | 'fixed', ke
     byGroup.get(g)!.push(s)
   })
   const detailed = [...byGroup.entries()].map(([name, arr]) => {
-    const m = computeMeta(arr, model)
-    const logor = Math.log(m.pooledOR)
-    const se = (Math.log(m.pooledHigh) - Math.log(m.pooledLow)) / (2 * 1.96)
-    return { name, k: m.k, pooledOR: m.pooledOR, low: m.pooledLow, high: m.pooledHigh, I2: m.I2, logor, se }
+    const m = computeMeta(arr, model, measure)
+    const se = (Math.log(Math.max(m.pooledHigh, 1e-6)) - Math.log(Math.max(m.pooledLow, 1e-6))) / (2 * 1.96)
+    return { name, k: m.k, est: m.pooledEst, low: m.pooledLow, high: m.pooledHigh, I2: m.I2, pool: m.pooledPool, se: m.scale === 'log' ? se : (m.pooledHigh - m.pooledLow) / (2 * 1.96) }
   })
   const valid = detailed.filter((g) => Number.isFinite(g.se) && g.se > 0)
   const w = valid.map((g) => 1 / (g.se * g.se))
   const sumW = w.reduce((a, b) => a + b, 0)
-  const overall = sumW > 0 ? valid.reduce((a, g, i) => a + w[i] * g.logor, 0) / sumW : 0
-  const Qbetween = valid.reduce((a, g, i) => a + w[i] * (g.logor - overall) ** 2, 0)
+  const overall = sumW > 0 ? valid.reduce((a, g, i) => a + w[i] * g.pool, 0) / sumW : 0
+  const Qbetween = valid.reduce((a, g, i) => a + w[i] * (g.pool - overall) ** 2, 0)
   const dfBetween = Math.max(0, valid.length - 1)
   return {
-    groups: detailed.map(({ logor, se, ...g }) => g),
+    groups: detailed.map(({ pool, se, ...g }) => g),
     Qbetween,
     dfBetween,
     pBetween: dfBetween > 0 ? chiSqP(Qbetween, dfBetween) : 1,
   }
 }
 
-// ---- Egger's regression test for small-study effects ----
-export interface EggerResult {
-  intercept: number
-  se: number
-  t: number
-  p: number
-  k: number
-}
-export function eggersTest(studies: Study[]): EggerResult | null {
-  const incl = studies.filter(usable).map(cells)
+export interface EggerResult { intercept: number; se: number; t: number; p: number; k: number }
+export function eggersTest(studies: Study[], measure: EffectMeasure): EggerResult | null {
+  const incl = studies.filter((s) => usable(s, measure)).map((s) => effectPool(s, measure)!)
   const n = incl.length
   if (n < 3) return null
-  // OLS of the standard normal deviate (logOR/SE) on precision (1/SE)
-  const pts = incl.map((c) => ({ x: 1 / c.se, y: c.logor / c.se }))
+  const pts = incl.map((c) => ({ x: 1 / c.se, y: c.pool / c.se }))
   const sx = pts.reduce((s, p) => s + p.x, 0)
   const sy = pts.reduce((s, p) => s + p.y, 0)
   const sxx = pts.reduce((s, p) => s + p.x * p.x, 0)
@@ -231,7 +222,71 @@ export function eggersTest(studies: Study[]): EggerResult | null {
   return { intercept: a, se: seA, t, p: tTwoTailedP(t, n - 2), k: n }
 }
 
-// ---- t / beta helpers (Numerical Recipes) ----
+// ---- GRADE certainty of evidence ----
+export interface GradeDomain { key: string; label: string; judgment: string; drop: number; auto: string }
+export interface GradeResult {
+  startLabel: string
+  domains: GradeDomain[]
+  upgrade: number
+  upgradeLabel: string
+  finalLevel: number
+  certainty: 'High' | 'Moderate' | 'Low' | 'Very low'
+}
+const dropOf = (j: GradeJudgment) => (j === 'very serious' ? 2 : j === 'serious' ? 1 : 0)
+
+export function autoGrade(review: Review, meta: MetaResult, egger: EggerResult | null) {
+  const incl = review.studies.filter((s) => s.include)
+  const highFrac = incl.length ? incl.filter((s) => Object.values(s.rob || {}).includes('high')).length / incl.length : 0
+  const rob: GradeJudgment = highFrac > 0.5 ? 'very serious' : highFrac > 0 ? 'serious' : 'not serious'
+  const inconsistency: GradeJudgment = meta.I2 >= 75 ? 'very serious' : meta.I2 >= 50 ? 'serious' : 'not serious'
+  const crosses = meta.pooledLow < meta.refValue && meta.pooledHigh > meta.refValue
+  const totalN = meta.rows.reduce((a, x) => a + x.expTotal + x.ctrlTotal, 0)
+  const imprecision: GradeJudgment = crosses ? 'serious' : totalN < 400 ? 'serious' : 'not serious'
+  const pubBias: 'undetected' | 'serious' = egger && egger.p < 0.05 ? 'serious' : 'undetected'
+  let largeEffect: 'none' | 'large' | 'very large' = 'none'
+  if ((review.grade?.design ?? 'observational') !== 'rct' && meta.scale === 'log' && !crosses) {
+    const e = meta.pooledEst
+    largeEffect = e >= 5 || e <= 0.2 ? 'very large' : e >= 2 || e <= 0.5 ? 'large' : 'none'
+  }
+  return { rob, inconsistency, indirectness: 'not serious' as GradeJudgment, imprecision, pubBias, largeEffect }
+}
+
+export function computeGrade(review: Review, meta: MetaResult, egger: EggerResult | null): GradeResult {
+  const auto = autoGrade(review, meta, egger)
+  const g = review.grade ?? { design: 'observational' as const }
+  const design = g.design ?? 'observational'
+  const start = design === 'rct' ? 4 : 2
+  const rows: [string, string, GradeJudgment, string][] = [
+    ['rob', 'Risk of bias', (g.rob ?? auto.rob) as GradeJudgment, auto.rob],
+    ['inconsistency', 'Inconsistency', (g.inconsistency ?? auto.inconsistency) as GradeJudgment, auto.inconsistency],
+    ['indirectness', 'Indirectness', (g.indirectness ?? auto.indirectness) as GradeJudgment, auto.indirectness],
+    ['imprecision', 'Imprecision', (g.imprecision ?? auto.imprecision) as GradeJudgment, auto.imprecision],
+  ]
+  const domains: GradeDomain[] = rows.map(([key, label, judgment, autoV]) => ({ key, label, judgment, drop: dropOf(judgment), auto: autoV }))
+  const pb = (g.pubBias ?? auto.pubBias) as string
+  domains.push({ key: 'pubBias', label: 'Publication bias', judgment: pb, drop: pb === 'serious' ? 1 : 0, auto: auto.pubBias })
+  const totalDrop = domains.reduce((a, d) => a + d.drop, 0)
+  const up = (g.largeEffect ?? auto.largeEffect) as string
+  const upgrade = design === 'rct' ? 0 : up === 'very large' ? 2 : up === 'large' ? 1 : 0
+  const finalLevel = Math.max(1, Math.min(4, start - totalDrop + upgrade))
+  const certainty = (['', 'Very low', 'Low', 'Moderate', 'High'][finalLevel] || 'Very low') as GradeResult['certainty']
+  return { startLabel: design === 'rct' ? 'RCT (start: High)' : 'Observational (start: Low)', domains, upgrade, upgradeLabel: up, finalLevel, certainty }
+}
+
+// ---- statistics helpers ----
+function chiSqP(x: number, df: number): number {
+  if (x <= 0 || df < 1) return 1
+  const t = Math.pow(x / df, 1 / 3)
+  const m = 1 - 2 / (9 * df)
+  const s = Math.sqrt(2 / (9 * df))
+  return 0.5 * erfc((t - m) / s / Math.SQRT2)
+}
+function erfc(x: number): number {
+  const z = Math.abs(x)
+  const t = 1 / (1 + 0.5 * z)
+  const r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))))
+  return x >= 0 ? r : 2 - r
+}
 function gammaln(x: number): number {
   const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5]
   let y = x
@@ -242,13 +297,9 @@ function gammaln(x: number): number {
   return -tmp + Math.log((2.5066282746310005 * ser) / x)
 }
 function betacf(a: number, b: number, x: number): number {
-  const EPS = 3e-12
-  const FPMIN = 1e-300
-  let qab = a + b
-  let qap = a + 1
-  let qam = a - 1
-  let c = 1
-  let d = 1 - (qab * x) / qap
+  const EPS = 3e-12, FPMIN = 1e-300
+  const qab = a + b, qap = a + 1, qam = a - 1
+  let c = 1, d = 1 - (qab * x) / qap
   if (Math.abs(d) < FPMIN) d = FPMIN
   d = 1 / d
   let h = d
@@ -279,8 +330,9 @@ function betai(a: number, b: number, x: number): number {
   const bt = Math.exp(gammaln(a + b) - gammaln(a) - gammaln(b) + a * Math.log(x) + b * Math.log(1 - x))
   return x < (a + 1) / (a + b + 2) ? (bt * betacf(a, b, x)) / a : 1 - (bt * betacf(b, a, 1 - x)) / b
 }
-// two-tailed p-value for a t statistic with df degrees of freedom
 export function tTwoTailedP(t: number, df: number): number {
   if (df < 1) return 1
   return betai(df / 2, 0.5, df / (df + t * t))
 }
+
+export const fmt = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : '—')

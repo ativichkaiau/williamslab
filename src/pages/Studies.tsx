@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { Modal, Field } from '../components/Modal'
-import { studyEffect, fmt } from '../lib/metaAnalysis'
+import { studyEffect, measureInfo, fmt } from '../lib/metaAnalysis'
+import { RobPlot } from '../components/srmaPlots'
 import { parseStudies, CSV_TEMPLATE, type ImportResult } from '../lib/importStudies'
 import type { Study, RobLevel } from '../types'
 
@@ -18,16 +19,23 @@ type Draft = {
   expTotal: string
   ctrlEvents: string
   ctrlTotal: string
+  mean1: string
+  sd1: string
+  n1: string
+  mean2: string
+  sd2: string
+  n2: string
   include: boolean
   rob: Record<string, RobLevel>
   note: string
 }
 
+const str = (v: number | undefined) => (v === undefined ? '' : String(v))
 function toDraft(s: Study, domains: string[]): Draft {
   return {
     author: s.author, year: String(s.year), pmid: s.pmid ?? '', design: s.design ?? '',
-    expEvents: s.expEvents?.toString() ?? '', expTotal: s.expTotal?.toString() ?? '',
-    ctrlEvents: s.ctrlEvents?.toString() ?? '', ctrlTotal: s.ctrlTotal?.toString() ?? '',
+    expEvents: str(s.expEvents), expTotal: str(s.expTotal), ctrlEvents: str(s.ctrlEvents), ctrlTotal: str(s.ctrlTotal),
+    mean1: str(s.mean1), sd1: str(s.sd1), n1: str(s.n1), mean2: str(s.mean2), sd2: str(s.sd2), n2: str(s.n2),
     include: s.include, rob: Object.fromEntries(domains.map((d) => [d, s.rob?.[d] ?? 'some'])), note: s.note ?? '',
   }
 }
@@ -58,7 +66,8 @@ export default function Studies() {
     if (imp?.result?.studies.length) addStudies(imp.result.studies)
     setImp(null)
   }
-  const blank: Draft = { author: '', year: '2024', pmid: '', design: 'cohort', expEvents: '', expTotal: '', ctrlEvents: '', ctrlTotal: '', include: true, rob: Object.fromEntries(r.robDomains.map((d) => [d, 'some'])), note: '' }
+  const binary = measureInfo(r.effect).binary
+  const blank: Draft = { author: '', year: '2024', pmid: '', design: 'cohort', expEvents: '', expTotal: '', ctrlEvents: '', ctrlTotal: '', mean1: '', sd1: '', n1: '', mean2: '', sd2: '', n2: '', include: true, rob: Object.fromEntries(r.robDomains.map((d) => [d, 'some'])), note: '' }
 
   function save() {
     if (!editing) return
@@ -69,6 +78,12 @@ export default function Studies() {
       expTotal: d.expTotal === '' ? undefined : Math.max(0, Math.round(+d.expTotal)),
       ctrlEvents: d.ctrlEvents === '' ? undefined : Math.max(0, Math.round(+d.ctrlEvents)),
       ctrlTotal: d.ctrlTotal === '' ? undefined : Math.max(0, Math.round(+d.ctrlTotal)),
+      mean1: d.mean1 === '' ? undefined : +d.mean1,
+      sd1: d.sd1 === '' ? undefined : +d.sd1,
+      n1: d.n1 === '' ? undefined : Math.max(0, Math.round(+d.n1)),
+      mean2: d.mean2 === '' ? undefined : +d.mean2,
+      sd2: d.sd2 === '' ? undefined : +d.sd2,
+      n2: d.n2 === '' ? undefined : Math.max(0, Math.round(+d.n2)),
       include: d.include, rob: d.rob, note: d.note || undefined,
     }
     if (editing.id) updateStudy(editing.id, patch)
@@ -101,7 +116,7 @@ export default function Studies() {
           </thead>
           <tbody>
             {r.studies.map((s) => {
-              const eff = studyEffect(s)
+              const eff = studyEffect(s, r.effect)
               return (
                 <tr key={s.id} style={s.include ? undefined : { opacity: 0.5 }}>
                   <td><input type="checkbox" checked={s.include} onChange={(e) => updateStudy(s.id, { include: e.target.checked })} /></td>
@@ -110,9 +125,9 @@ export default function Studies() {
                     {s.pmid && <div className="small mono"><a href={`https://pubmed.ncbi.nlm.nih.gov/${s.pmid}/`} target="_blank" rel="noreferrer">PMID {s.pmid} ↗</a></div>}
                   </td>
                   <td className="muted">{s.design ?? '—'}</td>
-                  <td className="mono">{s.expEvents ?? '—'}/{s.expTotal ?? '—'}</td>
-                  <td className="mono">{s.ctrlEvents ?? '—'}/{s.ctrlTotal ?? '—'}</td>
-                  <td className="mono">{eff ? `${fmt(eff.or)} [${fmt(eff.low)}, ${fmt(eff.high)}]` : <span className="muted">no data</span>}</td>
+                  <td className="mono">{binary ? `${s.expEvents ?? '—'}/${s.expTotal ?? '—'}` : (s.mean1 !== undefined ? `${s.mean1}±${s.sd1} (${s.n1})` : '—')}</td>
+                  <td className="mono">{binary ? `${s.ctrlEvents ?? '—'}/${s.ctrlTotal ?? '—'}` : (s.mean2 !== undefined ? `${s.mean2}±${s.sd2} (${s.n2})` : '—')}</td>
+                  <td className="mono">{eff ? `${fmt(eff.est)} [${fmt(eff.low)}, ${fmt(eff.high)}]` : <span className="muted">no data</span>}</td>
                   {r.robDomains.map((d) => (
                     <td key={d}><span className="rob-dot" style={{ background: ROB_COLOR[s.rob?.[d] ?? 'some'] }} title={`${d}: ${s.rob?.[d] ?? 'some'}`} /></td>
                   ))}
@@ -136,6 +151,11 @@ export default function Studies() {
         <span className="small">{r.studies.filter((s) => s.include).length} of {r.studies.length} included</span>
       </div>
 
+      <div className="card lg" style={{ marginTop: 16 }}>
+        <div className="card-h"><span className="sq" style={{ background: 'var(--accent, var(--blue))' }} />RISK-OF-BIAS SUMMARY</div>
+        <RobPlot studies={r.studies} domains={r.robDomains} />
+      </div>
+
       {editing && (
         <Modal title={editing.id ? 'Edit study' : 'Add study'} onClose={() => setEditing(null)} wide>
           <div className="form-row three">
@@ -144,14 +164,31 @@ export default function Studies() {
             <Field label="PMID"><input className="input" value={editing.draft.pmid} onChange={(e) => set({ pmid: e.target.value })} /></Field>
           </div>
           <Field label="Design"><input className="input" value={editing.draft.design} onChange={(e) => set({ design: e.target.value })} placeholder="prospective cohort" /></Field>
-          <div className="form-row">
-            <Field label={`${r.indexLabel} — events`}><input className="input" type="number" value={editing.draft.expEvents} onChange={(e) => set({ expEvents: e.target.value })} /></Field>
-            <Field label={`${r.indexLabel} — total`}><input className="input" type="number" value={editing.draft.expTotal} onChange={(e) => set({ expTotal: e.target.value })} /></Field>
-          </div>
-          <div className="form-row">
-            <Field label={`${r.comparatorLabel} — events`}><input className="input" type="number" value={editing.draft.ctrlEvents} onChange={(e) => set({ ctrlEvents: e.target.value })} /></Field>
-            <Field label={`${r.comparatorLabel} — total`}><input className="input" type="number" value={editing.draft.ctrlTotal} onChange={(e) => set({ ctrlTotal: e.target.value })} /></Field>
-          </div>
+          {binary ? (
+            <>
+              <div className="form-row">
+                <Field label={`${r.indexLabel} — events`}><input className="input" type="number" value={editing.draft.expEvents} onChange={(e) => set({ expEvents: e.target.value })} /></Field>
+                <Field label={`${r.indexLabel} — total`}><input className="input" type="number" value={editing.draft.expTotal} onChange={(e) => set({ expTotal: e.target.value })} /></Field>
+              </div>
+              <div className="form-row">
+                <Field label={`${r.comparatorLabel} — events`}><input className="input" type="number" value={editing.draft.ctrlEvents} onChange={(e) => set({ ctrlEvents: e.target.value })} /></Field>
+                <Field label={`${r.comparatorLabel} — total`}><input className="input" type="number" value={editing.draft.ctrlTotal} onChange={(e) => set({ ctrlTotal: e.target.value })} /></Field>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="form-row three">
+                <Field label={`${r.indexLabel} — mean`}><input className="input" type="number" step="any" value={editing.draft.mean1} onChange={(e) => set({ mean1: e.target.value })} /></Field>
+                <Field label="SD"><input className="input" type="number" step="any" value={editing.draft.sd1} onChange={(e) => set({ sd1: e.target.value })} /></Field>
+                <Field label="n"><input className="input" type="number" value={editing.draft.n1} onChange={(e) => set({ n1: e.target.value })} /></Field>
+              </div>
+              <div className="form-row three">
+                <Field label={`${r.comparatorLabel} — mean`}><input className="input" type="number" step="any" value={editing.draft.mean2} onChange={(e) => set({ mean2: e.target.value })} /></Field>
+                <Field label="SD"><input className="input" type="number" step="any" value={editing.draft.sd2} onChange={(e) => set({ sd2: e.target.value })} /></Field>
+                <Field label="n"><input className="input" type="number" value={editing.draft.n2} onChange={(e) => set({ n2: e.target.value })} /></Field>
+              </div>
+            </>
+          )}
           <Field label="Risk of bias">
             <div className="form-row three">
               {r.robDomains.map((d) => (
