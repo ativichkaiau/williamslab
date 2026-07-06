@@ -277,3 +277,33 @@ html[data-theme="night"] .md-h{color:var(--blue-2)}
 .md-ul,.md-ol{margin:8px 0; padding-left:22px}
 .md-ul li,.md-ol li{margin:4px 0}
 .md-code{font-family:var(--mono); font-size:12.5px; background:var(--card-2); border:1px solid var(--line); border-radius:6px; padding:1px 5px}
+
+/* ---------- theory reference ---------- */
+.theory{display:grid; grid-template-columns:214px 1fr; gap:28px; align-items:start}
+@media(max-width:900px){.theory{grid-template-columns:1fr}}
+.theory-toc{position:sticky; top:76px; align-self:start}
+@media(max-width:900px){.theory-toc{position:static; margin-bottom:8px}}
+.theory-toc .h{font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:700; padding:0 10px 8px}
+.toc-link{display:flex; gap:8px; padding:7px 10px; border-radius:8px; font-size:12.5px; font-weight:600; color:var(--ink-2); border-left:2px solid transparent; cursor:pointer; background:none; border-top:none; border-right:none; border-bottom:none; width:100%; text-align:left; font-family:inherit}
+.toc-link:hover{background:var(--card-2)}
+.toc-link.active{color:var(--chip-ink); border-left-color:var(--blue); background:var(--chip)}
+.toc-link .n{font-family:var(--mono); color:var(--muted); font-size:10px}
+.theory-body{min-width:0; display:flex; flex-direction:column; gap:14px}
+.theory-sec{scroll-margin-top:76px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px}
+.theory-sec > h2{font-size:20px; margin-bottom:8px; display:flex; align-items:center; gap:10px}
+.theory-sec > h2 .no{font-family:var(--mono); font-size:12px; color:var(--red); font-weight:700}
+.prose{font-size:14px; line-height:1.62; color:var(--ink-2)}
+.prose p{margin:10px 0}
+.prose h3{font-size:14.5px; color:var(--ink); margin:16px 0 6px; font-weight:800}
+.prose ul{margin:8px 0; padding-left:20px}
+.prose li{margin:5px 0}
+.prose b,.prose strong{color:var(--ink)}
+.prose .term{color:var(--blue); font-weight:700}
+.keybox{border-radius:12px; padding:13px 15px; margin:14px 0; font-size:13px; line-height:1.55; border:1px solid var(--line)}
+.keybox .kb-l{font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; display:block; margin-bottom:5px}
+.keybox.hy{background:var(--warn)} .keybox.hy .kb-l{color:var(--warn-ink)}
+.keybox.research{background:var(--chip)} .keybox.research .kb-l{color:var(--chip-ink)}
+.keybox.hy{border-color:color-mix(in srgb,var(--amber) 30%,var(--line))}
+.keybox.research{border-color:color-mix(in srgb,var(--blue) 26%,var(--line))}
+.theory-sec table{min-width:520px}
+.theory-sec .tbl-scroll{margin:12px 0}
