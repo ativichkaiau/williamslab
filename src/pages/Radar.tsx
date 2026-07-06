@@ -49,7 +49,7 @@ export default function Radar() {
     <>
       <div className="page-head">
         <Rule />
-        <Kicker>LITERATURE RADAR · LIVE PUBMED</Kicker>
+        <Kicker>LITERATURE · LIVE PUBMED</Kicker>
         <h1>Literature Radar</h1>
         <p>Search PubMed live, link a hit to the hypothesis it bears on, and add it to the graph. Linking a paper to a hypothesis clears that hypothesis's literature-gap flag on the spot.</p>
       </div>

@@ -5,14 +5,14 @@ import { SEVERITY_COLOR } from '../lib/palette'
 
 const NAV = [
   {
-    group: 'COCKPIT',
+    group: 'OVERVIEW',
     items: [
-      { to: '/', label: 'Garage', icon: '⌂', end: true },
-      { to: '/pit-wall', label: 'Pit Wall', icon: '▤' },
+      { to: '/', label: 'Overview', icon: '⌂', end: true },
+      { to: '/pit-wall', label: 'Dashboard', icon: '▤' },
     ],
   },
   {
-    group: 'BUILD',
+    group: 'DESIGN',
     items: [
       { to: '/hypotheses', label: 'Hypotheses', icon: '◆' },
       { to: '/mechanism', label: 'Mechanism Map', icon: '⇄' },
@@ -20,26 +20,33 @@ const NAV = [
     ],
   },
   {
-    group: 'SIGNAL',
+    group: 'EVIDENCE',
     items: [
-      { to: '/radar', label: 'Literature Radar', icon: '◎' },
-      { to: '/power', label: 'Power · Downforce', icon: '↓' },
-      { to: '/suspension', label: 'Active Suspension', icon: '⚠' },
+      { to: '/radar', label: 'Literature', icon: '◎' },
+      { to: '/power', label: 'Statistical Power', icon: '∑' },
+      { to: '/suspension', label: 'Rigor Monitor', icon: '⚠' },
+    ],
+  },
+  {
+    group: 'KNOWLEDGE',
+    items: [
       { to: '/graph', label: 'Knowledge Graph', icon: '⬡' },
+      { to: '/review', label: 'Knowledge Review', icon: '✦' },
     ],
   },
 ]
 
 const TITLES: Record<string, string> = {
-  '/': 'Garage',
-  '/pit-wall': 'Pit Wall',
+  '/': 'Overview',
+  '/pit-wall': 'Dashboard',
   '/hypotheses': 'Hypotheses',
   '/mechanism': 'Mechanism Map',
   '/assays': 'Assays',
-  '/radar': 'Literature Radar',
-  '/power': 'Power · Downforce',
-  '/suspension': 'Active Suspension',
+  '/radar': 'Literature',
+  '/power': 'Statistical Power',
+  '/suspension': 'Rigor Monitor',
   '/graph': 'Knowledge Graph',
+  '/review': 'Knowledge Review',
 }
 
 function gaugeColor(v: number) {
@@ -93,9 +100,9 @@ export default function Layout() {
           ))}
         </nav>
         <div className="sb-foot">
-          FW15C · v0.1
+          WilliamsLab · v0.1
           <br />
-          MACHINE 03 / 03
+          Project {state.project.code}
         </div>
       </aside>
 
@@ -107,7 +114,7 @@ export default function Layout() {
           </div>
           <div className="right">
             <span className="proj-chip">{state.project.code} · Y1</span>
-            <span className="gauge" title="Chassis stability">
+            <span className="gauge" title="Project rigor">
               <span className="track">
                 <i style={{ width: `${Math.round(stability * 100)}%`, background: gaugeColor(stability) }} />
               </span>

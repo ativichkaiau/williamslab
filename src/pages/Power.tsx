@@ -43,9 +43,9 @@ export default function Power() {
     <>
       <div className="page-head">
         <Rule />
-        <Kicker>DOWNFORCE · STATISTICAL POWER</Kicker>
+        <Kicker>STATISTICAL POWER · SAMPLE SIZE</Kicker>
         <h1>Power &amp; sample size</h1>
-        <p>Two-sample comparison (patient vs control) on a continuous readout, normal approximation to the t-test. Genome-wide assays pay a multiple-testing tax on α — the same math the underpowered sensor now uses.</p>
+        <p>Two-sample comparison (patient vs control) on a continuous readout, normal approximation to the t-test. Genome-wide assays pay a multiple-testing tax on α — the same math the rigor monitor now uses.</p>
       </div>
 
       <div className="grid g2" style={{ marginBottom: 16 }}>

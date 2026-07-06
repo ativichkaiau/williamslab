@@ -9,6 +9,7 @@ import Radar from './pages/Radar'
 import Power from './pages/Power'
 import Suspension from './pages/Suspension'
 import Graph from './pages/Graph'
+import Review from './pages/Review'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="power" element={<Power />} />
         <Route path="suspension" element={<Suspension />} />
         <Route path="graph" element={<Graph />} />
+        <Route path="review" element={<Review />} />
       </Route>
     </Routes>
   )

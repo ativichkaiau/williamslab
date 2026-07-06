@@ -64,7 +64,7 @@ export default function Assays() {
         <Rule />
         <Kicker>ASSAY PLANNER · CLAIM ↔ ASSAY MATRIX</Kicker>
         <h1>Assays</h1>
-        <p>Each assay is bound to the hypotheses it addresses and the cell type it runs in. The suspension array audits controls, power, and tissue match in the right-hand column.</p>
+        <p>Each assay is bound to the hypotheses it addresses and the cell type it runs in. The rigor monitor audits controls, power, and tissue match in the right-hand column.</p>
         <div className="head-actions">
           <button className="btn primary sm" onClick={() => setEditing({ id: null, draft: { ...blank } })}>＋ New assay</button>
         </div>

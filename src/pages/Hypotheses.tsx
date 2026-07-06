@@ -56,7 +56,7 @@ export default function Hypotheses() {
         <Rule />
         <Kicker>HYPOTHESIS GRAPH · FALSIFIABLE CLAIMS</Kicker>
         <h1>Hypotheses</h1>
-        <p>Every claim carries a predicted direction, an effect size, and the observation that would kill it. Flags come live from the active-suspension array.</p>
+        <p>Every claim carries a predicted direction, an effect size, and the observation that would kill it. Flags come live from the rigor monitor.</p>
         <div className="head-actions">
           <button className="btn primary sm" onClick={() => setEditing({ id: null, draft: { ...blank } })}>＋ New hypothesis</button>
         </div>

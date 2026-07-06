@@ -20,19 +20,19 @@ export default function Suspension() {
     <>
       <div className="page-head">
         <Rule />
-        <Kicker>RESEARCH ACTIVE SUSPENSION · SENSOR ARRAY</Kicker>
-        <h1>Active Suspension</h1>
-        <p>Nine sensors watch the research chassis. Each open flag drags stability down; apply the repair — or clear one live below — and the chassis re-plants.</p>
+        <Kicker>RIGOR MONITOR · STUDY-DESIGN INTEGRITY</Kicker>
+        <h1>Rigor Monitor</h1>
+        <p>Nine automated checks watch the study design. Each open flag lowers the project's rigor score; apply the fix — or clear one live below — and the score recovers.</p>
       </div>
 
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <div className="stat">
           <b style={{ color: gaugeCol }}>{Math.round(stability * 100)}%</b>
-          <span>Chassis stability</span>
+          <span>Rigor score</span>
           <div className="sub">{open} open · {instabilities.length - open} handled</div>
         </div>
         <div className="card" style={{ gridColumn: 'span 2' }}>
-          <div className="card-h"><span className="sq" style={{ background: 'var(--blue)' }} />LIVE REPAIRS · STATISTICAL STRATEGY</div>
+          <div className="card-h"><span className="sq" style={{ background: 'var(--blue)' }} />QUICK FIXES · STATISTICAL STRATEGY</div>
           <label className="flex" style={{ cursor: 'pointer', marginBottom: 8 }}>
             <input type="checkbox" checked={state.project.preRegistered} onChange={(e) => setPreRegistered(e.target.checked)} />
             <span style={{ fontSize: 13, fontWeight: 600 }}>Pre-register the analysis plan</span>
@@ -47,7 +47,7 @@ export default function Suspension() {
               onChange={(e) => setPrimaryEndpoint(e.target.value || undefined)}
             />
           </div>
-          <p className="small" style={{ marginTop: 8 }}>Set both and the <b>statistical-ambiguity</b> flag clears itself — the sensor is reading real project state.</p>
+          <p className="small" style={{ marginTop: 8 }}>Set both and the <b>statistical-ambiguity</b> flag clears itself — the check reads real project state.</p>
         </div>
       </div>
 
@@ -55,10 +55,10 @@ export default function Suspension() {
         <table>
           <thead>
             <tr>
-              <th>Sensor</th>
+              <th>Check</th>
               <th>Target</th>
               <th>Warning sign</th>
-              <th>Repair</th>
+              <th>Fix</th>
               <th>Status</th>
             </tr>
           </thead>
