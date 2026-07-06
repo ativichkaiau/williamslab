@@ -1,4 +1,5 @@
 import type { ProjectState, Instability, Severity } from '../types'
+import { assayPowerReport, fmtAlpha } from './power'
 
 // ============================================================
 // Research Active Suspension — the sensor array.
@@ -6,7 +7,6 @@ import type { ProjectState, Instability, Severity } from '../types'
 // Each rule watches one way a research chassis loses grip.
 // ============================================================
 
-const GENOME_WIDE_MIN_N = 12 // below this, genome-wide FDR loses power
 const HIGH_EFFORT_PER_PHASE = 2 // more than this in one phase = infeasible
 
 export function computeInstabilities(s: ProjectState): Instability[] {
@@ -90,18 +90,20 @@ export function computeInstabilities(s: ProjectState): Instability[] {
     }
   }
 
-  // 5 · underpowered design — genome-wide assay with too few samples
+  // 5 · underpowered design — quantitative two-sample power (see lib/power.ts)
   for (const a of s.assays) {
-    if (a.genomeWide && a.sampleN !== undefined && a.sampleN < GENOME_WIDE_MIN_N) {
-      const severity: Severity = a.sampleN < 8 ? 'high' : 'med'
+    const rep = assayPowerReport(a)
+    if (rep && !rep.adequate) {
+      const severity: Severity = rep.power < 0.4 ? 'high' : 'med'
+      const gw = a.genomeWide ? ` (genome-wide, ~${rep.tests.toLocaleString()} tests)` : ''
       out.push({
         id: `inst_power_${a.id}`,
         type: 'underpowered_design',
         severity,
         target: a.id,
         targetLabel: a.method,
-        signal: `Genome-wide assay at n=${a.sampleN} — under the n≥${GENOME_WIDE_MIN_N} needed for FDR power.`,
-        repair: 'Make a targeted locus the primary endpoint; run the power calc; treat the genome-wide arm as discovery.',
+        signal: `Power ≈ ${Math.round(rep.power * 100)}% to detect d=${rep.d} at α=${fmtAlpha(rep.alpha)}${gw} with n=${rep.nPerGroup}/group.`,
+        repair: `Reach ≥${rep.requiredNPerGroup}/group (${rep.requiredTotalN} total), raise the detectable effect, or make a targeted locus the primary endpoint.`,
         status: 'open',
       })
     }

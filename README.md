@@ -24,14 +24,25 @@ A research project loses grip the same way a race car does — a vague hypothesi
 
 This is a **frontend-first MVP** — a thinking-and-planning cockpit over one shared graph, not a data-processing backend. Everything is derived from a single seed project object and persisted to `localStorage`.
 
-- **Garage** — project home, chassis-stability score, top instabilities.
-- **Pit Wall** — the Brugada dashboard: central hypothesis, molecular + clinical axes, assay stints, expected outputs, bottlenecks, next actions.
-- **Hypotheses** — falsifiable claims with predicted direction, effect size, and kill-criteria.
+- **Overview** — project home, rigor score, top issues.
+- **Dashboard** — the Brugada project at a glance: central hypothesis, molecular + clinical axes, planned assays, expected outputs, bottlenecks, next steps.
+- **Hypotheses** — falsifiable claims with predicted direction, effect size, and kill-criteria. Add / edit / delete from the UI.
 - **Mechanism Map** — the causal chain, each edge coloured by evidence strength, with a weakest-link callout.
-- **Assays** — the assay ↔ claim matrix with live control / power / tissue-match audits.
-- **Literature Radar** — support/contradiction + a gap map (manual import in v1).
-- **Active Suspension** — the signature feature: nine rule-based instability sensors. Toggle pre-registration or set a primary endpoint and watch a flag clear itself.
-- **Knowledge Graph** — all node-types on one draggable, typed graph.
+- **Assays** — the assay ↔ claim matrix with live control / power / tissue-match audits. Add / edit / delete, including the power fields.
+- **Literature** — **live PubMed search** (NCBI E-utilities, browser-side). Link a hit to a hypothesis and add it to the graph; linking clears that hypothesis's literature-gap flag on the spot.
+- **Statistical Power** — a two-sample power / sample-size calculator (normal approximation, with the genome-wide multiple-testing tax on α) plus a per-assay power table. This is the same math the rigor monitor uses.
+- **Rigor Monitor** — the signature feature: nine rule-based study-design checks. Toggle pre-registration or set a primary endpoint and watch a flag clear itself.
+- **Knowledge Graph** — all node-types on one draggable, typed graph. Add nodes and edges and delete them without touching code.
+- **Knowledge Review** — an AI-powered, high-yield review of Brugada Syndrome (OpenAI, streaming), tied to your project's hypotheses. Topic presets + free-form Q&A. See setup below.
+
+### Knowledge Review — OpenAI setup
+
+The Knowledge Review page calls OpenAI directly from the browser (the API is CORS-enabled). Provide a key either way:
+
+1. **In-app (recommended):** Knowledge Review → **⚙ Settings** → paste your key. It is stored only in your browser's `localStorage`.
+2. **Env file:** copy `.env.example` to `.env.local` and set `VITE_OPENAI_API_KEY=sk-…`, then `npm run dev`. `.env.local` is gitignored.
+
+Default model is `gpt-5.1-chat-latest`; switch to `gpt-4o` / `gpt-4o-mini` etc. in Settings. **Never commit a key or deploy a build that inlines one.**
 
 ### The nine sensors
 `unclear_hypothesis` · `weak_mechanistic_chain` · `missing_control` · `assay_mismatch` · `underpowered_design` · `literature_gap` · `statistical_ambiguity` · `infeasible_protocol` · `manuscript_story_weakness` — implemented as pure functions over project state in [`src/lib/suspension.ts`](src/lib/suspension.ts).
@@ -54,11 +65,16 @@ src/
   types.ts            # the knowledge-graph schema (nodes, edges, hypotheses, assays…)
   data/seed.ts        # the Brugada seed project — single source of truth
   lib/
-    suspension.ts     # the active-suspension sensor rules  ← the differentiator
-    store.tsx         # localStorage-backed React store
+    suspension.ts     # the rigor-monitor checks  ← the differentiator
+    power.ts          # two-sample power / sample-size math
+    pubmed.ts         # NCBI E-utilities client (browser-side)
+    openai.ts         # OpenAI streaming client (browser-side, BYO key)
+    brsReview.ts      # Brugada review presets + context-aware system prompt
+    store.tsx         # localStorage-backed React store with full CRUD
     palette.ts        # Williams 1993 livery tokens
-  components/         # Layout (app shell), GraphView (SVG graph), ui
-  pages/             # Garage, PitWall, Hypotheses, Mechanism, Assays, Radar, Suspension, Graph
+  components/         # Layout (app shell), GraphView (SVG graph), Modal, Markdown, ui
+  pages/             # Overview(Garage), Dashboard(PitWall), Hypotheses, Mechanism,
+                     # Assays, Literature(Radar), Power, Rigor(Suspension), Graph, Review
 db/schema.sql        # future Postgres path (graph-over-relational)
 concept/             # the WilliamsLab concept microsite (design brief)
 ```
@@ -67,7 +83,8 @@ concept/             # the WilliamsLab concept microsite (design brief)
 
 ## Roadmap
 
-- **v1.x** — PubMed E-utilities auto-ingestion; power/sample-size calculators; figure-plan & IMRaD export; LLM-assisted hypothesis critique and edge-evidence grading.
+- **Shipped** — live PubMed search & import; the power / sample-size calculator + quantitative underpowered check; add / edit / delete for hypotheses, assays, nodes and edges; the OpenAI-powered Knowledge Review.
+- **Next** — LLM-assisted hypothesis critique and edge-evidence grading (reuse the OpenAI client); figure-plan & IMRaD export; saved PubMed queries with contradiction ranking; power for paired / ANOVA / survival designs.
 - **v2** — the Postgres backend in `db/schema.sql`; multi-project; collaborator roles; protocol → ethics draft generation.
 - **Deliberately out of scope for now** — running real bioinformatics/compute, full ELN/LIMS, automated ethics filing, mobile.
 

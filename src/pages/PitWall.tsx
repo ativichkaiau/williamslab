@@ -36,8 +36,8 @@ export default function PitWall() {
     <>
       <div className="page-head">
         <Rule />
-        <Kicker>LIVE TELEMETRY · THE PIT WALL</Kicker>
-        <h1>Brugada program — one glance at the whole car</h1>
+        <Kicker>PROJECT DASHBOARD</Kicker>
+        <h1>Brugada program — the whole project at a glance</h1>
       </div>
 
       <div className="grid g2">
@@ -72,7 +72,7 @@ export default function PitWall() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card">
-            <div className="card-h"><span className="sq" style={{ background: 'var(--green)' }} />ASSAY STINTS</div>
+            <div className="card-h"><span className="sq" style={{ background: 'var(--green)' }} />PLANNED ASSAYS</div>
             {state.assays.map((a) => (
               <div className="stint" key={a.id}>
                 <div>
@@ -105,7 +105,7 @@ export default function PitWall() {
           </div>
 
           <div className="card">
-            <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />NEXT BEST ACTIONS · RACE ENGINEER</div>
+            <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />RECOMMENDED NEXT STEPS</div>
             {actions.map((a, idx) => (
               <div className="action" key={a.id}>
                 <div className="n">{idx + 1}</div>

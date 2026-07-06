@@ -22,6 +22,14 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, showLabe
   const [drag, setDrag] = useState<string | null>(null)
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
 
+  // Effective position: dragged position if we have one, else the node's own
+  // layout hint. This keeps nodes added *after* mount visible.
+  const posOf = (id: string): { x: number; y: number } | null => {
+    if (pos[id]) return pos[id]
+    const n = byId.get(id)
+    return n ? { x: n.x ?? 500, y: n.y ?? 320 } : null
+  }
+
   const toSvg = (clientX: number, clientY: number) => {
     const svg = svgRef.current
     if (!svg) return { x: 0, y: 0 }
@@ -60,8 +68,8 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, showLabe
 
       {/* edges */}
       {edges.map((e) => {
-        const a = pos[e.src]
-        const b = pos[e.dst]
+        const a = posOf(e.src)
+        const b = posOf(e.dst)
         if (!a || !b) return null
         const dx = b.x - a.x
         const dy = b.y - a.y
@@ -97,7 +105,7 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, showLabe
 
       {/* nodes */}
       {nodes.map((n) => {
-        const p = pos[n.id]
+        const p = posOf(n.id)
         if (!p) return null
         const c = nodeColor(n.type)
         const selected = selectedId === n.id

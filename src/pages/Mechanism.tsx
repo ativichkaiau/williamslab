@@ -33,7 +33,7 @@ export default function Mechanism() {
         <Rule />
         <Kicker>MECHANISM MAP · MOLECULE → PHENOTYPE</Kicker>
         <h1>Mechanism Map</h1>
-        <p>The causal load path, each edge coloured by how planted it is. Drag nodes to rearrange; click one for detail. Dashed / amber edges are where the chassis pitches.</p>
+        <p>The causal chain from molecule to phenotype, each edge coloured by how well-supported it is. Drag nodes to rearrange; click one for detail. Dashed / amber edges are the weak, unproven links.</p>
       </div>
 
       <div className="graph-wrap">
@@ -89,7 +89,7 @@ export default function Mechanism() {
                 <p className="small" style={{ marginTop: 6 }}>
                   Evidence: <b>{weakest.evidence}</b> · strength {Math.round((weakest.strength ?? 0) * 100)}%.
                   {(!weakest.testedBy || weakest.testedBy.length === 0)
-                    ? ' No assay bridges this edge yet — this is the corner where the project loses grip.'
+                    ? ' No assay bridges this edge yet — this is the weakest step in the causal chain.'
                     : ` Bridged by: ${weakest.testedBy.join(', ')}.`}
                 </p>
               </>

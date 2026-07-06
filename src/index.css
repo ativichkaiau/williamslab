@@ -207,6 +207,36 @@ td .muted{color:var(--muted)}
 .kv .k{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); width:92px; flex:none; padding-top:2px}
 .kv .val{color:var(--ink-2)}
 
+/* ---------- modal + forms ---------- */
+.modal-overlay{position:fixed; inset:0; background:rgba(6,10,26,.55); backdrop-filter:blur(3px); display:grid; place-items:center; z-index:100; padding:20px}
+.modal{background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow-lg); width:min(560px,100%); max-height:88vh; display:flex; flex-direction:column}
+.modal.wide{width:min(760px,100%)}
+.modal-head{display:flex; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line)}
+.modal-head h3{font-size:16px}
+.modal-x{margin-left:auto; border:none; background:var(--card-2); color:var(--muted); width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:12px}
+.modal-x:hover{background:var(--bad); color:var(--bad-ink)}
+.modal-body{padding:18px 20px; overflow-y:auto}
+.field{display:flex; flex-direction:column; gap:5px; margin-bottom:14px}
+.field-l{font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.field-h{font-size:11px; color:var(--muted)}
+.input,.select,.textarea{font-family:var(--sans); font-size:13.5px; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:10px; padding:9px 11px; width:100%}
+.input:focus,.select:focus,.textarea:focus{outline:none; border-color:var(--blue); box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 16%, transparent)}
+.textarea{resize:vertical; min-height:74px; line-height:1.5; font-family:var(--sans)}
+.form-row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:560px){.form-row,.form-row.three{grid-template-columns:1fr}}
+.form-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:8px; padding-top:14px; border-top:1px solid var(--line)}
+.checks{display:flex; flex-wrap:wrap; gap:8px}
+.check{display:flex; align-items:center; gap:7px; font-size:12.5px; border:1px solid var(--line); border-radius:9px; padding:7px 10px; cursor:pointer}
+.check input{accent-color:var(--blue)}
+.check.on{border-color:var(--blue); background:var(--chip); color:var(--chip-ink)}
+.row-actions{display:flex; gap:6px}
+.icon-btn{border:1px solid var(--line); background:var(--card); border-radius:8px; padding:5px 9px; cursor:pointer; font-size:11.5px; font-weight:700; color:var(--ink-2); white-space:nowrap}
+.icon-btn:hover{background:var(--card-2)}
+.icon-btn.danger:hover{background:var(--bad); color:var(--bad-ink); border-color:var(--bad-ink)}
+.head-actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
+.err{background:var(--bad); color:var(--bad-ink); border:1px solid color-mix(in srgb,var(--bad-ink) 30%, var(--line)); border-radius:10px; padding:10px 12px; font-size:12.5px; margin-bottom:12px}
+
 .empty{color:var(--muted); font-size:13px; font-style:italic}
 .divider{height:1px; background:var(--line); margin:16px 0}
 .flex{display:flex; gap:10px; align-items:center}
@@ -214,3 +244,36 @@ td .muted{color:var(--muted)}
 .spacer{flex:1}
 .small{font-size:12px; color:var(--muted)}
 code.inl{font-family:var(--mono); font-size:12px; background:var(--card-2); border:1px solid var(--line); border-radius:6px; padding:1px 6px; color:var(--ink-2)}
+
+/* ---------- knowledge review ---------- */
+.preset{text-align:left; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; cursor:pointer; transition:.12s; display:flex; flex-direction:column; gap:4px}
+.preset:hover{border-color:var(--blue); background:var(--card-2); transform:translateY(-1px)}
+.preset:disabled{opacity:.5; cursor:default; transform:none}
+.preset b{font-size:13.5px}
+.preset span{font-size:11.5px; color:var(--muted)}
+.thread{display:flex; flex-direction:column; gap:14px; margin-bottom:16px}
+.msg{padding:14px 16px; border-radius:14px; font-size:14px; line-height:1.55}
+.msg.user{align-self:flex-end; max-width:88%; background:var(--navy); color:#fff; border-bottom-right-radius:4px; white-space:pre-wrap}
+.msg.assistant{align-self:flex-start; width:100%; background:var(--card); border:1px solid var(--line); box-shadow:var(--shadow); border-bottom-left-radius:4px}
+.typing{color:var(--muted); font-size:13px}
+.typing span{animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+.composer{position:sticky; bottom:0; background:linear-gradient(180deg, transparent, var(--paper) 24%); padding-top:8px}
+.preset-bar{display:flex; gap:8px; overflow-x:auto; padding-bottom:10px}
+.chip-btn{flex:none; font-size:12px; font-weight:700; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink-2); cursor:pointer; white-space:nowrap}
+.chip-btn:hover{border-color:var(--blue); color:var(--blue)}
+.chip-btn:disabled{opacity:.5; cursor:default}
+.composer-row{display:flex; gap:10px; align-items:flex-end}
+.composer-row .textarea{flex:1; min-height:52px}
+
+/* markdown */
+.md{font-size:14px; line-height:1.6; color:var(--ink)}
+.md-h{margin:14px 0 6px; font-size:15px; color:var(--navy); font-weight:800}
+.md-h:first-child{margin-top:0}
+html[data-theme="night"] .md-h{color:var(--blue-2)}
+.md-p{margin:8px 0}
+.md-ul,.md-ol{margin:8px 0; padding-left:22px}
+.md-ul li,.md-ol li{margin:4px 0}
+.md-code{font-family:var(--mono); font-size:12.5px; background:var(--card-2); border:1px solid var(--line); border-radius:6px; padding:1px 5px}
