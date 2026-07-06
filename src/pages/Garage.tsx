@@ -18,10 +18,10 @@ export default function Garage() {
       </div>
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <StatCard value={`${Math.round(stability * 100)}%`} label="Project rigor" sub={`${open.length} open flags`} />
-        <StatCard value={state.hypotheses.length} label="Hypotheses" sub="on the graph" />
-        <StatCard value={state.assays.length} label="Assays planned" sub={`${state.assays.filter((a) => a.status === 'running' || a.status === 'piloting').length} in progress`} />
-        <StatCard value={state.nodes.length} label="Graph nodes" sub={`${state.edges.length} edges`} />
+        <StatCard value={`${Math.round(stability * 100)}%`} label="Project rigor" sub={`${open.length} open flags`} tone="#1746d1" />
+        <StatCard value={state.hypotheses.length} label="Hypotheses" sub="on the graph" tone="#7c3aed" />
+        <StatCard value={state.assays.length} label="Assays planned" sub={`${state.assays.filter((a) => a.status === 'running' || a.status === 'piloting').length} in progress`} tone="#12b981" />
+        <StatCard value={state.nodes.length} label="Graph nodes" sub={`${state.edges.length} edges`} tone="#f59e0b" />
       </div>
 
       <div className="grid g2">

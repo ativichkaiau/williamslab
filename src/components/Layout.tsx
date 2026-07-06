@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useStore } from '../lib/store'
 import { SEVERITY_COLOR } from '../lib/palette'
 import AssistantDock from './AssistantDock'
@@ -7,36 +7,43 @@ import AssistantDock from './AssistantDock'
 const NAV = [
   {
     group: 'OVERVIEW',
+    accent: '#1746d1',
     items: [
-      { to: '/', label: 'Overview', icon: '⌂', end: true },
-      { to: '/pit-wall', label: 'Dashboard', icon: '▤' },
+      { to: '/', label: 'Overview', icon: '⌂', color: '#1746d1', end: true },
+      { to: '/pit-wall', label: 'Dashboard', icon: '▤', color: '#0891b2' },
     ],
   },
   {
     group: 'DESIGN',
+    accent: '#7c3aed',
     items: [
-      { to: '/hypotheses', label: 'Hypotheses', icon: '◆' },
-      { to: '/mechanism', label: 'Mechanism Map', icon: '⇄' },
-      { to: '/assays', label: 'Assays', icon: '▣' },
+      { to: '/hypotheses', label: 'Hypotheses', icon: '◆', color: '#7c3aed' },
+      { to: '/mechanism', label: 'Mechanism Map', icon: '⇄', color: '#2f6bff' },
+      { to: '/assays', label: 'Assays', icon: '▣', color: '#12b981' },
     ],
   },
   {
     group: 'EVIDENCE',
+    accent: '#f59e0b',
     items: [
-      { to: '/radar', label: 'Literature', icon: '◎' },
-      { to: '/power', label: 'Statistical Power', icon: '∑' },
-      { to: '/suspension', label: 'Rigor Monitor', icon: '⚠' },
+      { to: '/radar', label: 'Literature', icon: '◎', color: '#f59e0b' },
+      { to: '/power', label: 'Statistical Power', icon: '∑', color: '#0891b2' },
+      { to: '/suspension', label: 'Rigor Monitor', icon: '⚠', color: '#e2001a' },
     ],
   },
   {
     group: 'KNOWLEDGE',
+    accent: '#db2777',
     items: [
-      { to: '/graph', label: 'Knowledge Graph', icon: '⬡' },
-      { to: '/theory', label: 'BrS Theory', icon: '§' },
-      { to: '/review', label: 'Knowledge Review', icon: '✦' },
+      { to: '/graph', label: 'Knowledge Graph', icon: '⬡', color: '#4f46e5' },
+      { to: '/theory', label: 'BrS Theory', icon: '§', color: '#db2777' },
+      { to: '/review', label: 'Knowledge Review', icon: '✦', color: '#1746d1' },
     ],
   },
 ]
+
+// each route's signature accent (drives the page-head glow, kicker, stats, topbar)
+const ACCENT: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.to, i.color])))
 
 const TITLES: Record<string, string> = {
   '/': 'Overview',
@@ -70,6 +77,7 @@ export default function Layout() {
 
   const openFlags = instabilities.filter((i) => i.status === 'open').length
   const title = TITLES[loc.pathname] ?? 'WilliamsLab'
+  const accent = ACCENT[loc.pathname] ?? '#1746d1'
 
   return (
     <div className="shell">
@@ -84,12 +92,13 @@ export default function Layout() {
         <nav className="sb-nav">
           {NAV.map((g) => (
             <div className="sb-sec" key={g.group}>
-              <div className="h">{g.group}</div>
+              <div className="h" style={{ color: g.accent }}>{g.group}</div>
               {g.items.map((it) => (
                 <NavLink
                   key={it.to}
                   to={it.to}
                   end={it.end}
+                  style={{ ['--ic' as string]: it.color } as CSSProperties}
                   className={({ isActive }) => `sb-link${isActive ? ' active' : ''}`}
                 >
                   <span className="ic">{it.icon}</span>
@@ -109,7 +118,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      <div className="main">
+      <div className="main" style={{ ['--accent' as string]: accent } as CSSProperties}>
         <div className="topbar">
           <div>
             <div className="title">{title}</div>

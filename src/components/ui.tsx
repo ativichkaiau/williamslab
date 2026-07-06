@@ -53,10 +53,10 @@ export function SevDot({ severity, label }: { severity: Severity; label?: string
   )
 }
 
-export function StatCard({ value, label, sub }: { value: React.ReactNode; label: string; sub?: string }) {
+export function StatCard({ value, label, sub, tone }: { value: React.ReactNode; label: string; sub?: string; tone?: string }) {
   return (
-    <div className="stat">
-      <b>{value}</b>
+    <div className="stat" style={tone ? { borderTopColor: tone } : undefined}>
+      <b style={tone ? { color: tone } : undefined}>{value}</b>
       <span>{label}</span>
       {sub && <div className="sub">{sub}</div>}
     </div>
