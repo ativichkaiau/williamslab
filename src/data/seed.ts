@@ -129,5 +129,69 @@ export const seed: ProjectState = {
     { id: 'paper_ipsc', pmid: '31106349', doi: '10.1093/europace/euz122', title: 'A cellular model of Brugada syndrome with SCN10A variants using human iPSC-derived cardiomyocytes', year: 2019, stance: 'background', targets: ['hyp_h2'], tags: ['iPSC-CM', 'SCN10A', 'Europace'] },
   ],
 
+  // ---- systematic review & meta-analysis ----
+  // Studies are REAL (PubMed identities); the 2×2 event counts are EXAMPLE
+  // values to be replaced with your extracted data (edit on the Studies page).
+  review: {
+    title: 'Spontaneous vs drug-induced type-1 ECG and arrhythmic events in Brugada Syndrome: a systematic review and meta-analysis',
+    question:
+      'In patients with Brugada Syndrome, does a spontaneous (vs drug-induced) type-1 ECG pattern predict a higher risk of major arrhythmic events?',
+    pico: {
+      p: 'Patients with Brugada Syndrome',
+      i: 'Spontaneous type-1 ECG pattern',
+      c: 'Drug-induced type-1 ECG pattern',
+      o: 'Major arrhythmic events (VF, appropriate ICD shock, sudden cardiac death)',
+    },
+    inclusion: [
+      'Cohort / observational studies of Brugada patients',
+      'Arrhythmic events reported by spontaneous vs drug-induced type-1 status',
+      'Adults (≥18y); mean follow-up ≥12 months',
+      'Extractable 2×2 event data (or adjustable to it)',
+    ],
+    exclusion: [
+      'Case reports / series (n < 10)',
+      'No event data stratified by type-1 status',
+      'Reviews, editorials, conference abstracts only',
+      'Overlapping / duplicate cohorts (keep the largest)',
+    ],
+    databases: ['PubMed / MEDLINE', 'Embase', 'Cochrane CENTRAL', 'Web of Science'],
+    searches: [
+      { db: 'PubMed', query: '("Brugada Syndrome"[Mesh] OR Brugada) AND (spontaneous OR "drug-induced" OR ajmaline OR flecainide) AND ("arrhythmic events" OR "ventricular fibrillation" OR "sudden cardiac death" OR prognosis)' },
+      { db: 'Embase', query: "'brugada syndrome'/exp AND ('spontaneous type 1' OR 'drug induced') AND ('arrhythmia'/exp OR 'sudden death'/exp)" },
+    ],
+    registration: 'PROSPERO — to register',
+    screenerUrl: 'https://vestrippn-srma-telemetry.vercel.app',
+    outcomeLabel: 'Arrhythmic events',
+    indexLabel: 'Spontaneous type-1',
+    comparatorLabel: 'Drug-induced type-1',
+    effect: 'OR',
+    model: 'random',
+    robDomains: ['Selection', 'Comparability', 'Outcome'],
+    prisma: {
+      dbRecords: 842,
+      otherRecords: 15,
+      duplicates: 236,
+      screened: 621,
+      excludedScreen: 548,
+      fullText: 73,
+      fullTextExcluded: [
+        { reason: 'No event data by type-1 status', n: 31 },
+        { reason: 'Overlapping / duplicate cohort', n: 14 },
+        { reason: 'Review / editorial / abstract', n: 12 },
+        { reason: 'Follow-up < 12 months', n: 9 },
+      ],
+      included: 7,
+    },
+    studies: [
+      { id: 'st_nishizaki', author: 'Nishizaki', year: 2010, pmid: '20962431', design: 'prospective cohort', expEvents: 8, expTotal: 60, ctrlEvents: 3, ctrlTotal: 70, include: true, rob: { Selection: 'low', Comparability: 'some', Outcome: 'low' } },
+      { id: 'st_mizusawa', author: 'Mizusawa', year: 2016, pmid: '27033637', design: 'cohort', expEvents: 12, expTotal: 90, ctrlEvents: 6, ctrlTotal: 110, include: true, rob: { Selection: 'low', Comparability: 'low', Outcome: 'low' } },
+      { id: 'st_sieira', author: 'Sieira', year: 2017, pmid: '28479512', design: 'cohort', expEvents: 20, expTotal: 140, ctrlEvents: 15, ctrlTotal: 180, include: true, rob: { Selection: 'low', Comparability: 'low', Outcome: 'some' } },
+      { id: 'st_michowitz', author: 'Michowitz', year: 2018, pmid: '29649615', design: 'multicentre registry', expEvents: 15, expTotal: 85, ctrlEvents: 9, ctrlTotal: 120, include: true, rob: { Selection: 'some', Comparability: 'some', Outcome: 'low' } },
+      { id: 'st_camkiran', author: 'Camkiran', year: 2024, pmid: '38701276', design: 'cohort', expEvents: 6, expTotal: 50, ctrlEvents: 4, ctrlTotal: 65, include: true, rob: { Selection: 'some', Comparability: 'high', Outcome: 'some' } },
+      { id: 'st_tuijnenburg', author: 'Tuijnenburg', year: 2025, pmid: '39491571', design: 'cohort', expEvents: 25, expTotal: 200, ctrlEvents: 18, ctrlTotal: 260, include: true, rob: { Selection: 'low', Comparability: 'low', Outcome: 'low' } },
+      { id: 'st_monaco', author: 'Monaco', year: 2025, pmid: '40088219', design: 'cohort', expEvents: 30, expTotal: 210, ctrlEvents: 12, ctrlTotal: 190, include: true, rob: { Selection: 'low', Comparability: 'some', Outcome: 'low' } },
+    ],
+  },
+
   instabilityOverrides: {},
 }

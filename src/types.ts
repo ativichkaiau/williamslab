@@ -135,6 +135,54 @@ export interface Project {
   primaryEndpoint?: string
 }
 
+// ---- systematic review & meta-analysis (SRMA) ----
+export type RobLevel = 'low' | 'some' | 'high'
+
+export interface Study {
+  id: string
+  author: string
+  year: number
+  pmid?: string
+  design?: string
+  // 2×2 for a binary outcome: exposed = index group, ctrl = comparator
+  expEvents?: number
+  expTotal?: number
+  ctrlEvents?: number
+  ctrlTotal?: number
+  rob?: Record<string, RobLevel>
+  include: boolean // counts toward the pooled estimate
+  note?: string
+}
+
+export interface Review {
+  title: string
+  question: string
+  pico: { p: string; i: string; c: string; o: string }
+  inclusion: string[]
+  exclusion: string[]
+  databases: string[]
+  searches: { db: string; query: string }[]
+  registration?: string
+  screenerUrl: string
+  outcomeLabel: string
+  indexLabel: string // the exposed/index group
+  comparatorLabel: string
+  effect: 'OR' | 'RR'
+  model: 'random' | 'fixed'
+  robDomains: string[]
+  prisma: {
+    dbRecords: number
+    otherRecords: number
+    duplicates: number
+    screened: number
+    excludedScreen: number
+    fullText: number
+    fullTextExcluded: { reason: string; n: number }[]
+    included: number
+  }
+  studies: Study[]
+}
+
 export interface ProjectState {
   project: Project
   nodes: GraphNode[]
@@ -142,6 +190,7 @@ export interface ProjectState {
   hypotheses: Hypothesis[]
   assays: Assay[]
   papers: Paper[]
+  review: Review
   // manually-acknowledged/resolved instabilities keyed by id (rules recompute the rest)
   instabilityOverrides: Record<string, 'acknowledged' | 'resolved'>
 }
