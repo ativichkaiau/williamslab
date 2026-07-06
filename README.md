@@ -33,8 +33,11 @@ This is a **frontend-first MVP** — a thinking-and-planning cockpit over one sh
 - **Statistical Power** — a two-sample power / sample-size calculator (normal approximation, with the genome-wide multiple-testing tax on α) plus a per-assay power table. This is the same math the rigor monitor uses.
 - **Rigor Monitor** — the signature feature: nine rule-based study-design checks. Toggle pre-registration or set a primary endpoint and watch a flag clear itself.
 - **Knowledge Graph** — all node-types on one draggable, typed graph. Add nodes and edges and delete them without touching code.
-- **BrS Theory** — a curated, static reference on Brugada Syndrome theory (genetics, molecular basis, competing mechanisms, ECG, risk, management, and the epigenetic frontier) with a sticky table of contents. No API key needed.
+- **BrS Theory** — an **exhaustive** curated reference on Brugada Syndrome: 17 sections in four groups (Foundations · Mechanism · Clinical · Research frontier) covering history, epidemiology, genetics, cellular electrophysiology, the competing mechanisms, the full clinical picture (presentation & overlap syndromes, ECG, provocation, diagnosis, risk, management, special populations) and the epigenetic frontier — with a grouped sticky table of contents, gene/ECG/overlap/Shanghai/risk tables and high-yield / clinical / research callouts. No API key needed.
 - **Knowledge Review** — an AI-powered, high-yield review of Brugada Syndrome (OpenAI, streaming), tied to your project's hypotheses. Topic presets + free-form Q&A. See setup below.
+- **✦ Ask AI copilot** — a global, context-aware assistant available on **every page** (floating dock). It knows the current page and your project, and streams answers on BrS science, study design, stats and the app. Uses the same OpenAI key as Knowledge Review.
+
+The UI uses a **claymorphism** treatment (soft, puffy surfaces with layered inset highlights) over the Williams 1993 livery palette.
 
 ### Knowledge Review — OpenAI setup
 

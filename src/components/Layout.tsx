@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useStore } from '../lib/store'
 import { SEVERITY_COLOR } from '../lib/palette'
+import AssistantDock from './AssistantDock'
 
 const NAV = [
   {
@@ -131,6 +132,7 @@ export default function Layout() {
           <Outlet />
         </div>
       </div>
+      <AssistantDock />
     </div>
   )
 }
