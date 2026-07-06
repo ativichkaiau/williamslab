@@ -383,3 +383,32 @@ html[data-theme="night"] .input,html[data-theme="night"] .select,html[data-theme
 .ai-foot .textarea{flex:1; min-height:42px; max-height:120px; border-radius:14px}
 .ai-note{font-size:10.5px; color:var(--muted); padding:0 14px 10px; text-align:center}
 @media(max-width:520px){.ai-panel{right:12px; left:12px; width:auto; bottom:12px}}
+
+/* ============================================================
+   color & highlights — per-page accent + colourful sidebar
+   ============================================================ */
+/* colourful, per-item sidebar */
+.sb-link .ic{color:var(--ic, var(--muted)); transition:color .12s}
+.sb-link.active{background:color-mix(in srgb, var(--ic, var(--blue)) 14%, transparent); color:var(--ic, var(--blue)); box-shadow:inset 0 2px 5px color-mix(in srgb,var(--ic,var(--blue)) 13%, transparent)}
+.sb-link.active .ic{color:var(--ic, var(--blue))}
+html[data-theme="night"] .sb-link.active{background:color-mix(in srgb, var(--ic,var(--blue)) 24%, transparent)}
+.sb-sec .h{font-weight:800}
+
+/* per-page accent (var --accent set on .main by route) */
+.page-head{position:relative; isolation:isolate}
+.page-head::before{content:""; position:absolute; z-index:-1; top:-56px; left:-26px; width:min(640px,68%); height:220px;
+  background:radial-gradient(58% 100% at 22% 0%, color-mix(in srgb,var(--accent) 26%, transparent), transparent 72%); pointer-events:none}
+.kicker .dot{background:var(--accent); box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%, transparent)}
+.stat{border-top:3px solid var(--accent)}
+.topbar{border-bottom:2px solid color-mix(in srgb, var(--accent) 34%, var(--line))}
+.proj-chip{border-color:color-mix(in srgb, var(--accent) 42%, var(--line)); color:color-mix(in srgb, var(--accent) 78%, var(--ink))}
+.gauge{border-color:color-mix(in srgb, var(--accent) 30%, var(--line))}
+.page-head .rule i:first-child{background:var(--accent)}
+
+/* accent-driven ghost buttons + coloured chips */
+.btn.ghost{color:var(--accent); border-color:color-mix(in srgb, var(--accent) 26%, var(--line))}
+.chip{background:color-mix(in srgb, var(--accent) 12%, var(--card-2)); color:color-mix(in srgb, var(--accent) 82%, var(--ink))}
+
+/* highlight utility */
+mark, .hl{background:color-mix(in srgb, var(--yellow) 62%, transparent); color:var(--ink); border-radius:5px; padding:0 4px; font-weight:700; box-decoration-break:clone; -webkit-box-decoration-break:clone}
+html[data-theme="night"] mark, html[data-theme="night"] .hl{background:color-mix(in srgb,var(--yellow) 26%, transparent); color:var(--yellow)}
