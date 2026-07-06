@@ -24,6 +24,18 @@ export default function Garage() {
         <StatCard value={state.nodes.length} label="Graph nodes" sub={`${state.edges.length} edges`} tone="#f59e0b" />
       </div>
 
+      <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid #0d9488', background: 'linear-gradient(180deg, color-mix(in srgb,#0d9488 7%, var(--card)), var(--card))' }}>
+        <div className="card-h"><span className="sq" style={{ background: '#0d9488' }} />SYSTEMATIC REVIEW &amp; META-ANALYSIS</div>
+        <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{state.review.title}</p>
+        <p className="small" style={{ marginBottom: 12 }}>{state.review.question}</p>
+        <div className="wrap-gap">
+          <Link className="btn primary sm" to="/protocol">Protocol</Link>
+          <Link className="btn ghost sm" to="/prisma">PRISMA flow</Link>
+          <Link className="btn ghost sm" to="/studies">Studies ({state.review.studies.filter((s) => s.include).length})</Link>
+          <Link className="btn ghost sm" to="/meta">Meta-analysis</Link>
+        </div>
+      </div>
+
       <div className="grid g2">
         <div className="card lg">
           <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />CENTRAL HYPOTHESIS</div>

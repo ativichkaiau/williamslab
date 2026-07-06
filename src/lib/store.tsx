@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { ProjectState, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper } from '../types'
+import type { ProjectState, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper, Study, Review } from '../types'
 import { seed } from '../data/seed'
 import { computeInstabilities, stabilityScore } from './suspension'
 
@@ -46,6 +46,12 @@ interface StoreCtx {
   // papers
   addPaper: (p: Omit<Paper, 'id'> & { id?: string }, linkHypothesisId?: string) => string
   removePaper: (id: string) => void
+  // systematic review
+  updateReview: (patch: Partial<Review>) => void
+  updatePrisma: (patch: Partial<Review['prisma']>) => void
+  addStudy: (s: Omit<Study, 'id'> & { id?: string }) => string
+  updateStudy: (id: string, patch: Partial<Study>) => void
+  removeStudy: (id: string) => void
   reset: () => void
 }
 
@@ -169,6 +175,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         edges: s.edges.filter((e) => e.src !== id && e.dst !== id),
         hypotheses: s.hypotheses.map((h) => ({ ...h, supportingPapers: (h.supportingPapers ?? []).filter((x) => x !== id) })),
       })),
+
+    updateReview: (patch) => setState((s) => ({ ...s, review: { ...s.review, ...patch } })),
+    updatePrisma: (patch) => setState((s) => ({ ...s, review: { ...s.review, prisma: { ...s.review.prisma, ...patch } } })),
+    addStudy: (st) => {
+      const id = st.id ?? uid('st')
+      setState((s) => ({ ...s, review: { ...s.review, studies: [...s.review.studies, { ...st, id }] } }))
+      return id
+    },
+    updateStudy: (id, patch) =>
+      setState((s) => ({ ...s, review: { ...s.review, studies: s.review.studies.map((x) => (x.id === id ? { ...x, ...patch } : x)) } })),
+    removeStudy: (id) => setState((s) => ({ ...s, review: { ...s.review, studies: s.review.studies.filter((x) => x.id !== id) } })),
 
     reset: () => setState(seed),
   }

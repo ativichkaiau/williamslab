@@ -14,6 +14,16 @@ const NAV = [
     ],
   },
   {
+    group: 'SYSTEMATIC REVIEW',
+    accent: '#0d9488',
+    items: [
+      { to: '/protocol', label: 'Protocol', icon: '⊞', color: '#0d9488' },
+      { to: '/prisma', label: 'PRISMA Flow', icon: '⇉', color: '#0891b2' },
+      { to: '/studies', label: 'Studies', icon: '☰', color: '#6366f1' },
+      { to: '/meta', label: 'Meta-analysis', icon: '⬦', color: '#db2777' },
+    ],
+  },
+  {
     group: 'DESIGN',
     accent: '#7c3aed',
     items: [
@@ -48,6 +58,10 @@ const ACCENT: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.i
 const TITLES: Record<string, string> = {
   '/': 'Overview',
   '/pit-wall': 'Dashboard',
+  '/protocol': 'Review Protocol',
+  '/prisma': 'PRISMA Flow',
+  '/studies': 'Included Studies',
+  '/meta': 'Meta-analysis',
   '/hypotheses': 'Hypotheses',
   '/mechanism': 'Mechanism Map',
   '/assays': 'Assays',

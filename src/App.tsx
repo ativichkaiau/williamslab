@@ -11,6 +11,10 @@ import Suspension from './pages/Suspension'
 import Graph from './pages/Graph'
 import Review from './pages/Review'
 import Theory from './pages/Theory'
+import SrmaProtocol from './pages/SrmaProtocol'
+import Prisma from './pages/Prisma'
+import Studies from './pages/Studies'
+import MetaAnalysis from './pages/MetaAnalysis'
 
 export default function App() {
   return (
@@ -27,6 +31,10 @@ export default function App() {
         <Route path="graph" element={<Graph />} />
         <Route path="theory" element={<Theory />} />
         <Route path="review" element={<Review />} />
+        <Route path="protocol" element={<SrmaProtocol />} />
+        <Route path="prisma" element={<Prisma />} />
+        <Route path="studies" element={<Studies />} />
+        <Route path="meta" element={<MetaAnalysis />} />
       </Route>
     </Routes>
   )
