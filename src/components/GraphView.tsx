@@ -12,12 +12,14 @@ interface Props {
   edges: GraphEdge[]
   selectedId?: string | null
   onSelect?: (n: GraphNode | null) => void
+  onNodeMove?: (id: string, x: number, y: number) => void
   showLabels?: boolean
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+const MIN_SEP = 82 // node non-overlap distance
 
-export default function GraphView({ nodes, edges, selectedId, onSelect, showLabels = true }: Props) {
+export default function GraphView({ nodes, edges, selectedId, onSelect, onNodeMove, showLabels = true }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [pos, setPos] = useState<Record<string, { x: number; y: number }>>(() =>
     Object.fromEntries(nodes.map((n) => [n.id, { x: n.x ?? VBW / 2, y: n.y ?? VBH / 2 }])),
@@ -75,8 +77,43 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, showLabe
     }
   }
   const endPointer = () => {
+    if (drag && onNodeMove) {
+      const p = pos[drag] ?? posOf(drag)
+      if (p) onNodeMove(drag, Math.round(p.x), Math.round(p.y))
+    }
     setDrag(null)
     setPan(null)
+  }
+
+  // relax overlaps: push apart any node pair closer than MIN_SEP, then persist
+  const tidy = () => {
+    const P: Record<string, { x: number; y: number }> = Object.fromEntries(nodes.map((n) => [n.id, { ...posOf(n.id)! }]))
+    const ids = nodes.map((n) => n.id)
+    for (let iter = 0; iter < 90; iter++) {
+      let moved = false
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = P[ids[i]]
+          const b = P[ids[j]]
+          const dx = b.x - a.x
+          const dy = b.y - a.y
+          const d = Math.hypot(dx, dy) || 0.01
+          if (d < MIN_SEP) {
+            const push = (MIN_SEP - d) / 2 + 0.5
+            const ux = dx / d
+            const uy = dy / d
+            a.x -= ux * push
+            a.y -= uy * push
+            b.x += ux * push
+            b.y += uy * push
+            moved = true
+          }
+        }
+      }
+      if (!moved) break
+    }
+    setPos(P)
+    if (onNodeMove) ids.forEach((id) => onNodeMove(id, Math.round(P[id].x), Math.round(P[id].y)))
   }
 
   // frame all nodes on first mount
@@ -103,6 +140,7 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, showLabe
         <button className="icon-btn" onClick={() => zoomAround(VBW / 2, VBH / 2, 0.83)} title="Zoom out">−</button>
         <span className="zoom-lvl mono">{Math.round(view.k * 100)}%</span>
         <button className="icon-btn" onClick={() => zoomAround(VBW / 2, VBH / 2, 1.2)} title="Zoom in">+</button>
+        <button className="icon-btn" onClick={tidy} title="Auto-layout: spread overlapping nodes">Tidy</button>
         <button className="icon-btn" onClick={fit} title="Fit all nodes">Fit</button>
         <button className="icon-btn" onClick={() => setView({ k: 1, tx: 0, ty: 0 })} title="Reset view">Reset</button>
       </div>

@@ -11,7 +11,7 @@ const RELS: EdgeRel[] = ['encodes', 'regulates', 'loops_to', 'deposited_on', 're
 const EVIDENCES: Evidence[] = ['none', 'predicted', 'correlational', 'causal', 'established']
 
 export default function Graph() {
-  const { state, addNode, addEdge, removeNode, removeEdge } = useStore()
+  const { state, addNode, addEdge, removeNode, removeEdge, updateNode } = useStore()
   const [sel, setSel] = useState<GraphNode | null>(null)
   const [labels, setLabels] = useState(true)
   const [modal, setModal] = useState<null | 'node' | 'edge'>(null)
@@ -28,7 +28,7 @@ export default function Graph() {
 
   function saveNode() {
     if (!nodeDraft.label.trim()) return
-    const id = addNode({ type: nodeDraft.type, label: nodeDraft.label.trim(), sublabel: nodeDraft.sublabel.trim() || undefined, x: 500 + Math.round((Math.random() - 0.5) * 200), y: 320 + Math.round((Math.random() - 0.5) * 160) })
+    const id = addNode({ type: nodeDraft.type, label: nodeDraft.label.trim(), sublabel: nodeDraft.sublabel.trim() || undefined })
     setModal(null)
     setNodeDraft({ type: 'EpigeneticMark', label: '', sublabel: '' })
     const created = { id, type: nodeDraft.type, label: nodeDraft.label.trim() }
@@ -58,7 +58,7 @@ export default function Graph() {
 
       <div className="graph-wrap">
         <div>
-          <GraphView nodes={state.nodes} edges={state.edges} selectedId={sel?.id} onSelect={setSel} showLabels={labels} />
+          <GraphView nodes={state.nodes} edges={state.edges} selectedId={sel?.id} onSelect={setSel} onNodeMove={(id, x, y) => updateNode(id, { x, y })} showLabels={labels} />
           <div className="card" style={{ marginTop: 12 }}>
             <div className="flex" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
               <div className="card-h" style={{ margin: 0 }}>NODE TYPES · {state.nodes.length} nodes · {state.edges.length} edges</div>
