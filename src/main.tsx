@@ -1,16 +1,19 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { StoreProvider } from './lib/store'
 import './index.css'
 
+// HashRouter keeps routing in the URL fragment (e.g. /#/graph), so a full
+// reload of any route always serves index.html — no server rewrite needed
+// and no 404s on deep links, on any static host.
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <StoreProvider>
         <App />
       </StoreProvider>
-    </BrowserRouter>
+    </HashRouter>
   </React.StrictMode>,
 )

@@ -82,7 +82,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     addNode: (n) => {
       const id = n.id ?? uid('node')
-      setState((s) => ({ ...s, nodes: [...s.nodes, { ...n, id }] }))
+      setState((s) => {
+        const spot = findFreeSpot(s.nodes, n.x ?? 700, n.y ?? 450)
+        return { ...s, nodes: [...s.nodes, { ...n, id, x: spot.x, y: spot.y }] }
+      })
       return id
     },
     updateNode: (id, patch) => setState((s) => ({ ...s, nodes: s.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)) })),
@@ -102,11 +105,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     addHypothesis: (h) => {
       const id = h.id ?? uid('hyp')
-      setState((s) => ({
-        ...s,
-        hypotheses: [...s.hypotheses, { ...h, id }],
-        nodes: [...s.nodes, { id, type: 'Hypothesis', label: h.label.split('·')[0].trim() || 'Hypothesis', sublabel: 'hypothesis', x: 500 + rand(160), y: 320 + rand(120) }],
-      }))
+      setState((s) => {
+        const spot = findFreeSpot(s.nodes, 700, 450)
+        return {
+          ...s,
+          hypotheses: [...s.hypotheses, { ...h, id }],
+          nodes: [...s.nodes, { id, type: 'Hypothesis', label: h.label.split('·')[0].trim() || 'Hypothesis', sublabel: 'hypothesis', x: spot.x, y: spot.y }],
+        }
+      })
       return id
     },
     updateHypothesis: (id, patch) =>
@@ -139,9 +145,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (s.papers.some((x) => x.id === id)) return s // dedupe
         const targets = linkHypothesisId ? Array.from(new Set([...(p.targets ?? []), linkHypothesisId])) : p.targets
         const nextPapers = [...s.papers, { ...p, id, targets }]
+        const spot = findFreeSpot(s.nodes, 1050, 520)
         const nextNodes = s.nodes.some((n) => n.id === id)
           ? s.nodes
-          : [...s.nodes, { id, type: 'Paper' as const, label: 'Paper', sublabel: p.year ? String(p.year) : 'ref', x: 860 + rand(80), y: 380 + rand(120) }]
+          : [...s.nodes, { id, type: 'Paper' as const, label: 'Paper', sublabel: p.year ? String(p.year) : 'ref', x: spot.x, y: spot.y }]
         let nextHyp = s.hypotheses
         let nextEdges = s.edges
         if (linkHypothesisId) {
@@ -169,8 +176,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
-function rand(span: number): number {
-  return Math.round((Math.random() - 0.5) * span)
+// Place a new node near a preferred point without overlapping existing nodes.
+function findFreeSpot(nodes: GraphNode[], px: number, py: number): { x: number; y: number } {
+  const MIN = 92
+  const pts = nodes.map((n) => ({ x: n.x ?? 700, y: n.y ?? 450 }))
+  const clampX = (v: number) => Math.max(60, Math.min(1340, v))
+  const clampY = (v: number) => Math.max(60, Math.min(840, v))
+  const free = (x: number, y: number) => pts.every((p) => Math.hypot(p.x - x, p.y - y) >= MIN)
+  let x = clampX(px)
+  let y = clampY(py)
+  if (free(x, y)) return { x: Math.round(x), y: Math.round(y) }
+  for (let r = MIN; r <= 1400; r += MIN * 0.75) {
+    for (let a = 0; a < 360; a += 24) {
+      const rad = (a * Math.PI) / 180
+      x = clampX(px + r * Math.cos(rad))
+      y = clampY(py + r * Math.sin(rad))
+      if (free(x, y)) return { x: Math.round(x), y: Math.round(y) }
+    }
+  }
+  return { x: Math.round(clampX(px)), y: Math.round(clampY(py)) }
 }
 
 export function useStore(): StoreCtx {

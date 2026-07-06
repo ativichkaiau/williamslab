@@ -9,7 +9,7 @@ const MECH_RELS = new Set(['represses', 'reduces', 'associated_with', 'regulates
 const EV_ORDER: Record<Evidence, number> = { none: 0, predicted: 1, correlational: 2, causal: 3, established: 4 }
 
 export default function Mechanism() {
-  const { state } = useStore()
+  const { state, updateNode } = useStore()
   const [sel, setSel] = useState<GraphNode | null>(null)
 
   const edges = useMemo(() => state.edges.filter((e) => MECH_RELS.has(e.rel)), [state.edges])
@@ -38,7 +38,7 @@ export default function Mechanism() {
 
       <div className="graph-wrap">
         <div>
-          <GraphView nodes={nodes} edges={edges} selectedId={sel?.id} onSelect={setSel} />
+          <GraphView nodes={nodes} edges={edges} selectedId={sel?.id} onSelect={setSel} onNodeMove={(id, x, y) => updateNode(id, { x, y })} />
           <div className="card" style={{ marginTop: 12 }}>
             <div className="legend-row">
               {(Object.keys(EVIDENCE_STYLE) as Evidence[]).map((k) => (
