@@ -1,5 +1,5 @@
 import type { ProjectState } from '../types'
-import { fmt, measureInfo, type MetaResult, type EggerResult, type LooRow, type GradeResult } from './metaAnalysis'
+import { fmt, measureInfo, type MetaResult, type EggerResult, type LooRow, type GradeResult, type TrimFillResult } from './metaAnalysis'
 
 // ---- PRISMA 2020 checklist (abbreviated item text) ----
 export const PRISMA_CHECKLIST: { section: string; items: { n: string; item: string }[] }[] = [
@@ -61,7 +61,7 @@ function hetWord(i2: number) {
   return i2 < 25 ? 'low' : i2 < 60 ? 'moderate' : 'substantial'
 }
 
-export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: EggerResult | null, loo: LooRow[], grade: GradeResult): string {
+export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: EggerResult | null, loo: LooRow[], grade: GradeResult, tf: TrimFillResult): string {
   const r = state.review
   const p = r.prisma
   const binary = measureInfo(r.effect).binary
@@ -127,7 +127,7 @@ ${charTable}
 
 **Sensitivity analysis.** Leave-one-out pooling gave ${r.effect} between ${looRange}; the direction of effect was ${loo.length && Math.min(...loo.map((x) => x.est)) > meta.refValue === (Math.max(...loo.map((x) => x.est)) > meta.refValue) ? 'robust' : 'sensitive'} to omission of any single study.
 
-**Publication bias.** ${egger ? `Egger's regression intercept ${fmt(egger.intercept)} (SE ${fmt(egger.se)}), p = ${fmt(egger.p, 3)}${egger.p < 0.05 ? ' — evidence of funnel asymmetry' : ' — no significant asymmetry'}. ` : ''}Egger's test is underpowered with fewer than 10 studies and is interpreted alongside the funnel plot (Figure 3).
+**Publication bias.** ${egger ? `Egger's regression intercept ${fmt(egger.intercept)} (SE ${fmt(egger.se)}), p = ${fmt(egger.p, 3)}${egger.p < 0.05 ? ' — evidence of funnel asymmetry' : ' — no significant asymmetry'}. ` : ''}A contour-enhanced funnel plot (Figure 3) was inspected. ${tf.k0 > 0 ? `Duval–Tweedie trim-and-fill imputed ${tf.k0} potentially missing stud${tf.k0 > 1 ? 'ies' : 'y'} on the ${tf.fillSide}, yielding an adjusted ${r.effect} of ${fmt(tf.adjustedEst)} (95% CI ${fmt(tf.adjustedLow)}–${fmt(tf.adjustedHigh)}) versus ${fmt(tf.origEst)} observed.` : 'Trim-and-fill imputed no missing studies.'} These methods are underpowered with fewer than 10 studies.
 
 **Certainty of evidence (GRADE).** The overall certainty for ${r.outcomeLabel} was rated **${grade.certainty}** (${grade.startLabel}${gradeDrops.length ? `; downgraded for ${gradeDrops.join(', ')}` : ''}${grade.upgrade ? `; upgraded for a large effect (+${grade.upgrade})` : ''}).
 

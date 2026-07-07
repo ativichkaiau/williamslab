@@ -83,25 +83,52 @@ export function ForestPlot({ result, index, measure }: { result: MetaResult; ind
   )
 }
 
-// ---------------- Funnel plot ----------------
-export function FunnelPlot({ result }: { result: MetaResult }) {
+// ---------------- Contour-enhanced funnel plot (+ trim-and-fill overlay) ----------------
+export function FunnelPlot({ result, imputed = [], adjustedPool }: { result: MetaResult; imputed?: { pool: number; se: number }[]; adjustedPool?: number }) {
   const { rows, pooledPool, k } = result
   if (k < 3) return <p className="empty">Funnel plot needs ≥3 studies.</p>
-  const ses = rows.map((r) => r.se)
-  const maxSE = Math.max(...ses) * 1.15
-  const spread = Math.max(...rows.map((r) => Math.abs(r.pool - pooledPool)), 1.96 * maxSE)
-  const W = 460, Hh = 300, x0 = 46, x1 = W - 20, y0 = 30, y1 = Hh - 40
-  const X = (v: number) => (x0 + x1) / 2 + ((v - pooledPool) / (spread * 1.1)) * ((x1 - x0) / 2)
+  const allSE = [...rows.map((r) => r.se), ...imputed.map((p) => p.se)]
+  const maxSE = Math.max(...allSE) * 1.15
+  const allPools = [...rows.map((r) => r.pool), ...imputed.map((p) => p.pool), pooledPool, adjustedPool ?? pooledPool]
+  const xExtent = Math.max(...allPools.map((p) => Math.abs(p)), 2.576 * maxSE) * 1.06
+  const W = 480, Hh = 320, x0 = 46, x1 = W - 16, y0 = 28, y1 = Hh - 46
+  const midX = (x0 + x1) / 2
+  const X = (v: number) => midX + (v / xExtent) * ((x1 - x0) / 2)
   const Y = (se: number) => y0 + (se / maxSE) * (y1 - y0)
+  // significance contour bands (centred on the null = 0 on the pooling scale)
+  const bands: [number, number, string][] = [
+    [1.645, 1.96, 'rgba(120,132,170,0.12)'],
+    [1.96, 2.576, 'rgba(120,132,170,0.22)'],
+    [2.576, xExtent / maxSE, 'rgba(120,132,170,0.34)'],
+  ]
+  const tri = (zLo: number, zHi: number, sign: number) => `${midX},${y0} ${X(sign * zLo * maxSE)},${y1} ${X(sign * zHi * maxSE)},${y1}`
   return (
     <svg viewBox={`0 0 ${W} ${Hh}`} width="100%" style={sans}>
-      <polygon points={`${X(pooledPool)},${Y(0)} ${X(pooledPool - 1.96 * maxSE)},${Y(maxSE)} ${X(pooledPool + 1.96 * maxSE)},${Y(maxSE)}`} fill="var(--card-2)" stroke="var(--line)" strokeWidth={1} />
+      {bands.map(([lo, hi, fill], i) => (
+        <g key={i}>
+          <polygon points={tri(lo, hi, 1)} fill={fill} />
+          <polygon points={tri(lo, hi, -1)} fill={fill} />
+        </g>
+      ))}
+      {/* null + estimate lines */}
+      <line x1={X(0)} y1={y0} x2={X(0)} y2={y1} stroke="var(--muted)" strokeWidth={1} />
       <line x1={X(pooledPool)} y1={y0} x2={X(pooledPool)} y2={y1} stroke="var(--red)" strokeWidth={1.4} strokeDasharray="4 4" />
-      {rows.map((r) => <circle key={r.id} cx={X(r.pool)} cy={Y(r.se)} r={5} fill="var(--navy)" stroke="#fff" strokeWidth={1.4} />)}
+      {adjustedPool !== undefined && imputed.length > 0 && <line x1={X(adjustedPool)} y1={y0} x2={X(adjustedPool)} y2={y1} stroke="var(--green)" strokeWidth={1.4} strokeDasharray="4 4" />}
+      {rows.map((r) => <circle key={r.id} cx={X(r.pool)} cy={Y(r.se)} r={5} fill="var(--navy)" stroke="#fff" strokeWidth={1.3} />)}
+      {imputed.map((p, i) => <circle key={`imp-${i}`} cx={X(p.pool)} cy={Y(p.se)} r={5} fill="none" stroke="var(--red)" strokeWidth={1.8} />)}
+      {/* axes */}
       <line x1={x0} y1={y0} x2={x0} y2={y1} stroke="var(--line)" strokeWidth={1.5} />
       <line x1={x0} y1={y1} x2={x1} y2={y1} stroke="var(--line)" strokeWidth={1.5} />
-      <text x={(x0 + x1) / 2} y={Hh - 8} textAnchor="middle" fontSize="9.5" fill="var(--muted)" style={mono}>effect ({result.scale === 'log' ? 'log' : 'linear'} scale)</text>
+      <text x={midX} y={Hh - 26} textAnchor="middle" fontSize="9.5" fill="var(--muted)" style={mono}>effect ({result.scale === 'log' ? 'log' : 'linear'} scale)</text>
       <text x={12} y={(y0 + y1) / 2} fontSize="9.5" fill="var(--muted)" style={mono} transform={`rotate(-90 12 ${(y0 + y1) / 2})`}>standard error</text>
+      {/* legend */}
+      <g transform={`translate(${x0},${Hh - 12})`} style={mono}>
+        <rect x={0} y={-8} width={10} height={8} fill="rgba(120,132,170,0.12)" /><text x={13} y={-1} fontSize="8" fill="var(--muted)">p&gt;.05</text>
+        <rect x={54} y={-8} width={10} height={8} fill="rgba(120,132,170,0.22)" /><text x={67} y={-1} fontSize="8" fill="var(--muted)">.01–.05</text>
+        <rect x={116} y={-8} width={10} height={8} fill="rgba(120,132,170,0.34)" /><text x={129} y={-1} fontSize="8" fill="var(--muted)">p&lt;.01</text>
+        <circle cx={175} cy={-4} r={4} fill="var(--navy)" /><text x={183} y={-1} fontSize="8" fill="var(--muted)">observed</text>
+        {imputed.length > 0 && <><circle cx={238} cy={-4} r={4} fill="none" stroke="var(--red)" strokeWidth={1.6} /><text x={246} y={-1} fontSize="8" fill="var(--muted)">imputed</text></>}
+      </g>
     </svg>
   )
 }

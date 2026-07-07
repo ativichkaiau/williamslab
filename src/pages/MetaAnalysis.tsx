@@ -3,7 +3,7 @@ import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard } from '../components/ui'
 import { Markdown } from '../components/Markdown'
 import { ForestPlot, FunnelPlot } from '../components/srmaPlots'
-import { computeMeta, leaveOneOut, subgroupAnalysis, eggersTest, computeGrade, measureInfo, MEASURES, fmt } from '../lib/metaAnalysis'
+import { computeMeta, leaveOneOut, subgroupAnalysis, eggersTest, computeGrade, trimAndFill, measureInfo, MEASURES, fmt } from '../lib/metaAnalysis'
 import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
 import type { Study, EffectMeasure } from '../types'
 
@@ -23,6 +23,7 @@ export default function MetaAnalysis() {
   const sub = useMemo(() => subgroupAnalysis(r.studies, r.model, r.effect, GROUPINGS[groupBy].key), [r.studies, r.model, r.effect, groupBy])
   const loo = useMemo(() => leaveOneOut(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
   const egger = useMemo(() => eggersTest(r.studies, r.effect), [r.studies, r.effect])
+  const tf = useMemo(() => trimAndFill(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
   const grade = useMemo(() => computeGrade(r, meta, egger), [r, meta, egger])
   const looRange = loo.length ? { min: Math.min(...loo.map((x) => x.est)), max: Math.max(...loo.map((x) => x.est)) } : null
 
@@ -97,8 +98,11 @@ export default function MetaAnalysis() {
           <p className="small">{sig ? <>The effect is <b style={{ color: 'var(--red)' }}>statistically significant</b> (CI excludes {meta.refValue}).</> : <>The pooled estimate is <b>not significant</b> (CI crosses {meta.refValue}).</>}</p>
         </div>
         <div className="card lg">
-          <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />FUNNEL PLOT · small-study effects</div>
-          <FunnelPlot result={meta} />
+          <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />FUNNEL PLOT · contour-enhanced + trim-and-fill</div>
+          <FunnelPlot result={meta} imputed={tf.imputed} adjustedPool={tf.adjustedPool} />
+          <p className="small" style={{ marginTop: 8 }}>
+            {tf.k0 > 0 ? <>Trim-and-fill imputed <b>{tf.k0}</b> potentially missing stud{tf.k0 > 1 ? 'ies' : 'y'} on the <b>{tf.fillSide}</b>; adjusted {r.effect} <b style={{ color: 'var(--green)' }}>{fmt(tf.adjustedEst)}</b> [{fmt(tf.adjustedLow)}, {fmt(tf.adjustedHigh)}] vs observed {fmt(tf.origEst)}. Studies in the shaded bands are statistically significant.</> : <>Trim-and-fill imputed <b>no</b> missing studies — the funnel is symmetric. Studies in the shaded bands are statistically significant.</>}
+          </p>
         </div>
       </div>
 

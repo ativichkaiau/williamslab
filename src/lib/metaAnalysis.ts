@@ -222,6 +222,79 @@ export function eggersTest(studies: Study[], measure: EffectMeasure): EggerResul
   return { intercept: a, se: seA, t, p: tTwoTailedP(t, n - 2), k: n }
 }
 
+// ---- Duval & Tweedie trim-and-fill (L0 estimator, iterative) ----
+export interface TrimFillResult {
+  k0: number
+  fillSide: 'left' | 'right' | 'none'
+  imputed: { pool: number; se: number }[]
+  origEst: number
+  adjustedPool: number
+  adjustedEst: number
+  adjustedLow: number
+  adjustedHigh: number
+}
+
+function poolPairs(pairs: { pool: number; se: number }[], model: 'random' | 'fixed'): { pool: number; se: number } {
+  const w = pairs.map((p) => 1 / (p.se * p.se))
+  const sumW = w.reduce((a, b) => a + b, 0)
+  const fixed = pairs.reduce((a, p, i) => a + w[i] * p.pool, 0) / sumW
+  const Q = pairs.reduce((a, p, i) => a + w[i] * (p.pool - fixed) ** 2, 0)
+  const df = pairs.length - 1
+  const C = sumW - pairs.reduce((a, _p, i) => a + w[i] * w[i], 0) / sumW
+  const tau2 = C > 0 ? Math.max(0, (Q - df) / C) : 0
+  const wS = pairs.map((p) => (model === 'random' ? 1 / (p.se * p.se + tau2) : 1 / (p.se * p.se)))
+  const sumWS = wS.reduce((a, b) => a + b, 0)
+  const pooled = pairs.reduce((a, p, i) => a + wS[i] * p.pool, 0) / sumWS
+  return { pool: pooled, se: Math.sqrt(1 / sumWS) }
+}
+
+export function trimAndFill(studies: Study[], model: 'random' | 'fixed', measure: EffectMeasure): TrimFillResult {
+  const pairs = studies.filter((s) => usable(s, measure)).map((s) => effectPool(s, measure)!)
+  const back = (x: number) => (measureInfo(measure).scale === 'log' ? Math.exp(x) : x)
+  const orig = poolPairs(pairs.length ? pairs : [{ pool: 0, se: 1 }], model)
+  const n = pairs.length
+  const empty: TrimFillResult = { k0: 0, fillSide: 'none', imputed: [], origEst: back(orig.pool), adjustedPool: orig.pool, adjustedEst: back(orig.pool), adjustedLow: back(orig.pool - 1.96 * orig.se), adjustedHigh: back(orig.pool + 1.96 * orig.se) }
+  if (n < 3) return empty
+
+  const pools = pairs.map((p) => p.pool)
+  const v = pairs.map((p) => p.se * p.se)
+  const wmean = (idx: number[]) => {
+    let sw = 0, swy = 0
+    idx.forEach((i) => { const w = 1 / v[i]; sw += w; swy += w * pools[i] })
+    return swy / sw
+  }
+  let mu = wmean(pools.map((_p, i) => i))
+  let k0 = 0, prev = -1, heavy = 1, it = 0
+  while (k0 !== prev && it < 100) {
+    prev = k0; it++
+    const res = pools.map((y, i) => ({ i, d: y - mu, rank: 0 }))
+    ;[...res].sort((a, b) => Math.abs(a.d) - Math.abs(b.d)).forEach((r, k) => (r.rank = k + 1))
+    const Tpos = res.filter((r) => r.d > 0).reduce((a, r) => a + r.rank, 0)
+    const Tneg = res.filter((r) => r.d < 0).reduce((a, r) => a + r.rank, 0)
+    heavy = Tpos >= Tneg ? 1 : -1
+    const Tn = heavy > 0 ? Tpos : Tneg
+    k0 = Math.max(0, Math.round((4 * Tn - n * (n + 1)) / (2 * n - 1)))
+    const onHeavy = res.filter((r) => (heavy > 0 ? r.d > 0 : r.d < 0)).sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
+    const trim = new Set(onHeavy.slice(0, k0).map((r) => r.i))
+    const keep = pools.map((_p, i) => i).filter((i) => !trim.has(i))
+    mu = wmean(keep.length ? keep : pools.map((_p, i) => i))
+  }
+  const res = pools.map((y, i) => ({ i, d: y - mu }))
+  const onHeavy = res.filter((r) => (heavy > 0 ? r.d > 0 : r.d < 0)).sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
+  const imputed = onHeavy.slice(0, k0).map((r) => ({ pool: mu - (pools[r.i] - mu), se: pairs[r.i].se }))
+  const adj = poolPairs([...pairs, ...imputed], model)
+  return {
+    k0,
+    fillSide: k0 === 0 ? 'none' : heavy > 0 ? 'left' : 'right',
+    imputed,
+    origEst: back(orig.pool),
+    adjustedPool: adj.pool,
+    adjustedEst: back(adj.pool),
+    adjustedLow: back(adj.pool - 1.96 * adj.se),
+    adjustedHigh: back(adj.pool + 1.96 * adj.se),
+  }
+}
+
 // ---- GRADE certainty of evidence ----
 export interface GradeDomain { key: string; label: string; judgment: string; drop: number; auto: string }
 export interface GradeResult {
