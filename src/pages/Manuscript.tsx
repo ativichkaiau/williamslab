@@ -3,7 +3,7 @@ import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { Markdown } from '../components/Markdown'
 import { ForestPlot, FunnelPlot, PrismaFlow, RobPlot } from '../components/srmaPlots'
-import { computeMeta, eggersTest, leaveOneOut, computeGrade } from '../lib/metaAnalysis'
+import { computeMeta, eggersTest, leaveOneOut, computeGrade, trimAndFill } from '../lib/metaAnalysis'
 import { buildMarkdown, EXPORT_CSS } from '../lib/manuscript'
 import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
 
@@ -23,7 +23,8 @@ export default function Manuscript() {
   const egger = useMemo(() => eggersTest(r.studies, r.effect), [r.studies, r.effect])
   const loo = useMemo(() => leaveOneOut(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
   const grade = useMemo(() => computeGrade(r, meta, egger), [r, meta, egger])
-  const md = useMemo(() => buildMarkdown(state, meta, egger, loo, grade), [state, meta, egger, loo, grade])
+  const tf = useMemo(() => trimAndFill(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
+  const md = useMemo(() => buildMarkdown(state, meta, egger, loo, grade, tf), [state, meta, egger, loo, grade, tf])
 
   const splitIdx = md.indexOf('## PRISMA 2020 checklist')
   const narrative = (splitIdx >= 0 ? md.slice(0, splitIdx) : md).replace(/^#\s.*\n+/, '')
@@ -91,8 +92,8 @@ export default function Manuscript() {
           <figure><PrismaFlow prisma={r.prisma} /></figure>
           <div className="fig-cap">Figure 2. Forest plot of the pooled {r.effect}.</div>
           <figure><ForestPlot result={meta} index={r.indexLabel} comparator={r.comparatorLabel} measure={r.effect} /></figure>
-          <div className="fig-cap">Figure 3. Funnel plot.</div>
-          <figure><FunnelPlot result={meta} /></figure>
+          <div className="fig-cap">Figure 3. Contour-enhanced funnel plot with trim-and-fill.</div>
+          <figure><FunnelPlot result={meta} imputed={tf.imputed} adjustedPool={tf.adjustedPool} /></figure>
           <div className="fig-cap">Figure 4. Risk-of-bias summary.</div>
           <figure><RobPlot studies={r.studies} domains={r.robDomains} /></figure>
           <Markdown text={checklistMd} />
