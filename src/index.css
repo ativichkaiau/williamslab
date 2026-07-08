@@ -223,6 +223,22 @@ td .muted{color:var(--muted)}
 .legend-row{display:flex; flex-wrap:wrap; gap:7px}
 .legend-row .lg{display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; color:var(--ink-2)}
 .legend-row .lg i{width:9px; height:9px; border-radius:50%}
+
+/* knowledge-graph controls bar */
+.graph-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:12px;
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow)}
+.gc-search{display:flex; align-items:center; gap:8px; flex:1 1 200px; min-width:170px}
+.gc-search .input{padding:7px 11px; font-size:12.5px}
+.gc-filters{display:flex; flex-wrap:wrap; gap:6px}
+.type-chip{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; cursor:pointer;
+  border:1px solid color-mix(in srgb, var(--tc) 45%, var(--line)); color:var(--ink-2);
+  background:color-mix(in srgb, var(--tc) 9%, var(--card)); border-radius:999px; padding:5px 10px; transition:.12s}
+.type-chip i{width:8px; height:8px; border-radius:50%; background:var(--tc)}
+.type-chip.off{opacity:.42; text-decoration:line-through; background:var(--card-2); border-color:var(--line)}
+.type-chip.off i{background:var(--muted)}
+.gc-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-left:auto}
+.gc-group{display:inline-flex; gap:4px; padding:3px; border:1px solid var(--line); border-radius:11px; background:var(--card-2)}
+.gc-group .btn{padding:6px 10px}
 .detail dl{margin:0}
 .detail dt{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:12px}
 .detail dd{margin:3px 0 0; font-size:13.5px; color:var(--ink)}

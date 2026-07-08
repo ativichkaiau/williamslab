@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '../lib/store'
-import GraphView from '../components/GraphView'
+import GraphView, { type GraphHandle } from '../components/GraphView'
 import { Kicker, Rule } from '../components/ui'
 import { Modal, Field } from '../components/Modal'
 import { NODE_COLORS, nodeColor } from '../lib/palette'
@@ -11,10 +11,33 @@ const RELS: EdgeRel[] = ['encodes', 'regulates', 'loops_to', 'deposited_on', 're
 const EVIDENCES: Evidence[] = ['none', 'predicted', 'correlational', 'causal', 'established']
 
 export default function Graph() {
-  const { state, addNode, addEdge, removeNode, removeEdge, updateNode } = useStore()
+  const { state, addNode, addEdge, removeNode, removeEdge, updateNode, importStudiesToGraph } = useStore()
+  const graphRef = useRef<GraphHandle>(null)
   const [sel, setSel] = useState<GraphNode | null>(null)
   const [labels, setLabels] = useState(true)
   const [modal, setModal] = useState<null | 'node' | 'edge'>(null)
+  const [q, setQ] = useState('')
+  const [hidden, setHidden] = useState<Set<NodeType>>(new Set())
+  const [note, setNote] = useState('')
+
+  const inclCount = state.review.studies.filter((s) => s.include).length
+  const matchN = useMemo(() => {
+    const t = q.trim().toLowerCase()
+    if (!t) return 0
+    return state.nodes.filter((n) => !hidden.has(n.type) && `${n.label} ${n.sublabel ?? ''} ${n.type}`.toLowerCase().includes(t)).length
+  }, [q, hidden, state.nodes])
+
+  const toggleType = (t: NodeType) =>
+    setHidden((prev) => {
+      const next = new Set(prev)
+      next.has(t) ? next.delete(t) : next.add(t)
+      return next
+    })
+  const doImport = () => {
+    const n = importStudiesToGraph()
+    setNote(n > 0 ? `Added ${n} study node${n === 1 ? '' : 's'} linked to the outcome.` : 'All included studies are already on the graph.')
+    if (n > 0) requestAnimationFrame(() => graphRef.current?.fit())
+  }
 
   const [nodeDraft, setNodeDraft] = useState<{ type: NodeType; label: string; sublabel: string }>({ type: 'EpigeneticMark', label: '', sublabel: '' })
   const [edgeDraft, setEdgeDraft] = useState<{ src: string; dst: string; rel: EdgeRel; evidence: Evidence; strength: string }>({ src: '', dst: '', rel: 'regulates', evidence: 'predicted', strength: '0.4' })
@@ -56,9 +79,44 @@ export default function Graph() {
         </div>
       </div>
 
+      <div className="graph-controls">
+        <div className="gc-search">
+          <input className="input" placeholder="Search nodes…" value={q} onChange={(e) => setQ(e.target.value)} />
+          {q && <span className="small mono">{matchN} match{matchN === 1 ? '' : 'es'}</span>}
+        </div>
+        {usedTypes.length > 0 && (
+          <div className="gc-filters">
+            {usedTypes.map((t) => (
+              <button
+                key={t}
+                className={`type-chip${hidden.has(t) ? ' off' : ''}`}
+                style={{ ['--tc' as string]: NODE_COLORS[t] } as CSSProperties}
+                onClick={() => toggleType(t)}
+                title={hidden.has(t) ? `Show ${t}` : `Hide ${t}`}
+              >
+                <i />{t}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="gc-actions">
+          <span className="gc-group">
+            <button className="btn ghost sm" onClick={() => graphRef.current?.forceLayout()} title="Force-directed layout">Force</button>
+            <button className="btn ghost sm" onClick={() => graphRef.current?.clusterLayout()} title="Cluster by node type">Cluster</button>
+            <button className="btn ghost sm" onClick={() => graphRef.current?.tidy()} title="Spread overlapping nodes">Tidy</button>
+          </span>
+          <span className="gc-group">
+            <button className="btn ghost sm" onClick={() => graphRef.current?.exportPng()} title="Export PNG">⤓ PNG</button>
+            <button className="btn ghost sm" onClick={() => graphRef.current?.exportSvg()} title="Export SVG">⤓ SVG</button>
+          </span>
+          <button className="btn primary sm" onClick={doImport} disabled={inclCount === 0} title="Add included review studies as linked nodes">⇪ Import studies ({inclCount})</button>
+        </div>
+      </div>
+      {note && <p className="small" style={{ margin: '-4px 0 10px', color: 'var(--accent)' }}>{note}</p>}
+
       <div className="graph-wrap">
         <div>
-          <GraphView nodes={state.nodes} edges={state.edges} selectedId={sel?.id} onSelect={setSel} onNodeMove={(id, x, y) => updateNode(id, { x, y })} showLabels={labels} />
+          <GraphView ref={graphRef} nodes={state.nodes} edges={state.edges} selectedId={sel?.id} onSelect={setSel} onNodeMove={(id, x, y) => updateNode(id, { x, y })} showLabels={labels} search={q} hiddenTypes={hidden} />
           <div className="card" style={{ marginTop: 12 }}>
             <div className="flex" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
               <div className="card-h" style={{ margin: 0 }}>NODE TYPES · {state.nodes.length} nodes · {state.edges.length} edges</div>

@@ -53,6 +53,7 @@ interface StoreCtx {
   removeNode: (id: string) => void
   addEdge: (e: Omit<GraphEdge, 'id'> & { id?: string }) => string
   removeEdge: (id: string) => void
+  importStudiesToGraph: () => number
   // hypotheses
   addHypothesis: (h: Omit<Hypothesis, 'id'> & { id?: string }) => string
   updateHypothesis: (id: string, patch: Partial<Hypothesis>) => void
@@ -144,6 +145,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return id
     },
     removeEdge: (id) => setState((s) => ({ ...s, edges: s.edges.filter((e) => e.id !== id) })),
+
+    // materialise the included review studies as Paper nodes, each linked to a
+    // shared outcome node — so the meta-analysis evidence lives on the graph too
+    importStudiesToGraph: () => {
+      const incl = state.review.studies.filter((st) => st.include)
+      if (!incl.length) return 0
+      const outLabel = state.review.outcomeLabel || 'Outcome'
+      const existingOutcome = state.nodes.find((n) => n.type === 'ClinicalPhenotype' && n.label === outLabel)
+      const haveLabels = new Set(state.nodes.filter((n) => n.type === 'Paper').map((n) => n.label))
+      const newNodes: GraphNode[] = []
+      const newEdges: GraphEdge[] = []
+      const outcomeId = existingOutcome?.id ?? uid('node')
+      incl.forEach((st, i) => {
+        const label = `${st.author} ${st.year}`
+        if (haveLabels.has(label)) return
+        haveLabels.add(label)
+        const ang = (i / incl.length) * Math.PI * 2 - Math.PI / 2
+        const pid = uid('node')
+        newNodes.push({ id: pid, type: 'Paper', label, sublabel: st.pmid ? `PMID ${st.pmid}` : st.design || 'study', x: 700 + Math.cos(ang) * 320, y: 500 + Math.sin(ang) * 250 })
+        newEdges.push({ id: uid('edge'), src: pid, dst: outcomeId, rel: 'associated_with', evidence: 'correlational', strength: 0.5 })
+      })
+      const added = newEdges.length
+      if (!added) return 0
+      if (!existingOutcome) newNodes.unshift({ id: outcomeId, type: 'ClinicalPhenotype', label: outLabel, sublabel: 'outcome', x: 700, y: 170 })
+      setState((s) => ({ ...s, nodes: [...s.nodes, ...newNodes], edges: [...s.edges, ...newEdges], activity: act(s, 'graph', `Imported ${added} study node${added === 1 ? '' : 's'} from the review`) }))
+      return added
+    },
 
     addHypothesis: (h) => {
       const id = h.id ?? uid('hyp')
