@@ -1,5 +1,6 @@
 import type { ProjectState, Instability, Severity } from '../types'
 import { assayPowerReport, fmtAlpha } from './power'
+import { computeMeta } from './metaAnalysis'
 
 // ============================================================
 // Rigor Monitor — the study-design check engine.
@@ -188,6 +189,34 @@ export function computeInstabilities(s: ProjectState): Instability[] {
       repair: 'Add an iPSC-CM demethylation / rescue experiment with MEA conduction read-out, and frame clinical utility via the biomarker.',
       status: 'open',
     })
+  }
+
+  // 10 · systematic-review methodological gaps (only when a review is under way)
+  const rv = s.review
+  if (rv.studies.length > 0) {
+    const incl = rv.studies.filter((st) => st.include)
+    const meta = incl.length >= 2 ? computeMeta(incl, rv.model, rv.effect) : null
+    const dbs = new Set(rv.searches.map((x) => x.db).filter(Boolean))
+    const srma = (key: string, severity: Severity, signal: string, comment: string, repair: string) =>
+      out.push({ id: `inst_srma_${key}`, type: 'srma_gap', severity, target: s.project.id, targetLabel: 'systematic review', signal, comment, repair, status: 'open' })
+
+    if (!rv.registration || !rv.registration.trim())
+      srma('reg', 'high', 'Protocol not registered.', `This review reports no prospective registration. An unregistered protocol allows post-hoc changes to the question, eligibility or outcomes — a flaw AMSTAR-2 treats as critical because it enables selective reporting. Register before extraction so the plan is fixed and citable.`, 'Register the protocol on PROSPERO and cite the registration ID.')
+
+    if (dbs.size < 2)
+      srma('db', 'med', `Only ${dbs.size} database${dbs.size === 1 ? '' : 's'} searched.`, `A comprehensive search needs at least two bibliographic databases (e.g. MEDLINE + Embase), ideally with trial registers and reference-list checking. Searching ${dbs.size || 'none'} risks missing eligible studies and biasing the pooled estimate toward what's easy to find.`, 'Search ≥2 databases and record each query on the Protocol page.')
+
+    if (rv.dualExtraction !== true)
+      srma('dual', 'med', 'Single data extraction.', `Data extraction is not marked as performed in duplicate. Single-extractor coding of 2×2 counts is error-prone and a recognised source of meta-analytic mistakes; AMSTAR-2 expects duplicate, reconciled extraction.`, 'Extract data in duplicate with a second reviewer, reconcile discrepancies, and confirm below.')
+
+    if (!rv.studies.some((st) => st.rob && Object.keys(st.rob).length > 0))
+      srma('rob', 'med', 'Risk of bias not assessed.', `No included study carries a risk-of-bias judgement. Without RoB (RoB-2 for trials, ROBINS-I / Newcastle–Ottawa for observational studies) the pooled estimate can't be weighed for study quality and the certainty of evidence can't be graded.`, 'Assess and record risk of bias per study on the Studies page.')
+
+    if (meta && meta.I2 >= 50 && rv.model === 'fixed')
+      srma('het', 'high', `I²=${Math.round(meta.I2)}% under fixed-effect.`, `Substantial statistical heterogeneity (I²=${Math.round(meta.I2)}%) is being pooled under a fixed-effect model, which assumes a single common effect and understates the confidence interval. Reviewers will flag this immediately.`, 'Switch to random-effects and run subgroup / sensitivity analyses to explain the heterogeneity.')
+
+    if (meta && meta.k >= 3 && meta.k < 10)
+      srma('pubbias', 'low', `Only ${meta.k} studies — funnel unreliable.`, `With ${meta.k} included studies, funnel-plot asymmetry and Egger's test are underpowered and can mislead. Publication bias effectively cannot be assessed at this k, so any symmetry claim is weak.`, 'State that publication bias could not be reliably assessed (k<10) as an explicit limitation.')
   }
 
   return out.map((i) => {

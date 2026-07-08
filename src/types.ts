@@ -110,6 +110,7 @@ export type InstabilityType =
   | 'statistical_ambiguity'
   | 'infeasible_protocol'
   | 'manuscript_story_weakness'
+  | 'srma_gap'
 
 export type Severity = 'low' | 'med' | 'high'
 
@@ -202,6 +203,8 @@ export interface Review {
   model: 'random' | 'fixed'
   robDomains: string[]
   grade?: GradeState
+  dualExtraction?: boolean // data extracted in duplicate (AMSTAR-2 item 6)
+  amstar?: Record<string, 'yes' | 'partial' | 'no'> // AMSTAR-2 self-assessment
   prisma: {
     dbRecords: number
     otherRecords: number
