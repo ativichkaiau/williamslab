@@ -311,6 +311,26 @@ td .muted{color:var(--muted)}
 .kv .k{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); width:92px; flex:none; padding-top:2px}
 .kv .val{color:var(--ink-2)}
 
+/* hypothesis evidence tally + critique */
+.he-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px}
+.he-tally{display:flex; align-items:center; gap:8px}
+.he-bar{width:80px; height:8px; border-radius:4px; overflow:hidden; display:flex; background:var(--card-2); border:1px solid var(--line)}
+.he-bar i{height:100%}
+.he-tally b{font-size:11px; font-family:var(--mono)}
+.chip-btn.suggest{margin-left:auto; border-color:color-mix(in srgb,var(--blue) 40%,var(--line)); color:var(--blue)}
+.he-row{display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12.5px}
+.he-lab{flex:1; min-width:0; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.he-mini{font-family:var(--mono); font-size:10px; font-weight:700; cursor:pointer; border:1px solid var(--line); border-radius:7px; padding:3px 8px; background:var(--card)}
+.he-mini.sup{color:var(--good-ink)} .he-mini.sup:hover{border-color:var(--green); background:var(--good)}
+.he-mini.ref{color:var(--bad-ink)} .he-mini.ref:hover{border-color:var(--red); background:var(--bad)}
+.he-stance{font-family:var(--mono); font-size:9.5px; font-weight:800; cursor:pointer; border:1px solid; border-radius:6px; padding:3px 7px; flex:none}
+.he-stance.supports{color:var(--good-ink); background:var(--good); border-color:color-mix(in srgb,var(--green) 30%,var(--line))}
+.he-stance.refutes{color:var(--bad-ink); background:var(--bad); border-color:color-mix(in srgb,var(--red) 30%,var(--line))}
+.he-x{border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:11px; flex:none; padding:2px 5px}
+.he-x:hover{color:var(--red)}
+.he-add{margin-top:6px; font-size:12px; padding:6px 10px}
+.hyp-critique{margin-top:12px; border:1px solid color-mix(in srgb,var(--blue) 24%,var(--line)); background:color-mix(in srgb,var(--blue) 5%,var(--card)); border-radius:12px; padding:12px 14px; font-size:13px}
+.hc-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; color:var(--blue)}
 /* ---------- modal + forms ---------- */
 .modal-overlay{position:fixed; inset:0; background:rgba(6,10,26,.55); backdrop-filter:blur(3px); display:grid; place-items:center; z-index:100; padding:20px}
 .modal{background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow-lg); width:min(560px,100%); max-height:88vh; display:flex; flex-direction:column}

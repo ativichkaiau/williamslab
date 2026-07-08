@@ -59,6 +59,14 @@ export interface GraphEdge {
 
 export type HypothesisStatus = 'draft' | 'testing' | 'supported' | 'refuted'
 
+// A piece of review evidence bearing on a hypothesis (an included study or the
+// pooled meta-analysis estimate), tagged with whether it supports or refutes.
+export interface HypEvidence {
+  kind: 'study' | 'pooled'
+  id: string // Study id, or 'pooled'
+  stance: 'supports' | 'refutes'
+}
+
 export interface Hypothesis {
   id: string // also a GraphNode id (type Hypothesis)
   label: string
@@ -67,6 +75,7 @@ export interface Hypothesis {
   falsification?: string
   status: HypothesisStatus
   supportingPapers?: string[] // Paper ids
+  evidence?: HypEvidence[] // links to review studies / the pooled estimate
   asserts?: string[] // GraphEdge ids this hypothesis claims
   requiresTissue?: string // e.g. "cardiomyocyte" — used by the assay-mismatch sensor
 }
