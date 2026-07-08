@@ -18,6 +18,7 @@ export const seed: ProjectState = {
       'In Brugada Syndrome, epigenetic dysregulation of sodium-channel loci (SCN5A/SCN10A) — promoter/enhancer DNA methylation, repressive histone remodeling, and ncRNA-mediated repression — reduces Nav1.5-dependent I_Na and conduction reserve, producing the type-1 ECG and arrhythmic risk independently of, and additively to, SCN5A coding mutations.',
     preRegistered: false,
     primaryEndpoint: undefined,
+    stage: 'Protocol',
   },
 
   // ---- knowledge-graph nodes (x,y are layout hints in a 1000×640 space) ----
@@ -193,5 +194,47 @@ export const seed: ProjectState = {
     ],
   },
 
+  activity: [],
   instabilityOverrides: {},
 }
+
+// A minimal, valid project — the "New project / new review" template.
+export function blankProject(id: string, name: string, code: string, opts?: { question?: string; index?: string; comparator?: string; outcome?: string }): ProjectState {
+  return {
+    project: { id, name, code, domain: 'Systematic review', centralHypothesis: '', preRegistered: false, primaryEndpoint: undefined, stage: 'Idea' },
+    nodes: [],
+    edges: [],
+    hypotheses: [],
+    assays: [],
+    papers: [],
+    review: {
+      title: name,
+      question: opts?.question ?? '',
+      pico: { p: '', i: opts?.index ?? '', c: opts?.comparator ?? '', o: opts?.outcome ?? '' },
+      inclusion: [],
+      exclusion: [],
+      databases: ['PubMed / MEDLINE', 'Embase', 'Cochrane CENTRAL'],
+      searches: [],
+      registration: 'PROSPERO — to register',
+      screenerUrl: 'https://vestrippn-srma-telemetry.vercel.app',
+      outcomeLabel: opts?.outcome ?? 'Outcome',
+      indexLabel: opts?.index ?? 'Index',
+      comparatorLabel: opts?.comparator ?? 'Comparator',
+      effect: 'OR',
+      model: 'random',
+      robDomains: ['Selection', 'Comparability', 'Outcome'],
+      prisma: { dbRecords: 0, otherRecords: 0, duplicates: 0, screened: 0, excludedScreen: 0, fullText: 0, fullTextExcluded: [], included: 0 },
+      studies: [],
+    },
+    activity: [],
+    instabilityOverrides: {},
+  }
+}
+
+// A second seeded project — demonstrates multiple reviews side by side.
+export const seed2: ProjectState = blankProject('scn5a-risk', 'SCN5A mutation status and arrhythmic risk in Brugada Syndrome', 'SCN5A-RISK', {
+  question: 'In Brugada Syndrome, is a pathogenic SCN5A variant associated with a higher risk of arrhythmic events?',
+  index: 'SCN5A-positive',
+  comparator: 'SCN5A-negative',
+  outcome: 'Arrhythmic events',
+})

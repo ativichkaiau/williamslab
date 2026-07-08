@@ -79,7 +79,23 @@ a{color:var(--blue); text-decoration:none}
 .topbar .crumb{font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.08em}
 .topbar .right{margin-left:auto; display:flex; align-items:center; gap:10px}
 .proj-chip{font-family:var(--mono); font-size:11px; color:var(--ink-2); border:1px solid var(--line);
-  padding:6px 11px; border-radius:999px; white-space:nowrap}
+  padding:6px 11px; border-radius:999px; white-space:nowrap; background:var(--card); cursor:pointer}
+button.proj-chip:hover{border-color:var(--accent)}
+.proj-switch{position:relative}
+.proj-backdrop{position:fixed; inset:0; z-index:40}
+.proj-menu{position:absolute; top:calc(100% + 8px); right:0; z-index:41; width:320px; background:var(--card);
+  border:1px solid var(--line); border-radius:14px; padding:8px; display:flex; flex-direction:column; gap:2px;
+  box-shadow:0 18px 42px -18px rgba(18,32,90,.42), inset 0 1px 1px rgba(255,255,255,.5)}
+html[data-theme="night"] .proj-menu{box-shadow:0 20px 46px -16px rgba(0,0,0,.66), inset 0 1px 1px rgba(255,255,255,.05)}
+.proj-menu-h{font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; color:var(--muted); padding:5px 9px 4px}
+.proj-item{display:flex; align-items:baseline; gap:8px; text-align:left; width:100%; border:1px solid transparent;
+  background:transparent; color:var(--ink); padding:8px 9px; border-radius:9px; cursor:pointer; font-size:12.5px}
+.proj-item:hover{background:var(--card-2)}
+.proj-item.active{border-color:color-mix(in srgb, var(--accent) 42%, var(--line)); background:color-mix(in srgb, var(--accent) 8%, var(--card))}
+.proj-item b{font-family:var(--mono); font-size:10.5px; color:var(--accent); white-space:nowrap}
+.proj-item span{color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.proj-item.new{color:var(--accent); font-weight:700; justify-content:flex-start}
+.proj-sep{height:1px; background:var(--line); margin:5px 2px}
 .gauge{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; font-weight:700;
   border:1px solid var(--line); padding:6px 11px; border-radius:999px}
 .gauge .track{width:56px; height:7px; border-radius:4px; background:var(--card-2); overflow:hidden; border:1px solid var(--line)}
@@ -145,6 +161,29 @@ a{color:var(--blue); text-decoration:none}
 .pill{font-family:var(--mono); font-size:11px; font-weight:700; padding:7px 11px; border-radius:9px;
   background:var(--card-2); border:1px solid var(--line); color:var(--ink-2); display:inline-block}
 .pill b{color:var(--blue)}
+
+/* project-stage stepper + derived progress */
+.stage-track{height:8px; border-radius:5px; background:var(--card-2); border:1px solid var(--line); overflow:hidden}
+.stage-track i{display:block; height:100%; border-radius:5px;
+  background:linear-gradient(90deg, var(--blue), #0d9488); transition:width .3s ease}
+.stage-pill{font-family:var(--mono); font-size:11px; font-weight:700; padding:7px 11px; border-radius:9px;
+  background:var(--card-2); border:1px solid var(--line); color:var(--muted); cursor:pointer; transition:.12s}
+.stage-pill:hover{border-color:var(--blue); color:var(--blue)}
+.stage-pill.past{border-color:color-mix(in srgb, var(--blue) 40%, var(--line)); color:var(--blue)}
+.stage-pill.now{border-color:var(--blue); color:#fff; background:var(--blue);
+  box-shadow:0 4px 12px -4px color-mix(in srgb, var(--blue) 60%, transparent)}
+.sig-row{display:flex; align-items:center; gap:9px; font-size:12.5px; padding:2px 0}
+.sig-dot{width:17px; height:17px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:800; color:#fff; background:var(--card-2); border:1px solid var(--line)}
+.sig-dot.on{background:#12b981; border-color:#12b981}
+
+/* activity feed */
+.act-row{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px}
+.act-row:last-child{border-bottom:none}
+.act-dot{width:8px; height:8px; border-radius:50%; flex:none}
+.act-kind{font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; width:74px; flex:none}
+.act-text{color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.act-time{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--muted); flex:none}
 
 .btn{border:none; cursor:pointer; font-family:inherit; font-weight:700; font-size:13px;
   padding:9px 15px; border-radius:10px; display:inline-flex; gap:8px; align-items:center; transition:.12s}
