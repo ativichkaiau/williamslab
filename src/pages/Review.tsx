@@ -3,18 +3,23 @@ import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { Modal, Field } from '../components/Modal'
 import { Markdown } from '../components/Markdown'
-import { streamChat, hasKey, getKey, setKey, getModel, setModel, keySource, MODELS, type ChatMessage } from '../lib/openai'
+import { streamChat, hasKey, getKey, setKey, getModel, setModel, keySource, estimateCost, fmtCost, MODELS, type ChatMessage } from '../lib/openai'
 import { systemPrompt, PRESETS } from '../lib/brsReview'
+import { retrieve, groundingBlock } from '../lib/theoryRag'
+import { listSessions, saveSession, removeSession, sessionTitle, transcriptMarkdown, onePagerHtml, download, type ReviewMsg, type SavedSession } from '../lib/reviewSessions'
 
-type Msg = { role: 'user' | 'assistant'; content: string }
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random().toString(36).slice(2)}`)
 
 export default function Review() {
   const { state } = useStore()
-  const [messages, setMessages] = useState<Msg[]>([])
+  const [messages, setMessages] = useState<ReviewMsg[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [settings, setSettings] = useState(false)
+  const [sessionsOpen, setSessionsOpen] = useState(false)
+  const [sessions, setSessions] = useState<SavedSession[]>([])
+  const [savedNote, setSavedNote] = useState('')
   const [keyDraft, setKeyDraft] = useState('')
   const [model, setModelState] = useState(getModel())
   const abortRef = useRef<AbortController | null>(null)
@@ -23,6 +28,9 @@ export default function Review() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages])
+
+  const totalTokens = messages.reduce((n, m) => n + (m.usage?.total_tokens ?? 0), 0)
+  const totalCost = messages.reduce((c, m) => c + (m.usage ? estimateCost(model, m.usage) : 0), 0)
 
   async function send(text: string) {
     const q = text.trim()
@@ -33,10 +41,20 @@ export default function Review() {
       return
     }
     setError(null)
+    setSavedNote('')
     setInput('')
+    // RAG: retrieve grounding excerpts from the BrS Theory reference
+    const hits = retrieve(q, 3)
+    const sources = hits.map((h) => h.title)
+    const grounding = groundingBlock(hits)
     const history = messages
-    const callMsgs: ChatMessage[] = [systemPrompt(state), ...history, { role: 'user', content: q }]
-    setMessages([...history, { role: 'user', content: q }, { role: 'assistant', content: '' }])
+    const callMsgs: ChatMessage[] = [
+      systemPrompt(state),
+      ...(grounding ? [{ role: 'system', content: grounding } as ChatMessage] : []),
+      ...history.map((m) => ({ role: m.role, content: m.content }) as ChatMessage),
+      { role: 'user', content: q },
+    ]
+    setMessages([...history, { role: 'user', content: q }, { role: 'assistant', content: '', sources }])
     setStreaming(true)
     const ctrl = new AbortController()
     abortRef.current = ctrl
@@ -50,6 +68,13 @@ export default function Review() {
             const copy = prev.slice()
             const last = copy[copy.length - 1]
             copy[copy.length - 1] = { ...last, content: last.content + delta }
+            return copy
+          }),
+        onUsage: (u) =>
+          setMessages((prev) => {
+            const copy = prev.slice()
+            const last = copy[copy.length - 1]
+            copy[copy.length - 1] = { ...last, usage: u }
             return copy
           }),
       })
@@ -80,6 +105,31 @@ export default function Review() {
     setSettings(false)
   }
 
+  function doSave() {
+    if (!messages.length) return
+    saveSession({ id: newId(), title: sessionTitle(messages), ts: Date.now(), model, messages })
+    setSavedNote('Session saved.')
+  }
+  function openSessions() {
+    setSessions(listSessions())
+    setSessionsOpen(true)
+  }
+  function loadSession(s: SavedSession) {
+    setMessages(s.messages)
+    setSessionsOpen(false)
+  }
+  function deleteSession(id: string) {
+    removeSession(id)
+    setSessions(listSessions())
+  }
+  function exportMd() {
+    download(`knowledge-review-${Date.now()}.md`, 'text/markdown', transcriptMarkdown(messages, { project: state.project.name, model, ts: Date.now() }))
+  }
+  function exportOnePager() {
+    const html = onePagerHtml(messages, { project: state.project.name, question: state.review.question, model, ts: Date.now() })
+    download(`knowledge-review-onepager-${Date.now()}.html`, 'text/html', html)
+  }
+
   const src = keySource()
 
   return (
@@ -90,14 +140,19 @@ export default function Review() {
           <div>
             <Kicker>KNOWLEDGE REVIEW · BRUGADA SYNDROME</Kicker>
             <h1 style={{ marginTop: 12 }}>Knowledge Review</h1>
-            <p>A fast, high-yield review of Brugada Syndrome, tied to your project. Powered by OpenAI — responses stream live.</p>
+            <p>A fast, high-yield review of Brugada Syndrome, grounded in your BrS Theory reference and tied to your project. Answers cite the sections they draw from and stream live.</p>
           </div>
-          <div className="row-actions" style={{ flex: 'none' }}>
+          <div className="row-actions" style={{ flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <span className="pill" title="Model in use"><b>{model}</b></span>
+            <button className="icon-btn" onClick={openSessions}>❑ Sessions</button>
+            {messages.length > 0 && <button className="icon-btn" onClick={doSave}>⤵ Save</button>}
+            {messages.length > 0 && <button className="icon-btn" onClick={exportMd}>⤓ .md</button>}
+            {messages.length > 0 && <button className="icon-btn" onClick={exportOnePager}>⤓ OnePager</button>}
             {messages.length > 0 && <button className="icon-btn" onClick={() => setMessages([])}>Clear</button>}
             <button className="icon-btn" onClick={() => { setKeyDraft(''); setSettings(true) }}>⚙ Settings</button>
           </div>
         </div>
+        {savedNote && <p className="small" style={{ color: 'var(--accent)', marginTop: 6 }}>{savedNote}</p>}
       </div>
 
       {src === 'none' && (
@@ -125,7 +180,15 @@ export default function Review() {
           {messages.map((m, i) => (
             <div key={i} className={`msg ${m.role}`}>
               {m.role === 'assistant' ? (
-                m.content ? <Markdown text={m.content} /> : <span className="typing">thinking<span>.</span><span>.</span><span>.</span></span>
+                <>
+                  {m.content ? <Markdown text={m.content} /> : <span className="typing">thinking<span>.</span><span>.</span><span>.</span></span>}
+                  {(m.sources?.length || m.usage) && (
+                    <div className="msg-meta">
+                      {m.sources?.map((s) => <span key={s} className="src-chip" title="Grounded in this BrS Theory section">§ {s}</span>)}
+                      {m.usage && <span className="tok-meta" title="Estimated — approximate list pricing">▲ {m.usage.total_tokens.toLocaleString()} tok · ~{fmtCost(estimateCost(model, m.usage))}</span>}
+                    </div>
+                  )}
+                </>
               ) : (
                 m.content
               )}
@@ -164,8 +227,32 @@ export default function Review() {
             <button className="btn primary" onClick={() => send(input)} disabled={!input.trim()}>Send</button>
           )}
         </div>
-        <p className="small" style={{ marginTop: 8 }}>Educational review, not clinical advice — verify against primary sources. Model: {MODELS.find((m) => m.id === model)?.label ?? model}. Key: {src === 'env' ? 'from .env.local' : src === 'settings' ? 'from browser' : 'not set'}.</p>
+        <p className="small" style={{ marginTop: 8 }}>
+          Educational review, not clinical advice — verify against primary sources. Model: {MODELS.find((m) => m.id === model)?.label ?? model}. Key: {src === 'env' ? 'from .env.local' : src === 'settings' ? 'from browser' : 'not set'}.
+          {totalTokens > 0 && <> · This session: <b>{totalTokens.toLocaleString()} tokens</b> · est. <b>{fmtCost(totalCost)}</b>.</>}
+        </p>
       </div>
+
+      {sessionsOpen && (
+        <Modal title="Saved review sessions" onClose={() => setSessionsOpen(false)}>
+          {sessions.length === 0 ? (
+            <p className="empty">No saved sessions yet. Run a review and hit <b>Save</b>.</p>
+          ) : (
+            <div className="session-list">
+              {sessions.map((s) => (
+                <div key={s.id} className="session-item">
+                  <div className="session-meta">
+                    <b>{s.title}</b>
+                    <span className="small mono muted">{new Date(s.ts).toLocaleString()} · {s.messages.filter((m) => m.role === 'user').length} Q · {s.model}</span>
+                  </div>
+                  <button className="btn ghost sm" onClick={() => loadSession(s)}>Load</button>
+                  <button className="icon-btn danger" onClick={() => deleteSession(s.id)} title="Delete">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
 
       {settings && (
         <Modal title="OpenAI settings" onClose={() => setSettings(false)}>
@@ -185,6 +272,8 @@ export default function Review() {
           </div>
         </Modal>
       )}
+
+      {error && !streaming && <p className="small" style={{ color: 'var(--red)', marginTop: 8 }}>⚠ {error}</p>}
     </>
   )
 }
