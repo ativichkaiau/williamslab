@@ -133,7 +133,17 @@ export interface Project {
   centralHypothesis: string
   preRegistered: boolean
   primaryEndpoint?: string
+  stage?: string // current lifecycle step (see STAGES)
 }
+
+export interface ActivityEntry {
+  id: string
+  ts: number
+  kind: string
+  text: string
+}
+
+export const STAGES = ['Idea', 'Concept', 'Lit review', 'Protocol', 'Ethics', 'Data', 'Analysis', 'Synthesis', 'Manuscript', 'Submitted'] as const
 
 // ---- systematic review & meta-analysis (SRMA) ----
 export type RobLevel = 'low' | 'some' | 'high'
@@ -213,6 +223,7 @@ export interface ProjectState {
   assays: Assay[]
   papers: Paper[]
   review: Review
+  activity: ActivityEntry[]
   // manually-acknowledged/resolved instabilities keyed by id (rules recompute the rest)
   instabilityOverrides: Record<string, 'acknowledged' | 'resolved'>
 }

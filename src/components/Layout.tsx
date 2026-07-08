@@ -82,7 +82,8 @@ function gaugeColor(v: number) {
 }
 
 export default function Layout() {
-  const { state, stability, instabilities } = useStore()
+  const { state, stability, instabilities, projects, activeId, switchProject, createProject } = useStore()
+  const [projMenu, setProjMenu] = useState(false)
   const loc = useLocation()
   const [theme, setTheme] = useState<'day' | 'night'>(
     () => (document.documentElement.getAttribute('data-theme') as 'day' | 'night') || 'day',
@@ -141,7 +142,24 @@ export default function Layout() {
             <div className="crumb">WILLIAMSLAB / {state.project.code}</div>
           </div>
           <div className="right">
-            <span className="proj-chip">{state.project.code} · Y1</span>
+            <div className="proj-switch">
+              <button className="proj-chip" onClick={() => setProjMenu((v) => !v)} title={state.project.name}>{state.project.code} ▾</button>
+              {projMenu && (
+                <>
+                  <div className="proj-backdrop" onClick={() => setProjMenu(false)} />
+                  <div className="proj-menu">
+                    <div className="proj-menu-h">PROJECTS</div>
+                    {projects.map((p) => (
+                      <button key={p.id} className={`proj-item${p.id === activeId ? ' active' : ''}`} onClick={() => { switchProject(p.id); setProjMenu(false) }}>
+                        <b>{p.code}</b><span>{p.name}</span>
+                      </button>
+                    ))}
+                    <div className="proj-sep" />
+                    <button className="proj-item new" onClick={() => { const n = window.prompt('New review / project name'); if (n) createProject(n); setProjMenu(false) }}>＋ New review / project</button>
+                  </div>
+                </>
+              )}
+            </div>
             <span className="gauge" title="Project rigor">
               <span className="track">
                 <i style={{ width: `${Math.round(stability * 100)}%`, background: gaugeColor(stability) }} />
