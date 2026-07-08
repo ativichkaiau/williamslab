@@ -85,6 +85,8 @@ export interface Assay {
   genomeWide?: boolean // targeted vs genome-wide — drives the power sensor
   expectedEffect?: number // Cohen's d you expect to detect (default 0.8)
   genomeWideTests?: number // approx # of simultaneous tests for multiple-testing correction
+  costK?: number // estimated cost, thousands of USD
+  weeks?: number // estimated bench duration, weeks
   status: AssayStatus
   claims?: string[] // Hypothesis ids this assay addresses
 }

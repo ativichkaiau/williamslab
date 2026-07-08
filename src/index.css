@@ -341,6 +341,9 @@ td .muted{color:var(--muted)}
 .head-actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
 .weak-link{padding:10px 0; border-bottom:1px dashed var(--line)}
 .weak-link:last-child{border-bottom:none}
+.nvn{display:flex; align-items:center; gap:7px}
+.nvn-bar{width:52px; height:7px; border-radius:4px; background:var(--card-2); border:1px solid var(--line); overflow:hidden; flex:none}
+.nvn-bar i{display:block; height:100%; border-radius:4px}
 .err{background:var(--bad); color:var(--bad-ink); border:1px solid color-mix(in srgb,var(--bad-ink) 30%, var(--line)); border-radius:10px; padding:10px 12px; font-size:12.5px; margin-bottom:12px}
 
 .empty{color:var(--muted); font-size:13px; font-style:italic}
