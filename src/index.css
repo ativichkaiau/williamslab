@@ -376,6 +376,59 @@ html[data-theme="night"] .diagram{box-shadow:inset 0 2px 5px rgba(0,0,0,.35)}
 .keybox.clin{background:var(--good); border-color:color-mix(in srgb,var(--green) 26%,var(--line))}
 .keybox.clin .kb-l{color:var(--good-ink)}
 
+/* interactive diagram hover targets */
+.diagram .dgm-node{cursor:help; transition:opacity .12s}
+.diagram .dgm-node:hover{opacity:.72}
+
+/* theory controls: search + read progress + quiz toggle */
+.theory-controls{display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-bottom:16px;
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow)}
+.theory-controls .input{flex:1 1 220px; min-width:180px; padding:7px 11px; font-size:12.5px}
+.theory-controls .muted{color:var(--muted)}
+.read-progress{display:flex; align-items:center; gap:8px}
+.rp-track{width:110px; height:7px; border-radius:4px; background:var(--card-2); border:1px solid var(--line); overflow:hidden}
+.rp-track i{display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,var(--blue),#0d9488); transition:width .3s}
+
+/* read state in TOC + section head */
+.toc-link.read{color:var(--ink)}
+.toc-tick{color:#12b981; font-weight:800; font-size:11px}
+.sec-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.sec-head > h2{font-size:20px; margin-bottom:8px; display:flex; align-items:center; gap:10px}
+.sec-head > h2 .no{font-family:var(--mono); font-size:12px; color:var(--red); font-weight:700}
+.read-toggle{flex:none; font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; cursor:pointer;
+  border:1px solid var(--line); background:var(--card-2); color:var(--muted); padding:5px 10px; border-radius:999px; transition:.12s}
+.read-toggle:hover{border-color:#12b981; color:#12b981}
+.read-toggle.on{background:color-mix(in srgb,#12b981 12%,var(--card)); border-color:#12b981; color:#0e9d6e}
+
+/* per-section citations */
+.cite-box{margin-top:18px; border-top:1px dashed var(--line); padding-top:14px}
+.cite-h{font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:8px}
+.cite-list{list-style:none; margin:0 0 8px; padding:0; display:flex; flex-direction:column; gap:6px}
+.cite-list li{font-size:12.5px; line-height:1.45}
+.cite-list a{color:var(--blue); text-decoration:none}
+.cite-list a:hover{text-decoration:underline}
+.cite-list.latest{margin-top:10px; border-left:2px solid color-mix(in srgb,var(--blue) 40%,var(--line)); padding-left:12px}
+.cite-refresh{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:4px}
+
+/* quiz mode */
+.quiz-panel{max-width:760px; margin:0 auto; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:26px}
+.quiz-top{display:flex; align-items:center; gap:14px; margin-bottom:12px; color:var(--muted)}
+.quiz-track{height:7px; border-radius:4px; background:var(--card-2); border:1px solid var(--line); overflow:hidden; margin-bottom:18px}
+.quiz-track i{display:block; height:100%; background:linear-gradient(90deg,var(--blue),var(--red)); transition:width .3s}
+.quiz-q{font-size:17px; font-weight:800; line-height:1.4; margin-bottom:16px}
+.quiz-opts{display:flex; flex-direction:column; gap:9px}
+.quiz-opt{text-align:left; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer; padding:12px 15px; border-radius:11px;
+  border:1px solid var(--line); background:var(--card-2); transition:.12s}
+.quiz-opt:hover:not(:disabled){border-color:var(--blue)}
+.quiz-opt:disabled{cursor:default}
+.quiz-opt.correct{border-color:#12b981; background:color-mix(in srgb,#12b981 14%,var(--card)); color:var(--ink)}
+.quiz-opt.wrong{border-color:var(--red); background:color-mix(in srgb,var(--red) 12%,var(--card))}
+.quiz-explain{margin-top:16px; font-size:13.5px; line-height:1.55; border-radius:12px; padding:14px 16px; border:1px solid var(--line)}
+.quiz-explain.ok{background:color-mix(in srgb,#12b981 9%,var(--card)); border-color:color-mix(in srgb,#12b981 30%,var(--line))}
+.quiz-explain.no{background:var(--warn); border-color:color-mix(in srgb,var(--amber) 30%,var(--line))}
+.quiz-done{text-align:center; padding:14px}
+.quiz-score{font-family:var(--mono); font-size:46px; font-weight:800; color:var(--blue); margin-bottom:6px}
+
 /* ---------- rigor monitor findings (review comments) ---------- */
 .findings{display:flex; flex-direction:column; gap:12px}
 .finding{background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px}
