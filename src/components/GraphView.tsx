@@ -10,6 +10,7 @@ const R = 34
 export interface GraphHandle {
   forceLayout: () => void
   clusterLayout: () => void
+  layeredLayout: () => void
   tidy: () => void
   fit: () => void
   exportSvg: () => void
@@ -25,6 +26,8 @@ interface Props {
   showLabels?: boolean
   search?: string
   hiddenTypes?: Set<NodeType>
+  highlightNodes?: Set<string>
+  highlightEdges?: Set<string>
 }
 
 type P = Record<string, { x: number; y: number }>
@@ -59,9 +62,10 @@ function relax(P: P, ids: string[]) {
 }
 
 const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
-  { nodes, edges, selectedId, onSelect, onNodeMove, showLabels = true, search = '', hiddenTypes },
+  { nodes, edges, selectedId, onSelect, onNodeMove, showLabels = true, search = '', hiddenTypes, highlightNodes, highlightEdges },
   ref,
 ) {
+  const hlActive = !!highlightNodes && highlightNodes.size > 0
   const svgRef = useRef<SVGSVGElement | null>(null)
   const worldRef = useRef<SVGGElement | null>(null)
   const [pos, setPos] = useState<P>(() =>
@@ -249,6 +253,48 @@ const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
     commit(Pc)
   }
 
+  // top-down layered DAG (Sugiyama-ish): longest-path layering from the roots
+  const layeredLayout = () => {
+    const V = visibleNodes
+    if (!V.length) return
+    const ids = V.map((n) => n.id)
+    const idset = new Set(ids)
+    const E = visibleEdges.filter((e) => idset.has(e.src) && idset.has(e.dst))
+    const layer = new Map(ids.map((id) => [id, 0]))
+    for (let it = 0; it < ids.length; it++) {
+      let changed = false
+      for (const e of E) {
+        const nl = (layer.get(e.src) ?? 0) + 1
+        if (nl > (layer.get(e.dst) ?? 0)) {
+          layer.set(e.dst, nl)
+          changed = true
+        }
+      }
+      if (!changed) break
+    }
+    const byLayer = new Map<number, string[]>()
+    ids.forEach((id) => {
+      const l = layer.get(id) ?? 0
+      if (!byLayer.has(l)) byLayer.set(l, [])
+      byLayer.get(l)!.push(id)
+    })
+    const layers = [...byLayer.keys()].sort((a, b) => a - b)
+    const topPad = 90
+    const vGap = Math.min(210, (VBH - 2 * topPad) / Math.max(1, layers.length - 1))
+    const Pl: P = {}
+    layers.forEach((l, li) => {
+      const row = byLayer.get(l)!
+      const hGap = Math.min(210, (VBW - 160) / Math.max(1, row.length))
+      const startX = VBW / 2 - ((row.length - 1) * hGap) / 2
+      const y = topPad + li * (Number.isFinite(vGap) ? vGap : 160)
+      row.forEach((id, xi) => {
+        Pl[id] = { x: startX + xi * hGap, y }
+      })
+    })
+    relax(Pl, ids)
+    commit(Pl)
+  }
+
   // ---- export ----
   const buildSvgString = (): string => {
     const g = worldRef.current
@@ -305,7 +351,7 @@ const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s)))
   }
 
-  useImperativeHandle(ref, () => ({ forceLayout, clusterLayout, tidy, fit: () => fit(), exportSvg, exportPng }))
+  useImperativeHandle(ref, () => ({ forceLayout, clusterLayout, layeredLayout, tidy, fit: () => fit(), exportSvg, exportPng }))
 
   // frame all nodes on first mount
   useEffect(() => {
@@ -367,9 +413,10 @@ const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
             const y2 = b.y - uy * (R + 4)
             const st = EVIDENCE_STYLE[e.evidence ?? 'predicted']
             const w = 1 + (e.strength ?? 0.3) * 3.2
+            const faded = hlActive && !highlightEdges?.has(e.id)
             return (
-              <g className="graph-edge" key={e.id}>
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={st.color} strokeWidth={w} strokeDasharray={st.dash} markerEnd={`url(#arw-${e.evidence ?? 'predicted'})`} />
+              <g className="graph-edge" key={e.id} opacity={faded ? 0.1 : 1}>
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={st.color} strokeWidth={hlActive && !faded ? w + 1 : w} strokeDasharray={st.dash} markerEnd={`url(#arw-${e.evidence ?? 'predicted'})`} />
                 {showLabels && (
                   <text className="edge-label" x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 4} textAnchor="middle" fontSize="10.5">
                     {e.rel}
@@ -384,7 +431,8 @@ const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
             if (!p) return null
             const c = nodeColor(n.type)
             const selected = selectedId === n.id
-            const dim = q !== '' && !matched(n)
+            const dim = (q !== '' && !matched(n)) || (hlActive && !highlightNodes?.has(n.id))
+            const onPath = hlActive && highlightNodes?.has(n.id)
             return (
               <g
                 key={n.id}
@@ -399,6 +447,7 @@ const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
                 }}
               >
                 {selected && <circle cx={p.x} cy={p.y} r={R + 6} fill="none" stroke={c} strokeWidth={2.5} opacity={0.5} />}
+                {onPath && !selected && <circle cx={p.x} cy={p.y} r={R + 4} fill="none" stroke={c} strokeWidth={2} opacity={0.6} />}
                 <circle cx={p.x} cy={p.y} r={R} fill={c} stroke="#fff" strokeWidth={2} />
                 <text x={p.x} y={p.y - 2} textAnchor="middle" fontSize="12.5">{n.label}</text>
                 {n.sublabel && (
