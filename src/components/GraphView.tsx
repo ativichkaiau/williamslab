@@ -1,11 +1,20 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
-import type { GraphNode, GraphEdge } from '../types'
+import { useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import type { GraphNode, GraphEdge, NodeType } from '../types'
 import { nodeColor, EVIDENCE_STYLE } from '../lib/palette'
 
 // Large logical canvas; pan/zoom give effectively unbounded working space.
 const VBW = 1400
 const VBH = 900
 const R = 34
+
+export interface GraphHandle {
+  forceLayout: () => void
+  clusterLayout: () => void
+  tidy: () => void
+  fit: () => void
+  exportSvg: () => void
+  exportPng: () => void
+}
 
 interface Props {
   nodes: GraphNode[]
@@ -14,20 +23,61 @@ interface Props {
   onSelect?: (n: GraphNode | null) => void
   onNodeMove?: (id: string, x: number, y: number) => void
   showLabels?: boolean
+  search?: string
+  hiddenTypes?: Set<NodeType>
 }
 
+type P = Record<string, { x: number; y: number }>
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 const MIN_SEP = 82 // node non-overlap distance
 
-export default function GraphView({ nodes, edges, selectedId, onSelect, onNodeMove, showLabels = true }: Props) {
+// push apart any pair closer than MIN_SEP (in place)
+function relax(P: P, ids: string[]) {
+  for (let iter = 0; iter < 120; iter++) {
+    let moved = false
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const a = P[ids[i]]
+        const b = P[ids[j]]
+        const dx = b.x - a.x
+        const dy = b.y - a.y
+        const d = Math.hypot(dx, dy) || 0.01
+        if (d < MIN_SEP) {
+          const push = (MIN_SEP - d) / 2 + 0.5
+          const ux = dx / d
+          const uy = dy / d
+          a.x -= ux * push
+          a.y -= uy * push
+          b.x += ux * push
+          b.y += uy * push
+          moved = true
+        }
+      }
+    }
+    if (!moved) break
+  }
+}
+
+const GraphView = forwardRef<GraphHandle, Props>(function GraphView(
+  { nodes, edges, selectedId, onSelect, onNodeMove, showLabels = true, search = '', hiddenTypes },
+  ref,
+) {
   const svgRef = useRef<SVGSVGElement | null>(null)
-  const [pos, setPos] = useState<Record<string, { x: number; y: number }>>(() =>
+  const worldRef = useRef<SVGGElement | null>(null)
+  const [pos, setPos] = useState<P>(() =>
     Object.fromEntries(nodes.map((n) => [n.id, { x: n.x ?? VBW / 2, y: n.y ?? VBH / 2 }])),
   )
   const [view, setView] = useState({ k: 1, tx: 0, ty: 0 })
   const [drag, setDrag] = useState<string | null>(null)
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null)
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
+
+  const visibleNodes = useMemo(() => nodes.filter((n) => !hiddenTypes?.has(n.type)), [nodes, hiddenTypes])
+  const visIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes])
+  const visibleEdges = useMemo(() => edges.filter((e) => visIds.has(e.src) && visIds.has(e.dst)), [edges, visIds])
+
+  const q = search.trim().toLowerCase()
+  const matched = (n: GraphNode) => !q || `${n.label} ${n.sublabel ?? ''} ${n.type}`.toLowerCase().includes(q)
 
   const posOf = (id: string): { x: number; y: number } | null => {
     if (pos[id]) return pos[id]
@@ -85,46 +135,12 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, onNodeMo
     setPan(null)
   }
 
-  // relax overlaps: push apart any node pair closer than MIN_SEP, then persist
-  const tidy = () => {
-    const P: Record<string, { x: number; y: number }> = Object.fromEntries(nodes.map((n) => [n.id, { ...posOf(n.id)! }]))
-    const ids = nodes.map((n) => n.id)
-    for (let iter = 0; iter < 90; iter++) {
-      let moved = false
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = i + 1; j < ids.length; j++) {
-          const a = P[ids[i]]
-          const b = P[ids[j]]
-          const dx = b.x - a.x
-          const dy = b.y - a.y
-          const d = Math.hypot(dx, dy) || 0.01
-          if (d < MIN_SEP) {
-            const push = (MIN_SEP - d) / 2 + 0.5
-            const ux = dx / d
-            const uy = dy / d
-            a.x -= ux * push
-            a.y -= uy * push
-            b.x += ux * push
-            b.y += uy * push
-            moved = true
-          }
-        }
-      }
-      if (!moved) break
-    }
-    setPos(P)
-    if (onNodeMove) ids.forEach((id) => onNodeMove(id, Math.round(P[id].x), Math.round(P[id].y)))
-  }
-
-  // frame all nodes on first mount
-  useEffect(() => {
-    fit()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fit = () => {
-    if (!nodes.length) return
-    const ps = nodes.map((n) => posOf(n.id)!).filter(Boolean)
+  // frame all visible nodes; optional override map (used right after a layout)
+  const fit = (override?: P) => {
+    const getP = (id: string) => override?.[id] ?? posOf(id)
+    const src = visibleNodes.length ? visibleNodes : nodes
+    if (!src.length) return
+    const ps = src.map((n) => getP(n.id)!).filter(Boolean)
     const minX = Math.min(...ps.map((p) => p.x)) - R
     const maxX = Math.max(...ps.map((p) => p.x)) + R
     const minY = Math.min(...ps.map((p) => p.y)) - R
@@ -134,14 +150,176 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, onNodeMo
     setView({ k, tx: pad - minX * k + (VBW - 2 * pad - (maxX - minX) * k) / 2, ty: pad - minY * k + (VBH - 2 * pad - (maxY - minY) * k) / 2 })
   }
 
+  // commit computed positions: update local state, persist, and reframe
+  const commit = (next: P) => {
+    setPos((prev) => ({ ...prev, ...next }))
+    if (onNodeMove) for (const id in next) onNodeMove(id, Math.round(next[id].x), Math.round(next[id].y))
+    fit(next)
+  }
+
+  // relax overlaps only
+  const tidy = () => {
+    const P0: P = Object.fromEntries(visibleNodes.map((n) => [n.id, { ...posOf(n.id)! }]))
+    relax(P0, visibleNodes.map((n) => n.id))
+    commit(P0)
+  }
+
+  // spring-embedder: edge attraction + node repulsion + mild center gravity, with cooling
+  const forceLayout = () => {
+    const V = visibleNodes
+    if (!V.length) return
+    const ids = V.map((n) => n.id)
+    const Pf: P = Object.fromEntries(ids.map((id) => [id, { ...posOf(id)! }]))
+    const E = visibleEdges
+    const cx = VBW / 2
+    const cy = VBH / 2
+    const K_REP = 46000
+    const K_SPRING = 0.02
+    const REST = 155
+    const ITERS = 320
+    for (let it = 0; it < ITERS; it++) {
+      const disp: P = Object.fromEntries(ids.map((id) => [id, { x: 0, y: 0 }]))
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = Pf[ids[i]]
+          const b = Pf[ids[j]]
+          let dx = a.x - b.x
+          let dy = a.y - b.y
+          let d2 = dx * dx + dy * dy || 0.01
+          const d = Math.sqrt(d2)
+          const f = K_REP / d2
+          dx /= d
+          dy /= d
+          disp[ids[i]].x += dx * f
+          disp[ids[i]].y += dy * f
+          disp[ids[j]].x -= dx * f
+          disp[ids[j]].y -= dy * f
+        }
+      }
+      for (const e of E) {
+        const a = Pf[e.src]
+        const b = Pf[e.dst]
+        if (!a || !b) continue
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        const d = Math.hypot(dx, dy) || 0.01
+        const f = K_SPRING * (d - REST)
+        dx = (dx / d) * f
+        dy = (dy / d) * f
+        disp[e.src].x += dx
+        disp[e.src].y += dy
+        disp[e.dst].x -= dx
+        disp[e.dst].y -= dy
+      }
+      const cool = 1 - it / ITERS
+      for (const id of ids) {
+        disp[id].x += (cx - Pf[id].x) * 0.009
+        disp[id].y += (cy - Pf[id].y) * 0.009
+        const dd = Math.hypot(disp[id].x, disp[id].y) || 0.01
+        const step = Math.min(dd, 34 * cool + 2)
+        Pf[id].x = clamp(Pf[id].x + (disp[id].x / dd) * step, 60, VBW - 60)
+        Pf[id].y = clamp(Pf[id].y + (disp[id].y / dd) * step, 60, VBH - 60)
+      }
+    }
+    relax(Pf, ids)
+    commit(Pf)
+  }
+
+  // group nodes into per-type clusters arranged around a ring
+  const clusterLayout = () => {
+    const V = visibleNodes
+    if (!V.length) return
+    const types = [...new Set(V.map((n) => n.type))]
+    const cx = VBW / 2
+    const cy = VBH / 2
+    const ring = Math.min(VBW, VBH) * (types.length > 1 ? 0.34 : 0)
+    const Pc: P = {}
+    types.forEach((t, ti) => {
+      const ang = (ti / types.length) * Math.PI * 2 - Math.PI / 2
+      const gx = cx + Math.cos(ang) * ring
+      const gy = cy + Math.sin(ang) * ring
+      const members = V.filter((n) => n.type === t)
+      const rr = Math.max(0, members.length === 1 ? 0 : 30 + members.length * 9)
+      members.forEach((n, mi) => {
+        const a = (mi / members.length) * Math.PI * 2 - Math.PI / 2
+        Pc[n.id] = { x: gx + Math.cos(a) * rr, y: gy + Math.sin(a) * rr }
+      })
+    })
+    relax(Pc, V.map((n) => n.id))
+    commit(Pc)
+  }
+
+  // ---- export ----
+  const buildSvgString = (): string => {
+    const g = worldRef.current
+    if (!g || !visibleNodes.length) return ''
+    const clone = g.cloneNode(true) as SVGGElement
+    clone.removeAttribute('transform')
+    const ps = visibleNodes.map((n) => posOf(n.id)!).filter(Boolean)
+    const pad = 64
+    const minX = Math.min(...ps.map((p) => p.x)) - R - pad
+    const minY = Math.min(...ps.map((p) => p.y)) - R - pad
+    const w = Math.round(Math.max(...ps.map((p) => p.x)) + R + pad - minX)
+    const h = Math.round(Math.max(...ps.map((p) => p.y)) + R + pad - minY)
+    const defs = svgRef.current?.querySelector('defs')?.outerHTML ?? ''
+    const style =
+      '<style>text{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.graph-node text{font-weight:700;fill:#fff}.edge-label{fill:#8a94b8}</style>'
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${Math.round(minX)} ${Math.round(minY)} ${w} ${h}" width="${w}" height="${h}">${style}<rect x="${Math.round(minX)}" y="${Math.round(minY)}" width="${w}" height="${h}" fill="#ffffff"/>${defs}${clone.outerHTML}</svg>`
+  }
+
+  const triggerDownload = (url: string, name: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    a.click()
+  }
+
+  const exportSvg = () => {
+    const s = buildSvgString()
+    if (!s) return
+    const url = URL.createObjectURL(new Blob([s], { type: 'image/svg+xml' }))
+    triggerDownload(url, 'knowledge-graph.svg')
+    URL.revokeObjectURL(url)
+  }
+
+  const exportPng = () => {
+    const s = buildSvgString()
+    if (!s) return
+    const img = new Image()
+    img.onload = () => {
+      const scale = 2
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.scale(scale, scale)
+      ctx.drawImage(img, 0, 0)
+      canvas.toBlob((b) => {
+        if (!b) return
+        const url = URL.createObjectURL(b)
+        triggerDownload(url, 'knowledge-graph.png')
+        URL.revokeObjectURL(url)
+      }, 'image/png')
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s)))
+  }
+
+  useImperativeHandle(ref, () => ({ forceLayout, clusterLayout, tidy, fit: () => fit(), exportSvg, exportPng }))
+
+  // frame all nodes on first mount
+  useEffect(() => {
+    fit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className="graph-canvas">
       <div className="graph-toolbar">
         <button className="icon-btn" onClick={() => zoomAround(VBW / 2, VBH / 2, 0.83)} title="Zoom out">−</button>
         <span className="zoom-lvl mono">{Math.round(view.k * 100)}%</span>
         <button className="icon-btn" onClick={() => zoomAround(VBW / 2, VBH / 2, 1.2)} title="Zoom in">+</button>
-        <button className="icon-btn" onClick={tidy} title="Auto-layout: spread overlapping nodes">Tidy</button>
-        <button className="icon-btn" onClick={fit} title="Fit all nodes">Fit</button>
+        <button className="icon-btn" onClick={() => fit()} title="Fit all nodes">Fit</button>
         <button className="icon-btn" onClick={() => setView({ k: 1, tx: 0, ty: 0 })} title="Reset view">Reset</button>
       </div>
       <svg
@@ -173,8 +351,8 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, onNodeMo
           onClick={() => onSelect?.(null)}
         />
 
-        <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
-          {edges.map((e) => {
+        <g ref={worldRef} transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
+          {visibleEdges.map((e) => {
             const a = posOf(e.src)
             const b = posOf(e.dst)
             if (!a || !b) return null
@@ -201,15 +379,16 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, onNodeMo
             )
           })}
 
-          {nodes.map((n) => {
+          {visibleNodes.map((n) => {
             const p = posOf(n.id)
             if (!p) return null
             const c = nodeColor(n.type)
             const selected = selectedId === n.id
+            const dim = q !== '' && !matched(n)
             return (
               <g
                 key={n.id}
-                className="graph-node"
+                className={`graph-node${dim ? ' dim' : ''}`}
                 onPointerDown={(e) => {
                   e.stopPropagation()
                   setDrag(n.id)
@@ -232,4 +411,6 @@ export default function GraphView({ nodes, edges, selectedId, onSelect, onNodeMo
       </svg>
     </div>
   )
-}
+})
+
+export default GraphView
