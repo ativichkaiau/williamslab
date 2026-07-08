@@ -45,12 +45,83 @@ export function invNorm(p: number): number {
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 
-/** Power of a two-sided two-sample test, equal n per group. */
-export function twoSampleTPower({ nPerGroup, d, alpha }: { nPerGroup: number; d: number; alpha: number }): number {
+/** Power of a two-sided two-sample test. `alloc` = n₂/n₁ (1 = equal groups). */
+export function twoSampleTPower({ nPerGroup, d, alpha, alloc = 1 }: { nPerGroup: number; d: number; alpha: number; alloc?: number }): number {
   if (nPerGroup < 2 || d <= 0) return 0
   const zcrit = invNorm(1 - alpha / 2)
-  const ncp = d * Math.sqrt(nPerGroup / 2)
+  const ncp = d * Math.sqrt((nPerGroup * alloc) / (alloc + 1))
   return clamp01(normalCdf(ncp - zcrit) + normalCdf(-ncp - zcrit))
+}
+
+// ---- chi-square helpers (Wilson–Hilferty normal approximation) ----
+function pchisq(x: number, df: number): number {
+  if (x <= 0) return 0
+  const t = Math.cbrt(x / df)
+  return normalCdf((t - (1 - 2 / (9 * df))) / Math.sqrt(2 / (9 * df)))
+}
+function qchisq(p: number, df: number): number {
+  const z = invNorm(p)
+  const v = 1 - 2 / (9 * df) + z * Math.sqrt(2 / (9 * df))
+  return df * v * v * v
+}
+
+/** Paired t-test, n pairs, effect size dz on the within-pair differences. */
+export function pairedPower({ nPairs, d, alpha }: { nPairs: number; d: number; alpha: number }): number {
+  if (nPairs < 2 || d <= 0) return 0
+  const zcrit = invNorm(1 - alpha / 2)
+  const ncp = d * Math.sqrt(nPairs)
+  return clamp01(normalCdf(ncp - zcrit) + normalCdf(-ncp - zcrit))
+}
+export function requiredNPaired({ d, alpha, power }: { d: number; alpha: number; power: number }): number {
+  if (d <= 0) return Infinity
+  const z = invNorm(1 - alpha / 2) + invNorm(power)
+  return Math.max(2, Math.ceil((z / d) * (z / d)))
+}
+
+/** One-way ANOVA omnibus, k groups × n, Cohen's f. Patnaik χ² approx to the
+ *  noncentral F (a planning approximation; slightly optimistic at small df₂). */
+export function anovaPower({ k, nPerGroup, f, alpha }: { k: number; nPerGroup: number; f: number; alpha: number }): number {
+  if (k < 2 || nPerGroup < 2 || f <= 0) return 0
+  const df1 = k - 1
+  const lambda = f * f * k * nPerGroup
+  const crit = qchisq(1 - alpha, df1)
+  const c = (df1 + 2 * lambda) / (df1 + lambda)
+  const h = ((df1 + lambda) * (df1 + lambda)) / (df1 + 2 * lambda)
+  return clamp01(1 - pchisq(crit / c, h))
+}
+export function requiredNAnova({ k, f, alpha, power }: { k: number; f: number; alpha: number; power: number }): number {
+  if (f <= 0) return Infinity
+  for (let n = 2; n <= 100000; n++) if (anovaPower({ k, nPerGroup: n, f, alpha }) >= power) return n
+  return Infinity
+}
+
+/** Log-rank (Schoenfeld), power from the number of observed events; 1:1 arms. */
+export function logRankPower({ events, hr, alpha }: { events: number; hr: number; alpha: number }): number {
+  if (events < 2 || hr <= 0 || hr === 1) return 0
+  const zcrit = invNorm(1 - alpha / 2)
+  return clamp01(normalCdf((Math.abs(Math.log(hr)) * Math.sqrt(events)) / 2 - zcrit))
+}
+export function requiredEvents({ hr, alpha, power }: { hr: number; alpha: number; power: number }): number {
+  if (hr <= 0 || hr === 1) return Infinity
+  const z = invNorm(1 - alpha / 2) + invNorm(power)
+  return Math.max(4, Math.ceil((4 * z * z) / (Math.log(hr) * Math.log(hr))))
+}
+
+/** BH-FDR planning per-test α (Jung 2005): m tests, m1 true alternatives,
+ *  target FDR q at the planned power. Less conservative than Bonferroni. */
+export function fdrAlpha({ m, m1, q, power }: { m: number; m1: number; q: number; power: number }): number {
+  const m0 = Math.max(0, m - m1)
+  if (m1 <= 0 || m0 <= 0 || q <= 0 || q >= 1) return q
+  return Math.min(1, (q * m1 * power) / (m0 * (1 - q)))
+}
+
+/** Approximate Cohen's d from a pooled meta-analysis estimate (for planning). */
+export function dFromMeta(measure: string, est: number): number {
+  const SQRT3_OVER_PI = Math.sqrt(3) / Math.PI
+  if (measure === 'SMD') return Math.abs(est)
+  if (measure === 'OR' || measure === 'RR') return Math.abs(Math.log(est)) * SQRT3_OVER_PI // Chinn/Hasselblad–Hedges
+  if (measure === 'RD') return Math.min(1.2, Math.abs(est) * 2) // crude
+  return 0.5
 }
 
 /** Required n per group to reach a target power. */

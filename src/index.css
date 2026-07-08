@@ -163,6 +163,11 @@ html[data-theme="night"] .proj-menu{box-shadow:0 20px 46px -16px rgba(0,0,0,.66)
 .stat b{display:block; font-size:30px; letter-spacing:-.04em}
 .stat span{font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; color:var(--muted); text-transform:uppercase}
 .stat .sub{font-size:11px; color:var(--muted); letter-spacing:0; text-transform:none; font-family:var(--sans); margin-top:2px}
+.meta-pull{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:10px;
+  font-size:12px; color:var(--ink-2); background:color-mix(in srgb,var(--blue) 7%,var(--card-2)); border:1px solid color-mix(in srgb,var(--blue) 24%,var(--line)); border-radius:11px; padding:9px 12px}
+.curve-legend{display:flex; flex-wrap:wrap; gap:12px; margin-top:8px}
+.curve-legend .cl{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-2); font-weight:600}
+.curve-legend .cl i{width:14px; height:3px; border-radius:2px}
 
 .badge{font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.06em; padding:4px 9px;
   border-radius:999px; text-transform:uppercase; white-space:nowrap; display:inline-block}
