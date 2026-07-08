@@ -43,4 +43,5 @@ export const INSTABILITY_LABEL: Record<InstabilityType, string> = {
   statistical_ambiguity: 'Statistical ambiguity',
   infeasible_protocol: 'Infeasible protocol',
   manuscript_story_weakness: 'Manuscript-story weakness',
+  srma_gap: 'Review rigor gap',
 }

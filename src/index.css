@@ -497,6 +497,35 @@ html[data-theme="night"] .diagram{box-shadow:inset 0 2px 5px rgba(0,0,0,.35)}
 .finding-comment{font-size:13.5px; line-height:1.6; color:var(--ink-2)}
 .finding-fix{font-size:13px; color:var(--ink-2); margin-top:11px; padding-top:11px; border-top:1px dashed var(--line)}
 .fix-l{font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--good-ink); font-weight:700; margin-right:8px}
+
+/* resolve-with-note */
+.resolve-note{display:flex; gap:8px; align-items:center; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); flex-wrap:wrap}
+.resolve-note .input{flex:1; min-width:200px; font-size:12.5px; padding:7px 11px}
+
+/* AMSTAR-2 grid */
+.amstar-rating{font-family:var(--mono); font-size:11px; font-weight:800; letter-spacing:.04em; border:1px solid; border-radius:999px; padding:5px 12px}
+.amstar-grid{display:flex; flex-direction:column; gap:2px}
+.amstar-row{display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:10px; padding:7px 6px; border-radius:8px; font-size:12.5px}
+.amstar-row:nth-child(odd){background:var(--card-2)}
+.am-n{font-family:var(--mono); font-size:11px; font-weight:700; color:var(--muted); text-align:right}
+.am-star{color:var(--red); margin-left:1px}
+.am-text{color:var(--ink-2); line-height:1.4}
+.am-seg{box-shadow:none}
+.am-b{padding:4px 9px; font-size:11px; color:var(--muted)}
+.am-b.on.am-yes{background:var(--good); color:var(--good-ink)}
+.am-b.on.am-partial{background:var(--warn); color:var(--warn-ink)}
+.am-b.on.am-no{background:var(--bad); color:var(--bad-ink)}
+
+/* audit trail */
+.audit-row{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px}
+.audit-row:last-child{border-bottom:none}
+.audit-act{font-family:var(--mono); font-size:9px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; border-radius:5px; padding:3px 7px; flex:none}
+.audit-resolved{background:var(--good); color:var(--good-ink)}
+.audit-acknowledged{background:var(--warn); color:var(--warn-ink)}
+.audit-reopened{background:var(--card-2); color:var(--muted); border:1px solid var(--line)}
+.audit-label{font-weight:700; flex:none}
+.audit-note{color:var(--ink-2); font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.audit-time{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--muted); flex:none}
 .toc-group-h{font-family:var(--mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--red); font-weight:700; padding:14px 10px 4px}
 .toc-group-h:first-of-type{padding-top:0}
 
