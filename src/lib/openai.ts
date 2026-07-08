@@ -115,6 +115,43 @@ interface StreamOpts {
 
 // Streams a chat completion, calling onToken for each content delta.
 // Returns the full assembled text. Params are chosen to work across
+// Non-streaming single completion — returns the assistant text. Handy for
+// one-shot structured jobs (relevance triage, hypothesis critique, …).
+export async function complete(messages: ChatMessage[], model?: string, signal?: AbortSignal): Promise<string> {
+  const key = getKey()
+  if (!key) throw new Error('No OpenAI API key set. Open Settings to add one.')
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: model ?? getModel(), max_completion_tokens: 1800, messages }),
+    signal,
+  })
+  if (!res.ok) {
+    let msg = `OpenAI request failed (${res.status})`
+    try {
+      const j = await res.json()
+      if (j?.error?.message) msg = j.error.message
+    } catch {
+      /* not JSON */
+    }
+    if (res.status === 401) msg = 'Invalid API key (401). Check it in Settings.'
+    throw new Error(msg)
+  }
+  const j = await res.json()
+  return (j?.choices?.[0]?.message?.content as string) ?? ''
+}
+
+// Parse a JSON value out of a model reply that may be fenced or chatty.
+export function parseJsonLoose<T>(text: string): T {
+  let t = text.trim()
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence) t = fence[1].trim()
+  const first = Math.min(...['[', '{'].map((c) => (t.indexOf(c) === -1 ? Infinity : t.indexOf(c))))
+  const last = Math.max(t.lastIndexOf(']'), t.lastIndexOf('}'))
+  if (first !== Infinity && last !== -1) t = t.slice(first, last + 1)
+  return JSON.parse(t) as T
+}
+
 // gpt-4o and the gpt-5 family (no temperature; max_completion_tokens).
 export async function streamChat({ messages, model, signal, onToken, onUsage }: StreamOpts): Promise<string> {
   const key = getKey()
