@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ProjectState, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper, Study, Review } from '../types'
 import { seed, seed2, blankProject } from '../data/seed'
 import { computeInstabilities, stabilityScore } from './suspension'
@@ -83,12 +83,37 @@ interface StoreCtx {
   exportActive: () => string
   importProject: (json: string) => boolean
   reset: () => void
+  undo: () => void
+  redo: () => void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 const Ctx = createContext<StoreCtx | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [app, setApp] = useState<AppState>(load)
+
+  // Undo/redo history. Kept in refs and driven by apply() OUTSIDE any functional
+  // updater, so React 18 StrictMode's double-invocation can't double-record.
+  const appRef = useRef(app)
+  const past = useRef<AppState[]>([])
+  const future = useRef<AppState[]>([])
+  useEffect(() => {
+    appRef.current = app
+  }, [app])
+
+  // The single mutation entry point. `history` pushes the previous state onto
+  // the undo stack (and clears redo); pass false for pure view changes.
+  const apply = (next: AppState, history = true) => {
+    if (history) {
+      past.current.push(appRef.current)
+      if (past.current.length > 60) past.current.shift()
+      future.current = []
+    }
+    appRef.current = next
+    setApp(next)
+  }
 
   useEffect(() => {
     try {
@@ -99,9 +124,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [app])
 
   const state = app.projects.find((p) => p.project.id === app.activeId) ?? app.projects[0]
-  // all existing actions operate on the active project via this shim
-  const setState = (updater: (s: ProjectState) => ProjectState) =>
-    setApp((a) => ({ ...a, projects: a.projects.map((p) => (p.project.id === a.activeId ? updater(p) : p)) }))
+  // all existing actions operate on the active project via this shim; no-op
+  // updates (updater returns the same ref) are skipped so undo stays meaningful
+  const setState = (updater: (s: ProjectState) => ProjectState) => {
+    const cur = appRef.current
+    let changed = false
+    const projects = cur.projects.map((p) => {
+      if (p.project.id !== cur.activeId) return p
+      const np = updater(p)
+      if (np !== p) changed = true
+      return np
+    })
+    if (!changed) return
+    apply({ ...cur, projects })
+  }
+
+  const undo = () => {
+    if (!past.current.length) return
+    const prev = past.current.pop()!
+    future.current.push(appRef.current)
+    appRef.current = prev
+    setApp(prev)
+  }
+  const redo = () => {
+    if (!future.current.length) return
+    const next = future.current.pop()!
+    past.current.push(appRef.current)
+    appRef.current = next
+    setApp(next)
+  }
   // prepend an activity entry (capped) — bundle into the same state update
   const act = (s: ProjectState, kind: string, text: string) => [{ id: uid('a'), ts: Date.now(), kind, text }, ...s.activity].slice(0, 60)
 
@@ -256,19 +307,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     projects: app.projects.map((p) => ({ id: p.project.id, name: p.project.name, code: p.project.code, stage: p.project.stage })),
     activeId: app.activeId,
-    switchProject: (id) => setApp((a) => ({ ...a, activeId: a.projects.some((p) => p.project.id === id) ? id : a.activeId })),
+    switchProject: (id) => {
+      const a = appRef.current
+      if (a.projects.some((p) => p.project.id === id)) apply({ ...a, activeId: id }, false) // view change, not undoable
+    },
     createProject: (name, code) => {
       const id = uid('proj')
       const p = blankProject(id, name || 'New review', code || (name || 'NEW').slice(0, 10).toUpperCase().replace(/\s+/g, '-'))
-      setApp((a) => ({ ...a, projects: [...a.projects, p], activeId: id }))
+      const a = appRef.current
+      apply({ ...a, projects: [...a.projects, p], activeId: id })
     },
-    renameProject: (id, name) => setApp((a) => ({ ...a, projects: a.projects.map((p) => (p.project.id === id ? { ...p, project: { ...p.project, name } } : p)) })),
-    deleteProject: (id) =>
-      setApp((a) => {
-        if (a.projects.length <= 1) return a // never delete the last project
-        const projects = a.projects.filter((p) => p.project.id !== id)
-        return { projects, activeId: a.activeId === id ? projects[0].project.id : a.activeId }
-      }),
+    renameProject: (id, name) => {
+      const a = appRef.current
+      apply({ ...a, projects: a.projects.map((p) => (p.project.id === id ? { ...p, project: { ...p.project, name } } : p)) })
+    },
+    deleteProject: (id) => {
+      const a = appRef.current
+      if (a.projects.length <= 1) return // never delete the last project
+      const projects = a.projects.filter((p) => p.project.id !== id)
+      apply({ projects, activeId: a.activeId === id ? projects[0].project.id : a.activeId })
+    },
     setStage: (stage) => setState((s) => ({ ...s, project: { ...s.project, stage }, activity: act(s, 'stage', `Stage → ${stage}`) })),
     exportActive: () => JSON.stringify(state, null, 2),
     importProject: (json) => {
@@ -277,13 +335,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!p.project?.id) return false
         const id = p.project.id + '_' + uid('imp').slice(5)
         const imported = { ...p, project: { ...p.project, id, name: p.project.name + ' (imported)' } }
-        setApp((a) => ({ ...a, projects: [...a.projects, imported], activeId: id }))
+        const a = appRef.current
+        apply({ ...a, projects: [...a.projects, imported], activeId: id })
         return true
       } catch {
         return false
       }
     },
-    reset: () => setApp({ projects: [seed, seed2], activeId: seed.project.id }),
+    reset: () => apply({ projects: [seed, seed2], activeId: seed.project.id }),
+    undo,
+    redo,
+    canUndo: past.current.length > 0,
+    canRedo: future.current.length > 0,
   }
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

@@ -1,8 +1,19 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect, useState, type CSSProperties } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '../lib/store'
 import { SEVERITY_COLOR } from '../lib/palette'
 import AssistantDock from './AssistantDock'
+
+// g-chord destinations (press "g" then the key)
+const GNAV: Record<string, string> = { o: '/', d: '/pit-wall', r: '/review', t: '/theory', k: '/graph', m: '/meta', s: '/studies', h: '/hypotheses', p: '/prisma' }
+const SHORTCUTS: { keys: string; label: string }[] = [
+  { keys: '⌘/Ctrl + Z', label: 'Undo last edit' },
+  { keys: '⌘/Ctrl + ⇧ + Z', label: 'Redo' },
+  { keys: '⌘/Ctrl + K', label: 'Toggle the AI copilot' },
+  { keys: 'g then o / r / t / k / m / s', label: 'Go to Overview / Review / Theory / Graph / Meta / Studies' },
+  { keys: '?', label: 'Show this shortcuts panel' },
+  { keys: 'Esc', label: 'Close panels' },
+]
 
 const NAV = [
   {
@@ -82,15 +93,68 @@ function gaugeColor(v: number) {
 }
 
 export default function Layout() {
-  const { state, stability, instabilities, projects, activeId, switchProject, createProject } = useStore()
+  const store = useStore()
+  const { state, stability, instabilities, projects, activeId, switchProject, createProject, undo, redo, canUndo, canRedo } = store
   const [projMenu, setProjMenu] = useState(false)
+  const [help, setHelp] = useState(false)
   const loc = useLocation()
+  const nav = useNavigate()
   const [theme, setTheme] = useState<'day' | 'night'>(
     () => (document.documentElement.getAttribute('data-theme') as 'day' | 'night') || 'day',
   )
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  // keyboard shortcuts (undo/redo, help, g-chord navigation)
+  const storeRef = useRef(store)
+  storeRef.current = store
+  const gPending = useRef(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && (e.key === 'z' || e.key === 'Z')) {
+        if (typing) return // leave native text undo alone
+        e.preventDefault()
+        if (e.shiftKey) storeRef.current.redo()
+        else storeRef.current.undo()
+        return
+      }
+      if (mod && (e.key === 'y' || e.key === 'Y')) {
+        if (typing) return
+        e.preventDefault()
+        storeRef.current.redo()
+        return
+      }
+      if (typing || mod) return
+      if (e.key === '?') {
+        setHelp((h) => !h)
+        return
+      }
+      if (e.key === 'Escape') {
+        setHelp(false)
+        setProjMenu(false)
+        return
+      }
+      if (e.key === 'g') {
+        gPending.current = true
+        window.setTimeout(() => (gPending.current = false), 900)
+        return
+      }
+      if (gPending.current) {
+        gPending.current = false
+        const to = GNAV[e.key.toLowerCase()]
+        if (to) {
+          e.preventDefault()
+          nav(to)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [nav])
 
   const openFlags = instabilities.filter((i) => i.status === 'open').length
   const title = TITLES[loc.pathname] ?? 'WilliamsLab'
@@ -142,6 +206,11 @@ export default function Layout() {
             <div className="crumb">WILLIAMSLAB / {state.project.code}</div>
           </div>
           <div className="right">
+            <span className="undo-group">
+              <button className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">↶</button>
+              <button className="icon-btn" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">↷</button>
+            </span>
+            <button className="icon-btn" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)">⌘</button>
             <div className="proj-switch">
               <button className="proj-chip" onClick={() => setProjMenu((v) => !v)} title={state.project.name}>{state.project.code} ▾</button>
               {projMenu && (
@@ -176,6 +245,25 @@ export default function Layout() {
         </div>
       </div>
       <AssistantDock />
+
+      {help && (
+        <div className="kbd-overlay" onClick={() => setHelp(false)}>
+          <div className="kbd-card" onClick={(e) => e.stopPropagation()}>
+            <div className="kbd-head">
+              <b>Keyboard shortcuts</b>
+              <button className="ai-x" onClick={() => setHelp(false)} aria-label="Close">✕</button>
+            </div>
+            <div className="kbd-list">
+              {SHORTCUTS.map((s) => (
+                <div className="kbd-row" key={s.label}>
+                  <kbd>{s.keys}</kbd>
+                  <span>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

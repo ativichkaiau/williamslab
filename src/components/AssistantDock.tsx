@@ -68,6 +68,18 @@ export default function AssistantDock() {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, open])
 
+  // ⌘/Ctrl+K toggles the copilot from anywhere
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   function system(): ChatMessage {
     const hyps = state.hypotheses.map((h) => `- ${h.label}`).join('\n')
     return {
