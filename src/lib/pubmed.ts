@@ -27,11 +27,11 @@ interface SummaryRecord {
   articleids?: SummaryArticleId[]
 }
 
-export async function searchPubmed(term: string, retmax = 15): Promise<PubmedHit[]> {
+export async function searchPubmed(term: string, retmax = 15, sort: 'relevance' | 'date' = 'relevance'): Promise<PubmedHit[]> {
   const q = term.trim()
   if (!q) return []
 
-  const esUrl = `${BASE}/esearch.fcgi?db=pubmed&retmode=json&sort=relevance&retmax=${retmax}&term=${encodeURIComponent(q)}`
+  const esUrl = `${BASE}/esearch.fcgi?db=pubmed&retmode=json&sort=${sort === 'date' ? 'pub_date' : 'relevance'}&retmax=${retmax}&term=${encodeURIComponent(q)}`
   const esRes = await fetch(esUrl)
   if (!esRes.ok) throw new Error(`PubMed search failed (${esRes.status})`)
   const esJson = await esRes.json()
