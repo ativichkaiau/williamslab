@@ -97,8 +97,11 @@ export default function Layout() {
   const { state, stability, instabilities, projects, activeId, switchProject, createProject, undo, redo, canUndo, canRedo } = store
   const [projMenu, setProjMenu] = useState(false)
   const [help, setHelp] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
   const loc = useLocation()
   const nav = useNavigate()
+  // close the mobile drawer whenever the route changes
+  useEffect(() => setNavOpen(false), [loc.pathname])
   const [theme, setTheme] = useState<'day' | 'night'>(
     () => (document.documentElement.getAttribute('data-theme') as 'day' | 'night') || 'day',
   )
@@ -136,6 +139,7 @@ export default function Layout() {
       if (e.key === 'Escape') {
         setHelp(false)
         setProjMenu(false)
+        setNavOpen(false)
         return
       }
       if (e.key === 'g') {
@@ -162,15 +166,17 @@ export default function Layout() {
 
   return (
     <div className="shell">
-      <aside className="sidebar">
+      {navOpen && <div className="sb-drawer-backdrop" onClick={() => setNavOpen(false)} />}
+      <aside className={`sidebar${navOpen ? ' open' : ''}`}>
         <div className="sb-brand">
           <div className="wtile">W</div>
           <div className="nm">
             Williams<b>Lab</b>
             <small>RESEARCH OS</small>
           </div>
+          <button className="sb-close" onClick={() => setNavOpen(false)} aria-label="Close menu">✕</button>
         </div>
-        <nav className="sb-nav">
+        <nav className="sb-nav" onClick={() => setNavOpen(false)}>
           {NAV.map((g) => (
             <div className="sb-sec" key={g.group}>
               <div className="h" style={{ color: g.accent }}>{g.group}</div>
@@ -201,7 +207,8 @@ export default function Layout() {
 
       <div className="main" style={{ ['--accent' as string]: accent } as CSSProperties}>
         <div className="topbar">
-          <div>
+          <button className="hamburger" onClick={() => setNavOpen(true)} aria-label="Open menu">☰</button>
+          <div className="tb-title">
             <div className="title">{title}</div>
             <div className="crumb">WILLIAMSLAB / {state.project.code}</div>
           </div>
@@ -210,7 +217,7 @@ export default function Layout() {
               <button className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">↶</button>
               <button className="icon-btn" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">↷</button>
             </span>
-            <button className="icon-btn" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)">⌘</button>
+            <button className="icon-btn kbd-btn" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)">⌘</button>
             <div className="proj-switch">
               <button className="proj-chip" onClick={() => setProjMenu((v) => !v)} title={state.project.name}>{state.project.code} ▾</button>
               {projMenu && (
