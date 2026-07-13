@@ -15,6 +15,7 @@ interface Cmd {
 
 const PAGES: { to: string; label: string; icon: string }[] = [
   { to: '/', label: 'Overview', icon: '⌂' },
+  { to: '/portfolio', label: 'Portfolio', icon: '▦' },
   { to: '/pit-wall', label: 'Dashboard', icon: '▤' },
   { to: '/radar', label: 'Literature', icon: '◎' },
   { to: '/protocol', label: 'Protocol', icon: '⊞' },

@@ -74,6 +74,7 @@ interface StoreCtx {
   removeStudy: (id: string) => void
   // projects
   projects: { id: string; name: string; code: string; stage?: string }[]
+  allProjects: ProjectState[] // full state of every project (for the portfolio)
   activeId: string
   switchProject: (id: string) => void
   createProject: (name: string, code?: string) => void
@@ -306,6 +307,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     removeStudy: (id) => setState((s) => ({ ...s, review: { ...s.review, studies: s.review.studies.filter((x) => x.id !== id) } })),
 
     projects: app.projects.map((p) => ({ id: p.project.id, name: p.project.name, code: p.project.code, stage: p.project.stage })),
+    allProjects: app.projects,
     activeId: app.activeId,
     switchProject: (id) => {
       const a = appRef.current
