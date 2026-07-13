@@ -5,7 +5,10 @@ import { Modal, Field } from '../components/Modal'
 import { studyEffect, measureInfo, fmt } from '../lib/metaAnalysis'
 import { RobPlot } from '../components/srmaPlots'
 import { parseStudies, CSV_TEMPLATE, type ImportResult } from '../lib/importStudies'
+import { complete, parseJsonLoose, hasKey, getModel } from '../lib/openai'
 import type { Study, RobLevel } from '../types'
+
+const numStr = (v: unknown) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? '' : String(v))
 
 const ROB_COLOR: Record<RobLevel, string> = { low: 'var(--green)', some: 'var(--amber)', high: 'var(--red)' }
 const LEVELS: RobLevel[] = ['low', 'some', 'high']
@@ -46,6 +49,7 @@ export default function Studies() {
   const r = state.review
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null)
   const [imp, setImp] = useState<{ text: string; result: ImportResult | null } | null>(null)
+  const [extract, setExtract] = useState<{ text: string; loading: boolean; error?: string } | null>(null)
 
   function onFile(file: File) {
     const reader = new FileReader()
@@ -93,6 +97,39 @@ export default function Studies() {
   }
   const set = (patch: Partial<Draft>) => editing && setEditing({ ...editing, draft: { ...editing.draft, ...patch } })
 
+  async function runExtract() {
+    if (!extract || !extract.text.trim()) return
+    if (!hasKey()) { setExtract({ ...extract, error: 'Add an OpenAI key in Knowledge Review → Settings to use extraction.' }); return }
+    setExtract({ ...extract, loading: true, error: undefined })
+    try {
+      const out = await complete(
+        [
+          { role: 'system', content: 'You extract structured data from a study abstract for a systematic review. Output ONLY valid JSON, no prose. Use null for any field not explicitly reported or directly computable — never guess counts.' },
+          {
+            role: 'user',
+            content: `Review context — index/exposed group: "${r.indexLabel}"; comparator: "${r.comparatorLabel}"; outcome: "${r.outcomeLabel}". Effect type: ${binary ? 'binary 2×2 event counts' : 'continuous mean/SD/n'}.\n\nReturn this JSON shape:\n{"author":"first-author surname","year":2020,"pmid":"","design":"e.g. prospective cohort","expEvents":null,"expTotal":null,"ctrlEvents":null,"ctrlTotal":null,"mean1":null,"sd1":null,"n1":null,"mean2":null,"sd2":null,"n2":null,"note":"one-line summary","confidence":"high|medium|low"}\nexpEvents/expTotal = outcome events and group size in the "${r.indexLabel}" arm; ctrlEvents/ctrlTotal = the "${r.comparatorLabel}" arm. mean1/sd1/n1 = "${r.indexLabel}"; mean2/sd2/n2 = "${r.comparatorLabel}".\n\nAbstract / text:\n${extract.text.slice(0, 6000)}`,
+          },
+        ],
+        getModel(),
+      )
+      const j = parseJsonLoose<Record<string, unknown>>(out)
+      const draft: Draft = {
+        ...blank,
+        author: (j.author as string) || '',
+        year: j.year ? String(j.year) : '',
+        pmid: (j.pmid as string) || '',
+        design: (j.design as string) || '',
+        expEvents: numStr(j.expEvents), expTotal: numStr(j.expTotal), ctrlEvents: numStr(j.ctrlEvents), ctrlTotal: numStr(j.ctrlTotal),
+        mean1: numStr(j.mean1), sd1: numStr(j.sd1), n1: numStr(j.n1), mean2: numStr(j.mean2), sd2: numStr(j.sd2), n2: numStr(j.n2),
+        note: [j.note as string, j.confidence ? `AI-extracted · confidence ${j.confidence}` : ''].filter(Boolean).join(' — '),
+      }
+      setExtract(null)
+      setEditing({ id: null, draft })
+    } catch {
+      setExtract({ ...extract, loading: false, error: 'Could not read a clean result — paste a tidier abstract, or add the study manually.' })
+    }
+  }
+
   return (
     <>
       <div className="page-head">
@@ -102,6 +139,7 @@ export default function Studies() {
         <p>{r.indexLabel} vs {r.comparatorLabel} → {r.outcomeLabel}. Toggle inclusion, edit the extracted 2×2 counts, and rate risk of bias.</p>
         <div className="head-actions">
           <button className="btn primary sm" onClick={() => setEditing({ id: null, draft: { ...blank } })}>＋ Add study</button>
+          <button className="btn ghost sm" onClick={() => setExtract({ text: '', loading: false })}>✦ Extract from abstract</button>
           <button className="btn ghost sm" onClick={() => setImp({ text: '', result: null })}>⤓ Import CSV / RIS</button>
         </div>
       </div>
@@ -211,6 +249,18 @@ export default function Studies() {
           <div className="form-actions">
             <button className="btn ghost" onClick={() => setEditing(null)}>Cancel</button>
             <button className="btn primary" onClick={save}>{editing.id ? 'Save' : 'Add study'}</button>
+          </div>
+        </Modal>
+      )}
+
+      {extract && (
+        <Modal title="✦ Extract study data from an abstract" onClose={() => setExtract(null)} wide>
+          <p className="small" style={{ marginBottom: 12 }}>Paste an abstract (or a results paragraph). The AI pulls the author, year, design and the 2×2 counts for <b>{r.indexLabel}</b> vs <b>{r.comparatorLabel}</b>, then opens the study editor pre-filled for you to check before saving. It never invents numbers — anything not reported is left blank.</p>
+          <textarea className="textarea" rows={9} style={{ width: '100%' }} placeholder="Paste the abstract or full-text excerpt here…" value={extract.text} onChange={(e) => setExtract({ ...extract, text: e.target.value })} />
+          {extract.error && <div className="err" style={{ marginTop: 12, marginBottom: 0 }}>{extract.error}</div>}
+          <div className="form-actions">
+            <button className="btn ghost" onClick={() => setExtract(null)}>Cancel</button>
+            <button className="btn primary" onClick={runExtract} disabled={extract.loading || !extract.text.trim()}>{extract.loading ? 'Extracting…' : '✦ Extract & review'}</button>
           </div>
         </Modal>
       )}
