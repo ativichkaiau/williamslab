@@ -69,6 +69,19 @@ export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: Egge
   const sig = meta.k > 0 && (meta.pooledLow > meta.refValue || meta.pooledHigh < meta.refValue)
   const pooled = `${r.effect} ${fmt(meta.pooledEst)} (95% CI ${fmt(meta.pooledLow)}–${fmt(meta.pooledHigh)})`
 
+  // prose that adapts to the chosen effect measure (binary 2×2 vs continuous SMD)
+  const dataPhrase = binary
+    ? 'Two-by-two outcome data were extracted'
+    : 'Continuous outcome data (group means, standard deviations and sample sizes) were extracted'
+  const extractPhrase = binary
+    ? `a 2×2 table of ${r.outcomeLabel} by ${r.indexLabel} vs ${r.comparatorLabel}`
+    : `group means, standard deviations and sample sizes for ${r.outcomeLabel} in ${r.indexLabel} vs ${r.comparatorLabel}`
+  const poolTerm = r.effect === 'OR' ? 'Odds ratios' : r.effect === 'RR' ? 'Risk ratios' : r.effect === 'RD' ? 'Risk differences' : 'Standardised mean differences (Hedges’ g)'
+  const looRobust = loo.length > 0 && Math.min(...loo.map((x) => x.est)) > meta.refValue === (Math.max(...loo.map((x) => x.est)) > meta.refValue)
+  const sensitivityText = loo.length
+    ? `Leave-one-out pooling gave ${r.effect} between ${looRange}; the direction of effect was ${looRobust ? 'robust' : 'sensitive'} to omission of any single study.`
+    : 'Leave-one-out sensitivity analysis requires at least three pooled studies and was not performed.'
+
   const col = binary ? 'events/n' : 'n'
   const charTable = [
     `| Study | ${r.indexLabel} (${col}) | ${r.comparatorLabel} (${col}) | ${r.effect} [95% CI] | Weight |`,
@@ -85,7 +98,7 @@ export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: Egge
 
 **Background.** ${r.question}
 
-**Methods.** We systematically searched ${r.databases.join(', ')} and screened records against pre-specified eligibility criteria. Two-by-two outcome data were extracted and pooled using an inverse-variance ${r.model}-effects model; heterogeneity was quantified with I² and τ². Risk of bias was assessed across ${r.robDomains.join(', ')}. ${r.registration ? `Registration: ${r.registration}.` : ''}
+**Methods.** We systematically searched ${r.databases.join(', ')} and screened records against pre-specified eligibility criteria. ${dataPhrase} and pooled using an inverse-variance ${r.model}-effects model; heterogeneity was quantified with I² and τ². Risk of bias was assessed across ${r.robDomains.join(', ')}. ${r.registration ? `Registration: ${r.registration}.` : ''}
 
 **Results.** ${p.included} studies (from ${p.dbRecords + p.otherRecords} records identified) were included. The pooled estimate was ${pooled}, with ${hetWord(meta.I2)} heterogeneity (I² = ${fmt(meta.I2, 0)}%). ${egger ? `Egger's test p = ${fmt(egger.p, 3)}.` : ''} Certainty of evidence (GRADE): **${grade.certainty}**.
 
@@ -107,11 +120,11 @@ Brugada Syndrome is an inherited arrhythmia syndrome in which risk stratificatio
 
 **Selection process.** Title/abstract and full-text screening were performed in a dedicated screener. ${p.dbRecords + p.otherRecords} records were identified; ${p.duplicates} duplicates were removed; ${p.screened} were screened; ${p.fullText} full texts were assessed; ${p.included} met inclusion (Figure 1).
 
-**Data items and extraction.** For each study we extracted a 2×2 table of ${r.outcomeLabel} by ${r.indexLabel} vs ${r.comparatorLabel}.
+**Data items and extraction.** For each study we extracted ${extractPhrase}.
 
 **Risk of bias.** Assessed across ${r.robDomains.join(', ')} (low / some / high).
 
-**Synthesis.** Odds ratios were pooled by inverse-variance ${r.model}-effects (DerSimonian–Laird τ²). Heterogeneity: Cochran's Q and I². Robustness: leave-one-out sensitivity analysis and subgroup analysis. Small-study effects: funnel plot and Egger's regression test.
+**Synthesis.** ${poolTerm} were pooled by inverse-variance ${r.model}-effects (DerSimonian–Laird τ²). Heterogeneity: Cochran's Q and I². Robustness: leave-one-out sensitivity analysis and subgroup analysis. Small-study effects: funnel plot and Egger's regression test.
 
 ## 3. Results
 
@@ -125,7 +138,7 @@ ${charTable}
 
 **Synthesis of results.** Pooling ${meta.k} studies (${meta.rows.reduce((a, x) => a + x.expTotal + x.ctrlTotal, 0)} patients), the ${r.model}-effects estimate was **${pooled}** (Figure 2). Heterogeneity was ${hetWord(meta.I2)} (Q = ${fmt(meta.Q)}, df = ${meta.df}, p = ${fmt(meta.pValue, 3)}; I² = ${fmt(meta.I2, 0)}%; τ² = ${fmt(meta.tau2, 3)}).
 
-**Sensitivity analysis.** Leave-one-out pooling gave ${r.effect} between ${looRange}; the direction of effect was ${loo.length && Math.min(...loo.map((x) => x.est)) > meta.refValue === (Math.max(...loo.map((x) => x.est)) > meta.refValue) ? 'robust' : 'sensitive'} to omission of any single study.
+**Sensitivity analysis.** ${sensitivityText}
 
 **Publication bias.** ${egger ? `Egger's regression intercept ${fmt(egger.intercept)} (SE ${fmt(egger.se)}), p = ${fmt(egger.p, 3)}${egger.p < 0.05 ? ' — evidence of funnel asymmetry' : ' — no significant asymmetry'}. ` : ''}A contour-enhanced funnel plot (Figure 3) was inspected. ${tf.k0 > 0 ? `Duval–Tweedie trim-and-fill imputed ${tf.k0} potentially missing stud${tf.k0 > 1 ? 'ies' : 'y'} on the ${tf.fillSide}, yielding an adjusted ${r.effect} of ${fmt(tf.adjustedEst)} (95% CI ${fmt(tf.adjustedLow)}–${fmt(tf.adjustedHigh)}) versus ${fmt(tf.origEst)} observed.` : 'Trim-and-fill imputed no missing studies.'} These methods are underpowered with fewer than 10 studies.
 

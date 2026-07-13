@@ -15,6 +15,7 @@ type Draft = {
   year: string
   pmid: string
   design: string
+  subgroup: string
   expEvents: string
   expTotal: string
   ctrlEvents: string
@@ -33,7 +34,7 @@ type Draft = {
 const str = (v: number | undefined) => (v === undefined ? '' : String(v))
 function toDraft(s: Study, domains: string[]): Draft {
   return {
-    author: s.author, year: String(s.year), pmid: s.pmid ?? '', design: s.design ?? '',
+    author: s.author, year: String(s.year), pmid: s.pmid ?? '', design: s.design ?? '', subgroup: s.subgroup ?? '',
     expEvents: str(s.expEvents), expTotal: str(s.expTotal), ctrlEvents: str(s.ctrlEvents), ctrlTotal: str(s.ctrlTotal),
     mean1: str(s.mean1), sd1: str(s.sd1), n1: str(s.n1), mean2: str(s.mean2), sd2: str(s.sd2), n2: str(s.n2),
     include: s.include, rob: Object.fromEntries(domains.map((d) => [d, s.rob?.[d] ?? 'some'])), note: s.note ?? '',
@@ -67,13 +68,13 @@ export default function Studies() {
     setImp(null)
   }
   const binary = measureInfo(r.effect).binary
-  const blank: Draft = { author: '', year: '2024', pmid: '', design: 'cohort', expEvents: '', expTotal: '', ctrlEvents: '', ctrlTotal: '', mean1: '', sd1: '', n1: '', mean2: '', sd2: '', n2: '', include: true, rob: Object.fromEntries(r.robDomains.map((d) => [d, 'some'])), note: '' }
+  const blank: Draft = { author: '', year: '2024', pmid: '', design: 'cohort', subgroup: '', expEvents: '', expTotal: '', ctrlEvents: '', ctrlTotal: '', mean1: '', sd1: '', n1: '', mean2: '', sd2: '', n2: '', include: true, rob: Object.fromEntries(r.robDomains.map((d) => [d, 'some'])), note: '' }
 
   function save() {
     if (!editing) return
     const d = editing.draft
     const patch: Partial<Study> = {
-      author: d.author || 'Unknown', year: +d.year || new Date().getFullYear(), pmid: d.pmid || undefined, design: d.design || undefined,
+      author: d.author || 'Unknown', year: +d.year || new Date().getFullYear(), pmid: d.pmid || undefined, design: d.design || undefined, subgroup: d.subgroup.trim() || undefined,
       expEvents: d.expEvents === '' ? undefined : Math.max(0, Math.round(+d.expEvents)),
       expTotal: d.expTotal === '' ? undefined : Math.max(0, Math.round(+d.expTotal)),
       ctrlEvents: d.ctrlEvents === '' ? undefined : Math.max(0, Math.round(+d.ctrlEvents)),
@@ -163,7 +164,10 @@ export default function Studies() {
             <Field label="Year"><input className="input" type="number" value={editing.draft.year} onChange={(e) => set({ year: e.target.value })} /></Field>
             <Field label="PMID"><input className="input" value={editing.draft.pmid} onChange={(e) => set({ pmid: e.target.value })} /></Field>
           </div>
-          <Field label="Design"><input className="input" value={editing.draft.design} onChange={(e) => set({ design: e.target.value })} placeholder="prospective cohort" /></Field>
+          <div className="form-row">
+            <Field label="Design"><input className="input" value={editing.draft.design} onChange={(e) => set({ design: e.target.value })} placeholder="prospective cohort" /></Field>
+            <Field label="Subgroup" hint="for “Custom subgroup” meta-analysis"><input className="input" value={editing.draft.subgroup} onChange={(e) => set({ subgroup: e.target.value })} placeholder="e.g. SCN5A+ / pediatric" /></Field>
+          </div>
           {binary ? (
             <>
               <div className="form-row">

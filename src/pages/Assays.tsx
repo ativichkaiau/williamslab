@@ -58,7 +58,7 @@ export default function Assays() {
       sampleN: d.sampleN ? Math.round(+d.sampleN) : undefined,
       phase: d.phase ? (Math.min(3, Math.max(1, +d.phase)) as 1 | 2 | 3) : undefined,
       effort: d.effort, status: d.status, genomeWide: d.genomeWide,
-      expectedEffect: d.expectedEffect ? +d.expectedEffect : undefined,
+      expectedEffect: d.expectedEffect && +d.expectedEffect > 0 ? +d.expectedEffect : undefined,
       genomeWideTests: d.genomeWideTests ? Math.round(+d.genomeWideTests) : undefined,
       costK: d.costK ? +d.costK : undefined,
       weeks: d.weeks ? Math.round(+d.weeks) : undefined,
@@ -249,7 +249,7 @@ export default function Assays() {
             <Field label="Duration (weeks)"><input className="input" type="number" min="0" value={editing.draft.weeks} onChange={(e) => set({ weeks: e.target.value })} /></Field>
           </div>
           <div className="form-row three">
-            <Field label="Expected effect (d)" hint="blank → 1.0 / 0.8 gw"><input className="input" type="number" step="0.1" value={editing.draft.expectedEffect} onChange={(e) => set({ expectedEffect: e.target.value })} /></Field>
+            <Field label="Expected effect (d)" hint="blank → 1.0 / 0.8 gw"><input className="input" type="number" step="0.1" min="0.1" value={editing.draft.expectedEffect} onChange={(e) => set({ expectedEffect: e.target.value })} /></Field>
             <Field label="Genome-wide tests" hint="blank → 100,000"><input className="input" type="number" value={editing.draft.genomeWideTests} onChange={(e) => set({ genomeWideTests: e.target.value })} /></Field>
             <label className={`check${editing.draft.genomeWide ? ' on' : ''}`} style={{ alignSelf: 'end', marginBottom: 2 }}>
               <input type="checkbox" checked={editing.draft.genomeWide} onChange={(e) => set({ genomeWide: e.target.checked })} /> Genome-wide
