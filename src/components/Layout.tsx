@@ -30,6 +30,7 @@ const NAV = [
     items: [
       { to: '/radar', label: 'Literature', icon: '◎', color: '#f59e0b' },
       { to: '/protocol', label: 'Protocol', icon: '⊞', color: '#0d9488' },
+      { to: '/screening', label: 'Screening', icon: '☑', color: '#0891b2' },
       { to: '/prisma', label: 'PRISMA Flow', icon: '⇉', color: '#0891b2' },
       { to: '/studies', label: 'Studies', icon: '☰', color: '#6366f1' },
       { to: '/meta', label: 'Meta-analysis', icon: '⬦', color: '#db2777' },
@@ -65,6 +66,7 @@ const TITLES: Record<string, string> = {
   '/': 'Overview',
   '/pit-wall': 'Dashboard',
   '/protocol': 'Review Protocol',
+  '/screening': 'Screening',
   '/prisma': 'PRISMA Flow',
   '/studies': 'Included Studies',
   '/meta': 'Meta-analysis',

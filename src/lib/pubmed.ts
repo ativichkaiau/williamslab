@@ -60,3 +60,29 @@ export async function searchPubmed(term: string, retmax = 15, sort: 'relevance' 
     }
   })
 }
+
+// Fetch metadata for an explicit list of PMIDs (esummary) — used by screening.
+export async function fetchByPmids(pmids: string[]): Promise<PubmedHit[]> {
+  const ids = [...new Set(pmids.map((p) => p.trim()).filter((p) => /^\d+$/.test(p)))]
+  if (ids.length === 0) return []
+  const res = await fetch(`${BASE}/esummary.fcgi?db=pubmed&retmode=json&id=${ids.join(',')}`)
+  if (!res.ok) throw new Error(`PubMed summary failed (${res.status})`)
+  const json = await res.json()
+  const result: Record<string, SummaryRecord> & { uids?: string[] } = json?.result ?? {}
+  return (result.uids ?? ids).map((id): PubmedHit => {
+    const r = result[id] ?? {}
+    const doi = (r.articleids ?? []).find((a) => a.idtype === 'doi')?.value
+    const names = (r.authors ?? []).map((a) => a.name).filter(Boolean) as string[]
+    const authors = names.length > 3 ? `${names.slice(0, 3).join(', ')} et al.` : names.join(', ')
+    const yearMatch = /(\d{4})/.exec(r.pubdate ?? '')
+    return { pmid: id, title: r.title?.replace(/\.$/, '') ?? '(untitled)', year: yearMatch ? Number(yearMatch[1]) : undefined, journal: r.source ?? r.fulljournalname, authors, doi }
+  })
+}
+
+// Fetch a single abstract (efetch plain text) for on-demand screening.
+export async function fetchAbstract(pmid: string): Promise<string> {
+  const res = await fetch(`${BASE}/efetch.fcgi?db=pubmed&id=${encodeURIComponent(pmid)}&rettype=abstract&retmode=text`)
+  if (!res.ok) throw new Error(`PubMed abstract failed (${res.status})`)
+  const text = (await res.text()).trim()
+  return text || 'No abstract available.'
+}
