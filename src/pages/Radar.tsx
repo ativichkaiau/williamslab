@@ -5,6 +5,10 @@ import { Kicker, Rule } from '../components/ui'
 import { searchPubmed, type PubmedHit } from '../lib/pubmed'
 import { complete, parseJsonLoose, hasKey, getModel } from '../lib/openai'
 import { listSearches, saveSearch, recordRun, removeSearch, findSearch, type SavedSearch } from '../lib/savedSearches'
+import { taStatus, advanced } from '../lib/screening'
+import type { ScreenRecord } from '../types'
+
+const srUid = () => (crypto.randomUUID ? crypto.randomUUID() : `sr_${Date.now()}_${Math.random().toString(36).slice(2)}`)
 
 const STANCE_CLASS: Record<string, string> = {
   supports: 'b-supported',
@@ -22,7 +26,7 @@ function firstAuthorSurname(authors?: string): string {
 }
 
 export default function Radar() {
-  const { state, addPaper, removePaper, addStudy } = useStore()
+  const { state, addPaper, removePaper, addStudy, updateReview } = useStore()
   const hypLabel = (id: string) => state.hypotheses.find((h) => h.id === id)?.label.split('·')[0].trim() ?? id
   const gaps = state.hypotheses.filter((h) => !h.supportingPapers || h.supportingPapers.length === 0)
 
@@ -35,8 +39,41 @@ export default function Radar() {
   const [fresh, setFresh] = useState<Set<string>>(new Set())
   const [triage, setTriage] = useState<Record<string, { verdict: Verdict; reason: string }>>({})
   const [triaging, setTriaging] = useState(false)
+  const [living, setLiving] = useState<{ running: boolean; ran: boolean; newHits: (PubmedHit & { search: string })[] }>({ running: false, ran: false, newHits: [] })
 
   useEffect(() => setSaved(listSearches()), [])
+
+  // ---- living review: re-run every saved search, surface what's new ----
+  const screening = state.review.screening ?? []
+  const pendingToScreen = screening.filter((s) => taStatus(s) === 'pending').length
+  const includedN = advanced(screening).filter((s) => s.ft === 'include').length
+
+  async function runLiving() {
+    const searches = listSearches()
+    if (!searches.length) return
+    setLiving({ running: true, ran: false, newHits: [] })
+    const all: (PubmedHit & { search: string })[] = []
+    for (const s of searches) {
+      try {
+        const res = await searchPubmed(s.query, 25, 'date')
+        const freshSet = recordRun(s.query, res.map((h) => h.pmid), Date.now())
+        res.filter((h) => freshSet.has(h.pmid)).forEach((h) => all.push({ ...h, search: s.query }))
+      } catch {
+        /* skip a failed search, keep going */
+      }
+    }
+    setLiving({ running: false, ran: true, newHits: all })
+    setSaved(listSearches())
+  }
+
+  function addNewToScreening() {
+    const existing = new Set(screening.map((s) => s.pmid))
+    const fresh: ScreenRecord[] = living.newHits
+      .filter((h) => !existing.has(h.pmid))
+      .map((h) => ({ id: srUid(), pmid: h.pmid, title: h.title, journal: h.journal, year: h.year, authors: h.authors }))
+    if (fresh.length) updateReview({ screening: [...screening, ...fresh] })
+    setLiving({ ...living, newHits: [] })
+  }
 
   const paperId = (pmid: string) => `paper_pmid_${pmid}`
   const isAdded = (pmid: string) => state.papers.some((p) => p.id === paperId(pmid))
@@ -125,6 +162,49 @@ export default function Radar() {
         <Kicker>LITERATURE · LIVE PUBMED</Kicker>
         <h1>Literature Radar</h1>
         <p>Search PubMed live, triage hits for the review with AI, link them to a hypothesis, and send them straight into the SRMA extraction table. Saved searches flag what's new since you last looked.</p>
+      </div>
+
+      <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--green)' }}>
+        <div className="card-h" style={{ justifyContent: 'space-between' }}>
+          <span><span className="sq" style={{ background: 'var(--green)' }} />LIVING REVIEW</span>
+          <button className="btn primary sm" onClick={runLiving} disabled={living.running || saved.length === 0}>{living.running ? 'Re-running…' : `⟳ Re-run ${saved.length} saved search${saved.length === 1 ? '' : 'es'}`}</button>
+        </div>
+        {saved.length === 0 ? (
+          <p className="small">Save a search below (☆) to track it. The living review re-runs all saved searches and flags anything published since you last looked.</p>
+        ) : (
+          <>
+            <div className="lr-stats">
+              <span className="lr-stat"><b>{saved.length}</b> saved search{saved.length === 1 ? '' : 'es'}</span>
+              <span className="lr-stat"><b>{pendingToScreen}</b> to screen</span>
+              <span className="lr-stat"><b>{includedN}</b> included</span>
+              <span className="lr-stat"><b>{state.review.studies.length}</b> in extraction</span>
+              <span className="spacer" />
+              <Link className="small" to="/screening">Open screening →</Link>
+            </div>
+            {living.ran && (
+              living.newHits.length === 0 ? (
+                <p className="small" style={{ color: 'var(--green)', marginTop: 10 }}>✓ Up to date — no new results across your saved searches.</p>
+              ) : (
+                <div style={{ marginTop: 12 }}>
+                  <div className="flex" style={{ marginBottom: 8 }}>
+                    <b>{living.newHits.length} new result{living.newHits.length === 1 ? '' : 's'} since last run</b>
+                    <span className="spacer" />
+                    <button className="btn ghost sm" onClick={addNewToScreening}>→ Add all to Screening</button>
+                  </div>
+                  {living.newHits.slice(0, 12).map((h) => (
+                    <div key={h.pmid} className="stint" style={{ alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="nm"><span className="new-dot">NEW</span>{h.title}</div>
+                        <div className="meta">{h.journal ?? '—'} {h.year ?? ''} · <a href={`https://pubmed.ncbi.nlm.nih.gov/${h.pmid}/`} target="_blank" rel="noreferrer">PMID {h.pmid} ↗</a> · from “{h.search.length > 40 ? h.search.slice(0, 38) + '…' : h.search}”</div>
+                      </div>
+                    </div>
+                  ))}
+                  {living.newHits.length > 12 && <p className="small" style={{ marginTop: 6 }}>+{living.newHits.length - 12} more.</p>}
+                </div>
+              )
+            )}
+          </>
+        )}
       </div>
 
       <div className="card lg" style={{ marginBottom: 16 }}>
