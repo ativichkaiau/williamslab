@@ -68,16 +68,11 @@ export default function AssistantDock() {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, open])
 
-  // ⌘/Ctrl+K toggles the copilot from anywhere
+  // opened from the command palette's "Ask the AI copilot" action
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault()
-        setOpen((v) => !v)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    const onOpen = () => setOpen(true)
+    window.addEventListener('wl-open-copilot', onOpen)
+    return () => window.removeEventListener('wl-open-copilot', onOpen)
   }, [])
 
   function system(): ChatMessage {
