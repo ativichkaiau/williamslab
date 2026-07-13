@@ -22,6 +22,7 @@ const NAV = [
     accent: '#1746d1',
     items: [
       { to: '/', label: 'Overview', icon: '⌂', color: '#1746d1', end: true },
+      { to: '/portfolio', label: 'Portfolio', icon: '▦', color: '#7c3aed' },
       { to: '/pit-wall', label: 'Dashboard', icon: '▤', color: '#0891b2' },
     ],
   },
@@ -65,6 +66,7 @@ const ACCENT: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.i
 
 const TITLES: Record<string, string> = {
   '/': 'Overview',
+  '/portfolio': 'Portfolio',
   '/pit-wall': 'Dashboard',
   '/protocol': 'Review Protocol',
   '/screening': 'Screening',
