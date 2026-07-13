@@ -3,13 +3,14 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '../lib/store'
 import { SEVERITY_COLOR } from '../lib/palette'
 import AssistantDock from './AssistantDock'
+import CommandPalette from './CommandPalette'
 
 // g-chord destinations (press "g" then the key)
 const GNAV: Record<string, string> = { o: '/', d: '/pit-wall', r: '/review', t: '/theory', k: '/graph', m: '/meta', s: '/studies', h: '/hypotheses', p: '/prisma' }
 const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: '⌘/Ctrl + Z', label: 'Undo last edit' },
   { keys: '⌘/Ctrl + ⇧ + Z', label: 'Redo' },
-  { keys: '⌘/Ctrl + K', label: 'Toggle the AI copilot' },
+  { keys: '⌘/Ctrl + K', label: 'Open the command palette' },
   { keys: 'g then o / r / t / k / m / s', label: 'Go to Overview / Review / Theory / Graph / Meta / Studies' },
   { keys: '?', label: 'Show this shortcuts panel' },
   { keys: 'Esc', label: 'Close panels' },
@@ -94,6 +95,7 @@ export default function Layout() {
   const [projMenu, setProjMenu] = useState(false)
   const [help, setHelp] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const loc = useLocation()
   const nav = useNavigate()
   // close the mobile drawer whenever the route changes
@@ -125,6 +127,11 @@ export default function Layout() {
         if (typing) return
         e.preventDefault()
         storeRef.current.redo()
+        return
+      }
+      if (mod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
         return
       }
       if (typing || mod) return
@@ -248,6 +255,12 @@ export default function Layout() {
         </div>
       </div>
       <AssistantDock />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onToggleTheme={() => setTheme(theme === 'day' ? 'night' : 'day')}
+        onOpenCopilot={() => window.dispatchEvent(new CustomEvent('wl-open-copilot'))}
+      />
 
       {help && (
         <div className="kbd-overlay" onClick={() => setHelp(false)}>
