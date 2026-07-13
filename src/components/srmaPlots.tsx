@@ -21,11 +21,12 @@ function niceTicks(lo: number, hi: number, n = 5): number[] {
 
 // ---------------- Forest plot (log or linear scale) ----------------
 export function ForestPlot({ result, index, measure }: { result: MetaResult; index: string; comparator?: string; measure: string }) {
-  const { rows, pooledEst, pooledLow, pooledHigh, k, scale, refValue } = result
+  const { rows, pooledEst, pooledLow, pooledHigh, predLow, predHigh, k, scale, refValue } = result
   if (!k) return <p className="empty">No studies with usable data for this measure yet — add data on the Studies page.</p>
   const isLog = scale === 'log'
+  const showPI = result.model === 'random' && k >= 3 && (predLow < pooledLow - 1e-9 || predHigh > pooledHigh + 1e-9)
   const tx = (v: number) => (isLog ? Math.log(Math.max(v, 1e-6)) : v)
-  const vals = [...rows.flatMap((r) => [r.low, r.high]), pooledLow, pooledHigh, refValue].filter((v) => Number.isFinite(v))
+  const vals = [...rows.flatMap((r) => [r.low, r.high]), pooledLow, pooledHigh, refValue, ...(showPI ? [predLow, predHigh] : [])].filter((v) => Number.isFinite(v))
   let lo = Math.min(...vals.map(tx))
   let hi = Math.max(...vals.map(tx))
   const pad = (hi - lo) * 0.08 || 0.3
@@ -64,9 +65,17 @@ export function ForestPlot({ result, index, measure }: { result: MetaResult; ind
         const y = axisY - 2
         return (
           <g>
+            {showPI && (
+              <g>
+                <line x1={X(predLow)} y1={y} x2={X(predHigh)} y2={y} stroke="var(--red)" strokeWidth={1.4} strokeDasharray="3 3" opacity={0.75} />
+                <line x1={X(predLow)} y1={y - 5} x2={X(predLow)} y2={y + 5} stroke="var(--red)" strokeWidth={1.4} opacity={0.75} />
+                <line x1={X(predHigh)} y1={y - 5} x2={X(predHigh)} y2={y + 5} stroke="var(--red)" strokeWidth={1.4} opacity={0.75} />
+              </g>
+            )}
             <polygon points={`${X(pooledLow)},${y} ${X(pooledEst)},${y - 8} ${X(pooledHigh)},${y} ${X(pooledEst)},${y + 8}`} fill="var(--red)" stroke="var(--red)" />
             <text x={8} y={y + 4} fontSize="12" fontWeight={800} fill="var(--red)" style={sans}>Pooled ({result.model})</text>
             <text x={x1 + 8} y={y + 4} fontSize="11" fontWeight={800} fill="var(--red)" style={mono}>{fmt(pooledEst)} [{fmt(pooledLow)}, {fmt(pooledHigh)}]</text>
+            {showPI && <text x={8} y={axisY + 30} fontSize="9.5" fill="var(--red)" opacity={0.85} style={mono}>95% PI [{fmt(predLow)}, {fmt(predHigh)}]</text>}
           </g>
         )
       })()}
