@@ -186,6 +186,23 @@ export interface Study {
 
 export type EffectMeasure = 'OR' | 'RR' | 'RD' | 'SMD'
 
+// A candidate reference moving through title/abstract → full-text screening.
+export type ScreenDecision = 'include' | 'exclude' | 'maybe'
+export interface ScreenRecord {
+  id: string
+  pmid?: string
+  title: string
+  abstract?: string
+  journal?: string
+  year?: number
+  authors?: string
+  d1?: ScreenDecision // reviewer 1, title/abstract
+  d2?: ScreenDecision // reviewer 2, title/abstract
+  reason?: string // title/abstract exclusion reason
+  ft?: 'include' | 'exclude' // full-text decision
+  ftReason?: string // full-text exclusion reason
+}
+
 export type GradeJudgment = 'not serious' | 'serious' | 'very serious'
 export interface GradeState {
   design: 'observational' | 'rct'
@@ -214,6 +231,7 @@ export interface Review {
   model: 'random' | 'fixed'
   robDomains: string[]
   grade?: GradeState
+  screening?: ScreenRecord[] // title/abstract + full-text screening pipeline
   dualExtraction?: boolean // data extracted in duplicate (AMSTAR-2 item 6)
   amstar?: Record<string, 'yes' | 'partial' | 'no'> // AMSTAR-2 self-assessment
   prisma: {
