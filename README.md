@@ -62,6 +62,17 @@ npm run typecheck
 
 Node 18+ recommended.
 
+## Deploy
+
+Static SPA — any static host works. `vercel.json` pins the Vite build for **Vercel**:
+import the repo at [vercel.com/new](https://vercel.com/new) and it auto-builds
+`npm run build` → `dist/` on every push to `main`. Routing uses `HashRouter`, so
+deep links work with no rewrite rules.
+
+Do **not** set `VITE_OPENAI_API_KEY` in the deployment — it would inline your key
+into the public bundle. Leave it unset; users paste their own key in-app
+(Knowledge Review → stored in their browser only).
+
 ## Architecture
 
 ```
