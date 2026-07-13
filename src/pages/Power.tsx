@@ -52,11 +52,13 @@ export default function Power() {
   }
   const power = powerAtN(n)
   const req =
-    design === 'two' ? requiredNPerGroup({ d, alpha, power: target })
+    design === 'two' ? requiredNPerGroup({ d, alpha, power: target, alloc })
       : design === 'paired' ? requiredNPaired({ d, alpha, power: target })
         : design === 'anova' ? requiredNAnova({ k, f, alpha, power: target })
           : requiredEvents({ hr, alpha, power: target })
   const reqDrop = Number.isFinite(req) && dropout > 0 && dropout < 1 ? Math.ceil(req / (1 - dropout)) : req
+  // total across arms — unequal allocation makes group 2 = alloc × group 1
+  const reqTotal = !Number.isFinite(req) ? req : design === 'anova' ? req * k : req + Math.ceil(req * alloc)
 
   const meta = useMemo(() => computeMeta(state.review.studies, state.review.model, state.review.effect), [state.review])
   const metaD = meta.k >= 2 ? dFromMeta(state.review.effect, meta.pooledEst) : null
@@ -181,8 +183,8 @@ export default function Power() {
             <div className="stat">
               <b>{Number.isFinite(req) ? req : '∞'}</b>
               <span>{unit} for {Math.round(target * 100)}% power</span>
-              {dropout > 0 && Number.isFinite(reqDrop) && <div className="sub">{reqDrop} enrolled (dropout {Math.round(dropout * 100)}%)</div>}
-              {design !== 'survival' && design !== 'paired' && Number.isFinite(req) && <div className="sub">{(req as number) * (design === 'anova' ? k : 2)} total</div>}
+              {(design === 'two' || design === 'paired') && dropout > 0 && Number.isFinite(reqDrop) && <div className="sub">{reqDrop} enrolled (dropout {Math.round(dropout * 100)}%)</div>}
+              {design !== 'survival' && design !== 'paired' && Number.isFinite(req) && <div className="sub">{reqTotal} total{design === 'two' && alloc !== 1 ? ` (${req}:${Math.ceil(req * alloc)})` : ''}</div>}
             </div>
           </div>
         </div>

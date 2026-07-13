@@ -42,19 +42,25 @@ function effectPool(s: Study, m: EffectMeasure): { pool: number; se: number } | 
   if (!hasBinary(s)) return null
   const a = s.expEvents!, c = s.ctrlEvents!, n1 = s.expTotal!, n2 = s.ctrlTotal!
   const b = n1 - a, d = n2 - c
+  // Cochrane 0.5 continuity correction whenever ANY cell is empty — covers both
+  // zero-event AND all-events arms (e.g. 50/50 vs 40/40), which otherwise drive
+  // the SE to 0 → an Infinite inverse-variance weight → NaN across the whole pool.
+  const A0 = a, B0 = b, C0 = c, D0 = d
+  const cc = A0 === 0 || B0 === 0 || C0 === 0 || D0 === 0 ? 0.5 : 0
+  const A = A0 + cc, B = B0 + cc, C = C0 + cc, D = D0 + cc
+  const N1 = A + B, N2 = C + D
+  let res: { pool: number; se: number }
   if (m === 'OR') {
-    let A = a, B = b, C = c, D = d
-    if (A === 0 || B === 0 || C === 0 || D === 0) { A += 0.5; B += 0.5; C += 0.5; D += 0.5 }
-    return { pool: Math.log((A * D) / (B * C)), se: Math.sqrt(1 / A + 1 / B + 1 / C + 1 / D) }
+    res = { pool: Math.log((A * D) / (B * C)), se: Math.sqrt(1 / A + 1 / B + 1 / C + 1 / D) }
+  } else if (m === 'RR') {
+    res = { pool: Math.log((A / N1) / (C / N2)), se: Math.sqrt(1 / A - 1 / N1 + 1 / C - 1 / N2) }
+  } else {
+    // RD
+    const p1 = A / N1, p2 = C / N2
+    res = { pool: p1 - p2, se: Math.sqrt((p1 * (1 - p1)) / N1 + (p2 * (1 - p2)) / N2) }
   }
-  if (m === 'RR') {
-    let A = a, C = c, N1 = n1, N2 = n2
-    if (A === 0 || C === 0) { A += 0.5; C += 0.5; N1 += 1; N2 += 1 }
-    return { pool: Math.log((A / N1) / (C / N2)), se: Math.sqrt(1 / A - 1 / N1 + 1 / C - 1 / N2) }
-  }
-  // RD
-  const p1 = a / n1, p2 = c / n2
-  return { pool: p1 - p2, se: Math.sqrt((p1 * (1 - p1)) / n1 + (p2 * (1 - p2)) / n2) }
+  // safety net: a non-positive/non-finite SE would poison inverse-variance pooling
+  return Number.isFinite(res.se) && res.se > 0 ? res : null
 }
 
 export function usable(s: Study, m: EffectMeasure): boolean {

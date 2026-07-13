@@ -124,11 +124,12 @@ export function dFromMeta(measure: string, est: number): number {
   return 0.5
 }
 
-/** Required n per group to reach a target power. */
-export function requiredNPerGroup({ d, alpha, power }: { d: number; alpha: number; power: number }): number {
+/** Required n in the reference group (group 1) to reach target power.
+ *  `alloc` = n₂/n₁; at 1:1 this is the classic 2·(z/d)² per group. */
+export function requiredNPerGroup({ d, alpha, power, alloc = 1 }: { d: number; alpha: number; power: number; alloc?: number }): number {
   if (d <= 0) return Infinity
   const z = invNorm(1 - alpha / 2) + invNorm(power)
-  return Math.max(2, Math.ceil((2 * (z / d) * (z / d))))
+  return Math.max(2, Math.ceil(((alloc + 1) / alloc) * (z / d) * (z / d)))
 }
 
 const DEFAULT_GENOME_WIDE_TESTS = 1e5

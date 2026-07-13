@@ -160,11 +160,19 @@ export default function Suspension() {
       <div className="card lg" style={{ marginBottom: 16 }}>
         <div className="card-h" style={{ justifyContent: 'space-between' }}>
           <span><span className="sq" style={{ background: 'var(--violet)' }} />AMSTAR-2 · REVIEW QUALITY</span>
-          <span className="amstar-rating" style={{ background: `color-mix(in srgb, ${AMSTAR_COLOR[rating.rating]} 14%, var(--card))`, color: AMSTAR_COLOR[rating.rating], borderColor: AMSTAR_COLOR[rating.rating] }}>
-            {rating.rating}
-          </span>
+          {rating.answered === 0 ? (
+            <span className="amstar-rating" style={{ background: 'var(--card-2)', color: 'var(--muted)', borderColor: 'var(--line)' }}>Not appraised</span>
+          ) : (
+            <span className="amstar-rating" style={{ background: `color-mix(in srgb, ${AMSTAR_COLOR[rating.rating]} 14%, var(--card))`, color: AMSTAR_COLOR[rating.rating], borderColor: AMSTAR_COLOR[rating.rating] }}>
+              {rating.rating}
+            </span>
+          )}
         </div>
-        <p className="small" style={{ marginBottom: 12 }}>{rating.critical} critical + {rating.nonCritical} non-critical weakness{rating.nonCritical === 1 ? '' : 'es'} · {rating.answered}/16 answered. Critical domains (★) drive the overall confidence rating.</p>
+        <p className="small" style={{ marginBottom: 12 }}>
+          {rating.answered === 0
+            ? 'No items appraised yet — rate the 16 domains below to compute an AMSTAR-2 confidence rating.'
+            : <>{rating.critical} critical + {rating.nonCritical} non-critical weakness{rating.nonCritical === 1 ? '' : 'es'} · {rating.answered}/16 answered. Critical domains (★) drive the overall confidence rating.</>}
+        </p>
         <div className="amstar-grid">
           {AMSTAR_ITEMS.map((it) => (
             <div className="amstar-row" key={it.id}>
