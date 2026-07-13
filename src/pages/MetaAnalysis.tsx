@@ -4,7 +4,7 @@ import { Kicker, Rule, StatCard } from '../components/ui'
 import { Markdown } from '../components/Markdown'
 import { ForestPlot, FunnelPlot } from '../components/srmaPlots'
 import { FigureFrame } from '../components/FigureFrame'
-import { computeMeta, leaveOneOut, subgroupAnalysis, eggersTest, computeGrade, trimAndFill, measureInfo, MEASURES, fmt } from '../lib/metaAnalysis'
+import { computeMeta, leaveOneOut, subgroupAnalysis, eggersTest, computeGrade, trimAndFill, cumulativeMeta, metaRegression, dataIntegrity, measureInfo, MEASURES, fmt } from '../lib/metaAnalysis'
 import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
 import type { Study, EffectMeasure } from '../types'
 
@@ -13,6 +13,11 @@ const GROUPINGS: Record<string, { label: string; key: (s: Study) => string }> = 
   design: { label: 'Study design', key: (s) => s.design ?? '—' },
   robSel: { label: 'Selection risk of bias', key: (s) => (s.rob?.Selection === 'low' ? 'Low RoB' : 'Some / high RoB') },
   custom: { label: 'Custom subgroup', key: (s) => s.subgroup ?? '—' },
+}
+const MODERATORS: Record<string, { label: string; fn: (s: Study) => number | null }> = {
+  year: { label: 'Publication year', fn: (s) => s.year || null },
+  n: { label: 'Total sample size', fn: (s) => { const t = (s.expTotal ?? 0) + (s.ctrlTotal ?? 0) + (s.n1 ?? 0) + (s.n2 ?? 0); return t || null } },
+  ctrlRate: { label: 'Control event rate', fn: (s) => (s.ctrlTotal ? (s.ctrlEvents ?? 0) / s.ctrlTotal : null) },
 }
 const CERT: Record<string, string> = { High: '#12b981', Moderate: '#1746d1', Low: '#f59e0b', 'Very low': '#e2001a' }
 
@@ -26,6 +31,10 @@ export default function MetaAnalysis() {
   const egger = useMemo(() => eggersTest(r.studies, r.effect), [r.studies, r.effect])
   const tf = useMemo(() => trimAndFill(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
   const grade = useMemo(() => computeGrade(r, meta, egger), [r, meta, egger])
+  const cum = useMemo(() => cumulativeMeta(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
+  const integrity = useMemo(() => dataIntegrity(r.studies, r.effect), [r.studies, r.effect])
+  const [moderator, setModerator] = useState<keyof typeof MODERATORS>('year')
+  const reg = useMemo(() => metaRegression(r.studies, r.model, r.effect, MODERATORS[moderator].fn), [r.studies, r.model, r.effect, moderator])
   const looRange = loo.length ? { min: Math.min(...loo.map((x) => x.est)), max: Math.max(...loo.map((x) => x.est)) } : null
 
   const binary = measureInfo(r.effect).binary
@@ -44,7 +53,7 @@ export default function MetaAnalysis() {
     const studies = meta.rows.map((x) => `${x.label}: ${r.effect} ${fmt(x.est)} [${fmt(x.low)}, ${fmt(x.high)}], weight ${fmt(x.weight, 1)}%`).join('; ')
     const messages: ChatMessage[] = [
       { role: 'system', content: 'You are a medical writer drafting the Results section of a systematic review & meta-analysis. Write one tight, publication-style paragraph in past tense with the pooled estimate, CI, heterogeneity (I², τ²), and a one-line interpretation. Use markdown. No preamble.' },
-      { role: 'user', content: `Question: ${r.question}\nModel: ${r.model}-effects, ${r.effect}, ${r.indexLabel} vs ${r.comparatorLabel}, outcome ${r.outcomeLabel}.\nStudies (k=${meta.k}): ${studies}\nPooled ${r.effect} ${fmt(meta.pooledEst)} [${fmt(meta.pooledLow)}, ${fmt(meta.pooledHigh)}]; Q=${fmt(meta.Q)}, df=${meta.df}, I²=${fmt(meta.I2, 0)}%, τ²=${fmt(meta.tau2, 3)}, p(het)=${fmt(meta.pValue, 3)}. GRADE certainty: ${grade.certainty}.` },
+      { role: 'user', content: `Question: ${r.question}\nModel: ${r.model}-effects, ${r.effect}, ${r.indexLabel} vs ${r.comparatorLabel}, outcome ${r.outcomeLabel}.\nStudies (k=${meta.k}): ${studies}\nPooled ${r.effect} ${fmt(meta.pooledEst)} [${fmt(meta.pooledLow)}, ${fmt(meta.pooledHigh)}]${r.model === 'random' && meta.k >= 3 ? `; 95% prediction interval [${fmt(meta.predLow)}, ${fmt(meta.predHigh)}]` : ''}; Q=${fmt(meta.Q)}, df=${meta.df}, I²=${fmt(meta.I2, 0)}%, τ²=${fmt(meta.tau2, 3)}, p(het)=${fmt(meta.pValue, 3)}. GRADE certainty: ${grade.certainty}.` },
     ]
     const ctrl = new AbortController(); abortRef.current = ctrl
     try { await streamChat({ messages, model: getModel(), signal: ctrl.signal, onToken: (d) => setAiText((t) => t + d) }) }
@@ -76,6 +85,19 @@ export default function MetaAnalysis() {
 
       {meta.k === 0 && <div className="err" style={{ background: 'var(--warn)', color: 'var(--warn-ink)', border: '1px solid color-mix(in srgb,var(--amber) 30%,var(--line))', marginBottom: 16 }}>No studies have usable data for <b>{measureInfo(r.effect).label}</b>. {binary ? 'Add 2×2 event counts' : 'Add mean / SD / n per group'} on the Studies page.</div>}
 
+      {integrity.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${integrity.some((i) => i.level === 'error') ? 'var(--red)' : 'var(--amber)'}` }}>
+          <div className="card-h"><span className="sq" style={{ background: integrity.some((i) => i.level === 'error') ? 'var(--red)' : 'var(--amber)' }} />DATA CHECKS · {integrity.length} flag{integrity.length === 1 ? '' : 's'}</div>
+          {integrity.slice(0, 8).map((i, idx) => (
+            <div className="he-row" key={idx}>
+              <span className={`vbadge ${i.level === 'error' ? 'v-exclude' : 'v-maybe'}`}>{i.level}</span>
+              <span className="he-lab"><b>{i.study}</b> — {i.msg}</span>
+            </div>
+          ))}
+          <p className="small" style={{ marginTop: 8 }}>Errors block a study from pooling correctly; warnings (zero cells, double-zeros) are handled automatically but worth noting in the manuscript.</p>
+        </div>
+      )}
+
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <StatCard value={`${fmt(meta.pooledEst)}`} label={`Pooled ${r.effect}`} sub={`[${fmt(meta.pooledLow)}, ${fmt(meta.pooledHigh)}]`} tone={sig ? '#e2001a' : '#5b6480'} />
         <StatCard value={`${fmt(meta.I2, 0)}%`} label="I² heterogeneity" sub={`τ²=${fmt(meta.tau2, 3)}`} tone="#f59e0b" />
@@ -94,6 +116,7 @@ export default function MetaAnalysis() {
         <div className="card lg">
           <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />HETEROGENEITY</div>
           <div className="kv"><span className="k">Pooled {r.effect}</span><span className="val"><b>{fmt(meta.pooledEst)}</b> [{fmt(meta.pooledLow)}, {fmt(meta.pooledHigh)}] · {r.model}-effects</span></div>
+          {r.model === 'random' && meta.k >= 3 && <div className="kv"><span className="k">95% prediction</span><span className="val">[<b>{fmt(meta.predLow)}</b>, <b>{fmt(meta.predHigh)}</b>] — where a future study's true effect is expected</span></div>}
           <div className="kv"><span className="k">Cochran's Q</span><span className="val">{fmt(meta.Q)} (df = {meta.df}), p = {fmt(meta.pValue, 3)}</span></div>
           <div className="kv"><span className="k">I²</span><span className="val">{fmt(meta.I2, 0)}% — {meta.I2 < 25 ? 'low' : meta.I2 < 60 ? 'moderate' : 'substantial'} heterogeneity</span></div>
           <div className="kv"><span className="k">τ²</span><span className="val">{fmt(meta.tau2, 3)}</span></div>
@@ -150,6 +173,59 @@ export default function MetaAnalysis() {
               <p className="small">{egger.p < 0.05 ? <>Significant intercept → evidence of <b>small-study effects</b>.</> : <>No significant asymmetry.</>} Underpowered with &lt; 10 studies — read with the funnel plot.</p>
             </>
           )}
+        </div>
+      </div>
+
+      <div className="grid g2" style={{ marginTop: 16 }}>
+        <div className="card lg">
+          <div className="card-h"><span className="sq" style={{ background: 'var(--violet)' }} />CUMULATIVE · CHRONOLOGICAL</div>
+          {cum.length < 2 ? <p className="empty">Needs ≥2 pooled studies with years.</p> : (
+            <>
+              <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+                <table><thead><tr><th>Through</th><th>k</th><th>Pooled {r.effect} [95% CI]</th></tr></thead>
+                  <tbody>{cum.map((x, i) => <tr key={i}><td>{x.label}</td><td className="mono">{x.k}</td><td className="mono">{fmt(x.est)} [{fmt(x.low)}, {fmt(x.high)}]</td></tr>)}</tbody>
+                </table>
+              </div>
+              {(() => {
+                const first = cum.findIndex((x) => (x.low > meta.refValue) === (meta.pooledEst > meta.refValue) && (x.low > meta.refValue || x.high < meta.refValue))
+                return <p className="small" style={{ marginTop: 10 }}>{first >= 0 ? <>The evidence first reached significance in the current direction at <b>{cum[first].label.replace('+ ', '')}</b> and has held since.</> : <>The pooled estimate has not yet reached significance as studies accumulate.</>}</p>
+              })()}
+            </>
+          )}
+        </div>
+        <div className="card lg">
+          <div className="card-h" style={{ justifyContent: 'space-between' }}>
+            <span><span className="sq" style={{ background: 'var(--navy)' }} />META-REGRESSION</span>
+            <select className="select" style={{ width: 190 }} value={moderator} onChange={(e) => setModerator(e.target.value as keyof typeof MODERATORS)}>
+              {Object.entries(MODERATORS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          {!reg ? <p className="empty">Needs ≥3 pooled studies with a value for this moderator.</p> : (() => {
+            const RW = 320, RH = 200, px0 = 42, px1 = RW - 12, py0 = 12, py1 = RH - 30
+            const line = [reg.xMin, reg.xMax].map((x) => ({ x, y: reg.intercept + reg.slope * x }))
+            const ys = [...reg.points.map((p) => p.y), ...line.map((l) => l.y)]
+            let yLo = Math.min(...ys), yHi = Math.max(...ys)
+            const yp = (yHi - yLo) * 0.12 || 0.3; yLo -= yp; yHi += yp
+            const xp = (reg.xMax - reg.xMin) * 0.06 || 1
+            const X = (x: number) => px0 + ((x - (reg.xMin - xp)) / ((reg.xMax + xp) - (reg.xMin - xp))) * (px1 - px0)
+            const Y = (y: number) => py1 - ((y - yLo) / (yHi - yLo)) * (py1 - py0)
+            const isLog = reg.scale === 'log'
+            const yref = isLog ? 0 : meta.refValue
+            return (
+              <>
+                <svg viewBox={`0 0 ${RW} ${RH}`} width="100%" style={{ display: 'block' }}>
+                  {yref >= yLo && yref <= yHi && <line x1={px0} y1={Y(yref)} x2={px1} y2={Y(yref)} stroke="var(--muted)" strokeWidth={1} strokeDasharray="4 4" />}
+                  <line x1={X(line[0].x)} y1={Y(line[0].y)} x2={X(line[1].x)} y2={Y(line[1].y)} stroke="var(--red)" strokeWidth={2} />
+                  {reg.points.map((p, i) => <circle key={i} cx={X(p.x)} cy={Y(p.y)} r={Math.max(3, Math.min(8, 3 + 1.6 / (p.se + 0.25)))} fill="var(--navy)" opacity={0.62} />)}
+                  <text x={4} y={py0 + 4} fontSize="8.5" fill="var(--muted)" fontFamily="var(--mono)">{isLog ? `log(${r.effect})` : r.effect}</text>
+                  <text x={RW / 2} y={RH - 4} textAnchor="middle" fontSize="9" fill="var(--muted)" fontFamily="var(--mono)">{MODERATORS[moderator].label} →</text>
+                </svg>
+                <p className="small" style={{ marginTop: 6 }}>
+                  Slope <b>{fmt(reg.slope, 4)}</b> per unit (SE {fmt(reg.seSlope, 4)}), <b style={{ color: reg.p < 0.05 ? 'var(--red)' : 'var(--ink)' }}>p = {fmt(reg.p, 3)}</b>{isLog && (() => { const m = Math.exp(reg.slope); return <> → ×{m < 0.001 || m > 1000 ? m.toExponential(1) : fmt(m, 3)} on {r.effect} per unit</> })()}. {reg.p < 0.05 ? <>The moderator <b>significantly</b> explains part of the between-study variation.</> : <>No significant moderation — the effect looks stable across this moderator.</>}
+                </p>
+              </>
+            )
+          })()}
         </div>
       </div>
 

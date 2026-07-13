@@ -94,6 +94,8 @@ export interface MetaResult {
   pooledEst: number
   pooledLow: number
   pooledHigh: number
+  predLow: number // 95% prediction interval (random-effects, k≥3)
+  predHigh: number
   pooledPool: number
   Q: number
   df: number
@@ -114,13 +116,13 @@ export function computeMeta(studies: Study[], model: 'random' | 'fixed', measure
     .filter((x): x is { s: Study; e: { pool: number; se: number } } => x.e !== null)
     .map((x) => ({ s: x.s, pool: x.e.pool, se: x.e.se, w: 1 / (x.e.se * x.e.se) }))
   const k = raw.length
-  const base: Omit<MetaResult, 'rows' | 'pooledEst' | 'pooledLow' | 'pooledHigh' | 'pooledPool' | 'Q' | 'I2' | 'tau2' | 'pValue' | 'k' | 'df'> = {
+  const base: Omit<MetaResult, 'rows' | 'pooledEst' | 'pooledLow' | 'pooledHigh' | 'predLow' | 'predHigh' | 'pooledPool' | 'Q' | 'I2' | 'tau2' | 'pValue' | 'k' | 'df'> = {
     model,
     measure,
     scale: info.scale,
     refValue: info.ref,
   }
-  if (k === 0) return { ...base, rows: [], k: 0, pooledEst: info.ref, pooledLow: info.ref, pooledHigh: info.ref, pooledPool: 0, Q: 0, df: 0, I2: 0, tau2: 0, pValue: 1 }
+  if (k === 0) return { ...base, rows: [], k: 0, pooledEst: info.ref, pooledLow: info.ref, pooledHigh: info.ref, predLow: info.ref, predHigh: info.ref, pooledPool: 0, Q: 0, df: 0, I2: 0, tau2: 0, pValue: 1 }
 
   const sumW = raw.reduce((a, r) => a + r.w, 0)
   const fixed = raw.reduce((a, r) => a + r.w * r.pool, 0) / sumW
@@ -133,6 +135,16 @@ export function computeMeta(studies: Study[], model: 'random' | 'fixed', measure
   const sumWStar = wStar.reduce((a, b) => a + b, 0)
   const pooledPool = raw.reduce((a, r, i) => a + wStar[i] * r.pool, 0) / sumWStar
   const sePooled = Math.sqrt(1 / sumWStar)
+  // 95% prediction interval (Higgins–Thompson–Spiegelhalter): where a future
+  // study's true effect is expected to fall. Only meaningful for random-effects, k≥3.
+  let predLow = pooledPool - 1.96 * sePooled
+  let predHigh = pooledPool + 1.96 * sePooled
+  if (model === 'random' && k >= 3) {
+    const tc = tCritTwoSided(k - 2)
+    const sePI = Math.sqrt(tau2 + sePooled * sePooled)
+    predLow = pooledPool - tc * sePI
+    predHigh = pooledPool + tc * sePI
+  }
 
   const rows: MetaRow[] = raw.map((r, i) => ({
     id: r.s.id,
@@ -155,6 +167,8 @@ export function computeMeta(studies: Study[], model: 'random' | 'fixed', measure
     pooledEst: backTransform(measure, pooledPool),
     pooledLow: backTransform(measure, pooledPool - 1.96 * sePooled),
     pooledHigh: backTransform(measure, pooledPool + 1.96 * sePooled),
+    predLow: backTransform(measure, predLow),
+    predHigh: backTransform(measure, predHigh),
     pooledPool,
     Q,
     df,
@@ -172,6 +186,102 @@ export function leaveOneOut(studies: Study[], model: 'random' | 'fixed', measure
     const m = computeMeta(incl.filter((x) => x.id !== s.id), model, measure)
     return { excluded: `${s.author} ${s.year}`, k: m.k, est: m.pooledEst, low: m.pooledLow, high: m.pooledHigh }
   })
+}
+
+// two-sided t critical value (root-find on the two-tailed p, which decreases in t)
+export function tCritTwoSided(df: number, alpha = 0.05): number {
+  if (df < 1) return 1.96
+  let lo = 0, hi = 100
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2
+    if (tTwoTailedP(mid, df) > alpha) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
+}
+
+// ---- cumulative meta-analysis (chronological) ----
+export interface CumRow { label: string; year: number; k: number; est: number; low: number; high: number }
+export function cumulativeMeta(studies: Study[], model: 'random' | 'fixed', measure: EffectMeasure): CumRow[] {
+  const incl = studies.filter((s) => usable(s, measure)).slice().sort((a, b) => (a.year || 0) - (b.year || 0))
+  if (incl.length < 2) return []
+  return incl.map((s, i) => {
+    const m = computeMeta(incl.slice(0, i + 1), model, measure)
+    return { label: `+ ${s.author} ${s.year}`, year: s.year || 0, k: m.k, est: m.pooledEst, low: m.pooledLow, high: m.pooledHigh }
+  })
+}
+
+// ---- meta-regression on a continuous moderator (weighted least squares) ----
+const normCdf = (z: number) => 0.5 * erfc(-z / Math.SQRT2)
+export interface MetaRegPoint { x: number; y: number; se: number; label: string }
+export interface MetaRegResult {
+  k: number
+  slope: number // per unit moderator, on the pooling scale (log for OR/RR)
+  seSlope: number
+  intercept: number
+  z: number
+  p: number
+  tau2: number
+  scale: 'log' | 'linear'
+  points: MetaRegPoint[]
+  xMin: number
+  xMax: number
+}
+export function metaRegression(
+  studies: Study[],
+  model: 'random' | 'fixed',
+  measure: EffectMeasure,
+  moderator: (s: Study) => number | null,
+): MetaRegResult | null {
+  const rows = studies
+    .filter((s) => usable(s, measure))
+    .map((s) => {
+      const e = effectPool(s, measure)!
+      const x = moderator(s)
+      return x == null || !Number.isFinite(x) ? null : { x, y: e.pool, se: e.se, label: `${s.author} ${s.year}` }
+    })
+    .filter((r): r is MetaRegPoint => r !== null)
+  const k = rows.length
+  if (k < 3) return null
+  const tau2 = model === 'random' ? computeMeta(studies, model, measure).tau2 : 0
+  const w = rows.map((r) => 1 / (r.se * r.se + tau2))
+  const sw = w.reduce((a, b) => a + b, 0)
+  const mx = rows.reduce((a, r, i) => a + w[i] * r.x, 0) / sw
+  const my = rows.reduce((a, r, i) => a + w[i] * r.y, 0) / sw
+  const Sxx = rows.reduce((a, r, i) => a + w[i] * (r.x - mx) ** 2, 0)
+  const Sxy = rows.reduce((a, r, i) => a + w[i] * (r.x - mx) * (r.y - my), 0)
+  if (!(Sxx > 0)) return null
+  const slope = Sxy / Sxx
+  const intercept = my - slope * mx
+  const seSlope = Math.sqrt(1 / Sxx)
+  const z = slope / seSlope
+  const xs = rows.map((r) => r.x)
+  return { k, slope, seSlope, intercept, z, p: 2 * (1 - normCdf(Math.abs(z))), tau2, scale: measureInfo(measure).scale, points: rows, xMin: Math.min(...xs), xMax: Math.max(...xs) }
+}
+
+// ---- data-integrity checks ----
+export interface IntegrityIssue { study: string; level: 'error' | 'warn'; msg: string }
+export function dataIntegrity(studies: Study[], measure: EffectMeasure): IntegrityIssue[] {
+  const out: IntegrityIssue[] = []
+  for (const s of studies) {
+    if (!s.include) continue
+    const lbl = `${s.author} ${s.year}`
+    if (measure === 'SMD') {
+      if (!hasCont(s)) out.push({ study: lbl, level: 'warn', msg: 'no continuous data (mean/SD/n) for SMD' })
+      continue
+    }
+    const a = s.expEvents, n1 = s.expTotal, c = s.ctrlEvents, n2 = s.ctrlTotal
+    if (a !== undefined && n1 !== undefined && a > n1) out.push({ study: lbl, level: 'error', msg: `events (${a}) exceed the index-arm total (${n1})` })
+    if (c !== undefined && n2 !== undefined && c > n2) out.push({ study: lbl, level: 'error', msg: `events (${c}) exceed the comparator total (${n2})` })
+    if ([a, c, n1, n2].some((v) => v !== undefined && v < 0)) out.push({ study: lbl, level: 'error', msg: 'negative count' })
+    if (!hasBinary(s)) {
+      out.push({ study: lbl, level: 'warn', msg: `incomplete 2×2 data for ${measure}` })
+      continue
+    }
+    if (a === 0 && c === 0) out.push({ study: lbl, level: 'warn', msg: 'double-zero events — no information for OR/RR' })
+    else if (a === 0 || c === 0 || n1! - a! === 0 || n2! - c! === 0) out.push({ study: lbl, level: 'warn', msg: 'zero cell — 0.5 continuity correction applied' })
+  }
+  return out
 }
 
 export interface SubgroupResult {
