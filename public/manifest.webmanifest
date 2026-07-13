@@ -1,0 +1,16 @@
+{
+  "name": "WilliamsLab — Research OS",
+  "short_name": "WilliamsLab",
+  "description": "A translational-research operating system: systematic reviews, meta-analysis, and lab science in one place.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef1f8",
+  "theme_color": "#0a1f6b",
+  "orientation": "any",
+  "categories": ["productivity", "medical", "education"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
