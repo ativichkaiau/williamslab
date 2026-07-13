@@ -88,6 +88,8 @@ interface StoreCtx {
   redo: () => void
   canUndo: boolean
   canRedo: boolean
+  getSnapshot: () => string // whole AppState as JSON (for cloud sync)
+  restoreSnapshot: (json: string) => boolean // replace the whole AppState from cloud
 }
 
 const Ctx = createContext<StoreCtx | null>(null)
@@ -345,6 +347,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     },
     reset: () => apply({ projects: [seed, seed2], activeId: seed.project.id }),
+    getSnapshot: () => JSON.stringify(appRef.current),
+    restoreSnapshot: (json) => {
+      try {
+        const parsed = JSON.parse(json) as AppState
+        if (!parsed?.projects?.length || !parsed.activeId) return false
+        const next: AppState = { projects: parsed.projects.map(normalize), activeId: parsed.activeId }
+        past.current = []
+        future.current = []
+        appRef.current = next
+        setApp(next)
+        return true
+      } catch {
+        return false
+      }
+    },
     undo,
     redo,
     canUndo: past.current.length > 0,

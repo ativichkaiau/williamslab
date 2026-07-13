@@ -51,7 +51,7 @@ function score(hay: string, q: string): number {
   return 200 - gaps
 }
 
-export default function CommandPalette({ open, onClose, onToggleTheme, onOpenCopilot }: { open: boolean; onClose: () => void; onToggleTheme: () => void; onOpenCopilot: () => void }) {
+export default function CommandPalette({ open, onClose, onToggleTheme, onOpenCopilot, onOpenCloud }: { open: boolean; onClose: () => void; onToggleTheme: () => void; onOpenCopilot: () => void; onOpenCloud: () => void }) {
   const { state, projects, switchProject, undo, redo, canUndo, canRedo, reset } = useStore()
   const nav = useNavigate()
   const [q, setQ] = useState('')
@@ -78,6 +78,7 @@ export default function CommandPalette({ open, onClose, onToggleTheme, onOpenCop
     PAGES.forEach((p) => c.push({ id: `pg-${p.to}`, group: 'Go to', label: p.label, icon: p.icon, run: () => go(p.to) }))
     c.push({ id: 'act-ai', group: 'Actions', label: 'Ask the AI copilot', icon: '✦', kw: 'chat assistant', run: () => { onOpenCopilot(); onClose() } })
     c.push({ id: 'act-theme', group: 'Actions', label: 'Toggle day / night theme', icon: '☾', kw: 'dark light mode', run: () => { onToggleTheme(); onClose() } })
+    c.push({ id: 'act-cloud', group: 'Actions', label: 'Cloud sync & sharing', icon: '☁', kw: 'supabase sign in share sync account', run: () => { onOpenCloud(); onClose() } })
     if (canUndo) c.push({ id: 'act-undo', group: 'Actions', label: 'Undo last edit', icon: '↶', run: () => { undo(); onClose() } })
     if (canRedo) c.push({ id: 'act-redo', group: 'Actions', label: 'Redo', icon: '↷', run: () => { redo(); onClose() } })
     c.push({ id: 'act-reset', group: 'Actions', label: 'Reset project to seed data', icon: '⟲', kw: 'clear', run: () => { if (confirm('Reset all edits back to the seed project?')) reset(); onClose() } })
