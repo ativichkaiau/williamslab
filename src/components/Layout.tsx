@@ -28,6 +28,7 @@ const NAV = [
     group: 'SYSTEMATIC REVIEW',
     accent: '#0d9488',
     items: [
+      { to: '/radar', label: 'Literature', icon: '◎', color: '#f59e0b' },
       { to: '/protocol', label: 'Protocol', icon: '⊞', color: '#0d9488' },
       { to: '/prisma', label: 'PRISMA Flow', icon: '⇉', color: '#0891b2' },
       { to: '/studies', label: 'Studies', icon: '☰', color: '#6366f1' },
@@ -36,19 +37,12 @@ const NAV = [
     ],
   },
   {
-    group: 'DESIGN',
+    group: 'EXPERIMENTS',
     accent: '#7c3aed',
     items: [
       { to: '/hypotheses', label: 'Hypotheses', icon: '◆', color: '#7c3aed' },
       { to: '/mechanism', label: 'Mechanism Map', icon: '⇄', color: '#2f6bff' },
       { to: '/assays', label: 'Assays', icon: '▣', color: '#12b981' },
-    ],
-  },
-  {
-    group: 'EVIDENCE',
-    accent: '#f59e0b',
-    items: [
-      { to: '/radar', label: 'Literature', icon: '◎', color: '#f59e0b' },
       { to: '/power', label: 'Statistical Power', icon: '∑', color: '#0891b2' },
       { to: '/suspension', label: 'Rigor Monitor', icon: '⚠', color: '#e2001a' },
     ],
