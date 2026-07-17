@@ -98,6 +98,25 @@ export default function Layout() {
   const [help, setHelp] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem('williamslab.nav.collapsed') || '[]'))
+    } catch {
+      return new Set<string>()
+    }
+  })
+  const toggleGroup = (g: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(g)) next.delete(g)
+      else next.add(g)
+      try {
+        localStorage.setItem('williamslab.nav.collapsed', JSON.stringify([...next]))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
   const loc = useLocation()
   const nav = useNavigate()
   // close the mobile drawer whenever the route changes
@@ -181,27 +200,34 @@ export default function Layout() {
           </div>
           <button className="sb-close" onClick={() => setNavOpen(false)} aria-label="Close menu">✕</button>
         </div>
-        <nav className="sb-nav" onClick={() => setNavOpen(false)}>
-          {NAV.map((g) => (
-            <div className="sb-sec" key={g.group}>
-              <div className="h" style={{ color: g.accent }}>{g.group}</div>
-              {g.items.map((it) => (
-                <NavLink
-                  key={it.to}
-                  to={it.to}
-                  end={it.end}
-                  style={{ ['--ic' as string]: it.color } as CSSProperties}
-                  className={({ isActive }) => `sb-link${isActive ? ' active' : ''}`}
-                >
-                  <span className="ic">{it.icon}</span>
-                  {it.label}
-                  {it.to === '/suspension' && openFlags > 0 && (
-                    <span className="fl" style={{ background: SEVERITY_COLOR.high }} title={`${openFlags} open`} />
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          ))}
+        <nav className="sb-nav">
+          {NAV.map((g) => {
+            const isCollapsed = collapsed.has(g.group)
+            return (
+              <div className={`sb-sec${isCollapsed ? ' collapsed' : ''}`} key={g.group} style={{ ['--grp' as string]: g.accent } as CSSProperties}>
+                <button className="h" onClick={() => toggleGroup(g.group)} title={isCollapsed ? `Show ${g.group}` : `Hide ${g.group}`}>
+                  <span className="chev">▾</span>
+                  {g.group}
+                </button>
+                {!isCollapsed && g.items.map((it) => (
+                  <NavLink
+                    key={it.to}
+                    to={it.to}
+                    end={it.end}
+                    onClick={() => setNavOpen(false)}
+                    style={{ ['--ic' as string]: g.accent } as CSSProperties}
+                    className={({ isActive }) => `sb-link${isActive ? ' active' : ''}`}
+                  >
+                    <span className="ic">{it.icon}</span>
+                    {it.label}
+                    {it.to === '/suspension' && openFlags > 0 && (
+                      <span className="fl" style={{ background: SEVERITY_COLOR.high }} title={`${openFlags} open`} />
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            )
+          })}
         </nav>
         <div className="sb-foot">
           WilliamsLab · v0.1
