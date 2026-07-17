@@ -61,8 +61,13 @@ a{color:var(--blue); text-decoration:none}
 .sb-brand .nm{font-weight:800; letter-spacing:-.02em}
 .sb-brand .nm b{color:var(--blue)}
 .sb-brand .nm small{display:block; font-size:9px; letter-spacing:.32em; color:var(--muted); font-weight:700; margin-top:2px}
-.sb-sec{padding:8px 12px 2px}
-.sb-sec .h{font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; color:var(--muted); font-weight:700; padding:10px 10px 6px}
+.sb-sec{padding:8px 12px 2px; border-left:2px solid transparent; margin-left:-2px; transition:border-color .15s}
+.sb-sec:hover{border-left-color:color-mix(in srgb, var(--grp) 34%, transparent)}
+.sb-sec .h{display:flex; align-items:center; gap:6px; width:100%; text-align:left; border:none; background:none; cursor:pointer;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; color:color-mix(in srgb, var(--grp) 80%, var(--muted)); font-weight:700; padding:10px 8px 6px}
+.sb-sec .h:hover{color:var(--grp)}
+.sb-sec .h .chev{font-size:8px; color:var(--grp); transition:transform .15s; display:inline-block; opacity:.75}
+.sb-sec.collapsed .h .chev{transform:rotate(-90deg)}
 .sb-link{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:10px; color:var(--ink-2);
   font-weight:600; font-size:13.5px; cursor:pointer; transition:background .12s}
 .sb-link:hover{background:var(--card-2)}
