@@ -3,7 +3,7 @@
 // through three phases; the endpoint is flexible (a Research Question, a
 // Reflection, or a supported drop-out). Program-level data, its own
 // localStorage key (independent of the per-project research store).
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 export type PhaseStatus = 'not-started' | 'active' | 'done'
 export type GroupOutcome = 'in-progress' | 'research-question' | 'reflection' | 'dropped'
@@ -33,6 +33,7 @@ export interface LitGroup {
   researchQuestion?: string
   reflection?: string
   dropReason?: string
+  promotedProjectId?: string // set when the group's RQ was promoted to a review project
 }
 export interface LitLinkState {
   cohort: string
@@ -171,14 +172,21 @@ function load(): LitLinkState {
 
 // Program-level store hook (independent of the research project store).
 export function useLitLink() {
-  const [state, setState] = useState<LitLinkState>(load)
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch {
-      /* ignore quota */
-    }
-  }, [state])
+  const [state, setStateInner] = useState<LitLinkState>(load)
+  // persist synchronously on every mutation — a plain useEffect would be
+  // skipped if the page unmounts in the same tick (e.g. "promote" navigates
+  // away to the new review project), dropping the write.
+  const setState = useCallback((updater: LitLinkState | ((s: LitLinkState) => LitLinkState)) => {
+    setStateInner((prev) => {
+      const next = typeof updater === 'function' ? (updater as (s: LitLinkState) => LitLinkState)(prev) : updater
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        /* ignore quota */
+      }
+      return next
+    })
+  }, [])
 
   const patchGroup = useCallback((id: string, patch: Partial<LitGroup>) => {
     setState((s) => ({ ...s, groups: s.groups.map((g) => (g.id === id ? { ...g, ...patch } : g)) }))
@@ -238,3 +246,38 @@ export function cohortStats(state: LitLinkState): CohortStats {
   }
   return { groups: state.groups.length, members, byPhase, outcomes, completed: outcomes['research-question'] + outcomes.reflection }
 }
+
+// Mentor-facing cohort report (markdown): one section per group with roster,
+// per-phase progress + feedback, and the final outcome (RQ / reflection / note).
+export function exportCohortMd(state: LitLinkState): string {
+  const s = cohortStats(state)
+  const out: string[] = []
+  out.push(`# ${state.cohort} — LitLink cohort report`)
+  out.push('')
+  out.push(`${s.groups} groups · ${s.members} น้อง · ${s.completed} reached an outcome (${s.outcomes['research-question']} research question, ${s.outcomes.reflection} reflection) · ${s.outcomes.dropped} supported step-out.`)
+  out.push('')
+  state.groups.forEach((g) => {
+    const om = OUTCOME_META[g.outcome]
+    out.push(`## ${g.name}`)
+    out.push('')
+    out.push(`- **Topic:** ${g.topic || '—'}${g.foundationArea ? ` (foundation: ${g.foundationArea})` : ''}`)
+    out.push(`- **น้อง (${g.members.length}):** ${g.members.map((m) => `${m.name}${m.role ? ` (${m.role})` : ''}`).join(', ') || '—'}`)
+    out.push(`- **Mentor:** ${g.mentor || '—'} · **ACAD:** ${g.acad || '—'}`)
+    out.push(`- **Status:** Phase ${g.currentPhase}/3 · **Outcome:** ${om.label}`)
+    out.push('')
+    PHASES.forEach((p, i) => {
+      const pr = g.phases[i]
+      out.push(`**Phase ${p.n} · ${p.title}** — _${STATUS(pr.status)}_`)
+      if (pr.deliverable) out.push(`  - Deliverable: ${pr.deliverable}`)
+      if (pr.notes) out.push(`  - Notes: ${pr.notes}`)
+      if (pr.mentorFeedback) out.push(`  - Mentor feedback: ${pr.mentorFeedback}`)
+    })
+    out.push('')
+    if (g.outcome === 'research-question' && g.researchQuestion) out.push(`> **Research Question:** ${g.researchQuestion}`)
+    if (g.outcome === 'reflection' && g.reflection) out.push(`> **Reflection:** ${g.reflection}`)
+    if (g.outcome === 'dropped' && g.dropReason) out.push(`> **Step-out note:** ${g.dropReason}`)
+    out.push('')
+  })
+  return out.join('\n')
+}
+const STATUS = (s: PhaseStatus) => (s === 'done' ? 'done' : s === 'active' ? 'in progress' : 'not started')

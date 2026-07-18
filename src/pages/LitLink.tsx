@@ -1,6 +1,20 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard } from '../components/ui'
-import { useLitLink, cohortStats, PHASES, OUTCOME_META, type LitGroup, type GroupOutcome, type PhaseStatus } from '../lib/litlink'
+import { Markdown } from '../components/Markdown'
+import { useLitLink, cohortStats, exportCohortMd, PHASES, OUTCOME_META, type LitGroup, type GroupOutcome, type PhaseStatus } from '../lib/litlink'
+import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
+
+function download(content: string, name: string, type: string) {
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 const STATUS_LABEL: Record<PhaseStatus, string> = { 'not-started': 'Not started', active: 'Active', done: 'Done' }
 const STATUS_COLOR: Record<PhaseStatus, string> = { 'not-started': '#9aa3bd', active: '#0891b2', done: '#12b981' }
@@ -25,8 +39,9 @@ export default function LitLink() {
             <h1 style={{ marginTop: 12 }}>LitLink</h1>
             <p>Groups of 3–4 น้อง, each with a <b>Mentor</b> and an <b>ACAD</b>, build from foundations to a focused review — ending in a Research Question, a Reflection, or a supported step-out. Track every group across the three phases.</p>
           </div>
-          <div className="row-actions" style={{ flex: 'none', gap: 8 }}>
+          <div className="row-actions" style={{ flex: 'none', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button className="btn ghost sm" onClick={() => setAbout((a) => !a)}>{about ? 'Hide' : 'About the program'}</button>
+            <button className="btn ghost sm" onClick={() => download(exportCohortMd(state), `${(state.cohort || 'litlink').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`, 'text/markdown')} disabled={!state.groups.length} title="Mentor-facing report: group summaries + reflections">⤓ Export cohort</button>
             <button className="btn primary sm" onClick={() => { const id = ll.addGroup(''); setSelected(id) }}>＋ Add group</button>
           </div>
         </div>
@@ -131,6 +146,46 @@ function GroupDetail({ group, ll, onBack }: { group: LitGroup; ll: ReturnType<ty
   const g = group
   const set = (patch: Partial<LitGroup>) => ll.patchGroup(g.id, patch)
 
+  const { createProject, switchProject } = useStore()
+  const nav = useNavigate()
+  const [ai, setAi] = useState<{ kind: 'reading' | 'critique'; text: string; on: boolean } | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  async function runAi(kind: 'reading' | 'critique', messages: ChatMessage[]) {
+    if (ai?.on) return
+    if (!hasKey()) { setAi({ kind, text: '_Add an OpenAI key in Knowledge Review → Settings to use AI assist._', on: false }); return }
+    setAi({ kind, text: '', on: true })
+    const ctrl = new AbortController(); abortRef.current = ctrl
+    try { await streamChat({ messages, model: getModel(), signal: ctrl.signal, onToken: (d) => setAi((a) => (a ? { ...a, text: a.text + d } : a)) }) }
+    catch (e) { if (!(e instanceof DOMException && e.name === 'AbortError')) setAi((a) => (a ? { ...a, text: a.text + `\n\n_⚠ ${e instanceof Error ? e.message : 'failed'}_` } : a)) }
+    finally { setAi((a) => (a ? { ...a, on: false } : a)); abortRef.current = null }
+  }
+  function suggestReading() {
+    runAi('reading', [
+      { role: 'system', content: 'You are a research mentor helping a student group build FOUNDATIONAL knowledge before a focused literature review. Suggest a concise, focused reading plan: the core concepts to master first and the kinds of landmark reviews / textbook chapters to read (name well-known sources and topics — do NOT fabricate specific citations or DOIs). Return short markdown with grouped bullets. End with one "good first question to sharpen" prompt.' },
+      { role: 'user', content: `Foundational area: ${g.foundationArea || '(not set)'}\nSpecific topic they intend to review: ${g.topic || '(not set)'}` },
+    ])
+  }
+  function critiqueRQ() {
+    const rq = g.researchQuestion?.trim()
+    if (!rq) { setAi({ kind: 'critique', text: '_Write a draft research question first (choose the Research Question outcome below)._', on: false }); return }
+    runAi('critique', [
+      { role: 'system', content: 'You are a research mentor judging whether a draft is a strong RESEARCH QUESTION — one current knowledge cannot yet answer, that is specific, novel, feasible and answerable (FINER). Return concise markdown: (1) a one-line verdict, (2) 2–3 specific strengths/weaknesses (novelty, answerability, scope, PICO clarity), (3) a sharpened rewrite.' },
+      { role: 'user', content: `Topic: ${g.topic || '(not set)'}\nDraft research question: ${rq}` },
+    ])
+  }
+  function promote() {
+    if (g.promotedProjectId) { switchProject(g.promotedProjectId); nav('/protocol'); return }
+    const rq = g.researchQuestion?.trim()
+    if (!rq) return
+    const code = `LL-${g.name.replace(/[^A-Za-z0-9]+/g, '').slice(0, 8).toUpperCase() || 'GRP'}`
+    const id = createProject(g.topic || g.name, code, { question: rq })
+    ll.patchGroup(g.id, { promotedProjectId: id })
+    // defer the route change so the LitLink store commits the promoted link
+    // before this page unmounts (otherwise React drops the pending update)
+    setTimeout(() => nav('/protocol'), 0)
+  }
+
   return (
     <>
       <div className="page-head">
@@ -157,6 +212,7 @@ function GroupDetail({ group, ll, onBack }: { group: LitGroup; ll: ReturnType<ty
             <label className="fld"><span className="fld-l">Mentor</span><input className="input" value={g.mentor ?? ''} onChange={(e) => set({ mentor: e.target.value })} placeholder="advice · feedback · lit-review support" /></label>
             <label className="fld"><span className="fld-l">ACAD</span><input className="input" value={g.acad ?? ''} onChange={(e) => set({ acad: e.target.value })} placeholder="liaison · scheduling" /></label>
           </div>
+          <button className="btn ghost sm" onClick={suggestReading} disabled={ai?.on} title="AI suggests core concepts & landmark reviews to build the foundation first">✦ Suggest foundational reading</button>
         </div>
         <div className="card lg">
           <div className="card-h" style={{ justifyContent: 'space-between' }}><span><span className="sq" style={{ background: 'var(--violet)' }} />น้อง · {g.members.length}</span></div>
@@ -174,6 +230,18 @@ function GroupDetail({ group, ll, onBack }: { group: LitGroup; ll: ReturnType<ty
           {g.members.length > 4 && <p className="small" style={{ color: 'var(--amber)', marginTop: 6 }}>Groups are meant to be 3–4 น้อง.</p>}
         </div>
       </div>
+
+      {ai && (
+        <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent, #0891b2)' }}>
+          <div className="card-h" style={{ justifyContent: 'space-between' }}>
+            <span><span className="sq" style={{ background: '#0891b2' }} />{ai.kind === 'reading' ? 'AI · FOUNDATIONAL READING PLAN' : 'AI · RESEARCH-QUESTION CRITIQUE'}{ai.on ? ' · streaming…' : ''}</span>
+            <span className="flex" style={{ gap: 8 }}>
+              {ai.on ? <button className="btn ghost sm" onClick={() => abortRef.current?.abort()}>Stop</button> : <button className="btn ghost sm" onClick={() => setAi(null)}>Dismiss</button>}
+            </span>
+          </div>
+          <Markdown text={ai.text || '_…_'} />
+        </div>
+      )}
 
       {/* phases */}
       {PHASES.map((p, i) => {
@@ -220,7 +288,17 @@ function GroupDetail({ group, ll, onBack }: { group: LitGroup; ll: ReturnType<ty
           ))}
         </div>
         {g.outcome === 'research-question' && (
-          <label className="fld"><span className="fld-l">Research Question <span className="muted">— a question current knowledge can't yet answer</span></span><textarea className="textarea" rows={3} value={g.researchQuestion ?? ''} onChange={(e) => set({ researchQuestion: e.target.value })} placeholder="State the group's research question." /></label>
+          <>
+            <label className="fld"><span className="fld-l">Research Question <span className="muted">— a question current knowledge can't yet answer</span></span><textarea className="textarea" rows={3} value={g.researchQuestion ?? ''} onChange={(e) => set({ researchQuestion: e.target.value })} placeholder="State the group's research question." /></label>
+            <div className="flex" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button className="btn ghost sm" onClick={critiqueRQ} disabled={ai?.on || !g.researchQuestion?.trim()}>✦ Critique this question</button>
+              {g.promotedProjectId
+                ? <button className="btn primary sm" onClick={promote}>Open the review project →</button>
+                : <button className="btn primary sm" onClick={promote} disabled={!g.researchQuestion?.trim()} title="Create a systematic-review project seeded with this question">🚀 Promote to a review project →</button>}
+              {g.promotedProjectId && <span className="pill" style={{ borderColor: 'var(--green)', color: 'var(--green)' }}>promoted ✓</span>}
+            </div>
+            <p className="small muted" style={{ marginTop: 6 }}>Promoting creates a new systematic-review project seeded with this question — the group's work flows straight into the SRMA workbench (Protocol → Screening → Meta-analysis).</p>
+          </>
         )}
         {g.outcome === 'reflection' && (
           <label className="fld"><span className="fld-l">Reflection <span className="muted">— process, what you enjoyed, advice you'd want</span></span><textarea className="textarea" rows={4} value={g.reflection ?? ''} onChange={(e) => set({ reflection: e.target.value })} placeholder="Reflect on the research process, your interest in the topic, and the guidance you'd want for future research." /></label>

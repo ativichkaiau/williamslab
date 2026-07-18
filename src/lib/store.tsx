@@ -77,7 +77,7 @@ interface StoreCtx {
   allProjects: ProjectState[] // full state of every project (for the portfolio)
   activeId: string
   switchProject: (id: string) => void
-  createProject: (name: string, code?: string) => void
+  createProject: (name: string, code?: string, opts?: { question?: string; index?: string; comparator?: string; outcome?: string }) => string
   renameProject: (id: string, name: string) => void
   deleteProject: (id: string) => void
   setStage: (stage: string) => void
@@ -313,11 +313,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const a = appRef.current
       if (a.projects.some((p) => p.project.id === id)) apply({ ...a, activeId: id }, false) // view change, not undoable
     },
-    createProject: (name, code) => {
+    createProject: (name, code, opts) => {
       const id = uid('proj')
-      const p = blankProject(id, name || 'New review', code || (name || 'NEW').slice(0, 10).toUpperCase().replace(/\s+/g, '-'))
+      const p = blankProject(id, name || 'New review', code || (name || 'NEW').slice(0, 10).toUpperCase().replace(/\s+/g, '-'), opts)
       const a = appRef.current
       apply({ ...a, projects: [...a.projects, p], activeId: id })
+      return id
     },
     renameProject: (id, name) => {
       const a = appRef.current
