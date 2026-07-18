@@ -18,6 +18,7 @@ import Prisma from './pages/Prisma'
 import Studies from './pages/Studies'
 import MetaAnalysis from './pages/MetaAnalysis'
 import DiagnosticMA from './pages/DiagnosticMA'
+import References from './pages/References'
 import Manuscript from './pages/Manuscript'
 import NotFound from './pages/NotFound'
 
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="studies" element={<Studies />} />
         <Route path="meta" element={<MetaAnalysis />} />
         <Route path="diagnostic" element={<DiagnosticMA />} />
+        <Route path="references" element={<References />} />
         <Route path="manuscript" element={<Manuscript />} />
         <Route path="*" element={<NotFound />} />
       </Route>
