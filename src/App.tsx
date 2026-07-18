@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Garage from './pages/Garage'
 import PitWall from './pages/PitWall'
 import Portfolio from './pages/Portfolio'
+import LitLink from './pages/LitLink'
 import Hypotheses from './pages/Hypotheses'
 import Mechanism from './pages/Mechanism'
 import Assays from './pages/Assays'
@@ -32,6 +33,7 @@ export default function App() {
         <Route index element={<Garage />} />
         <Route path="pit-wall" element={<PitWall />} />
         <Route path="portfolio" element={<Portfolio />} />
+        <Route path="litlink" element={<LitLink />} />
         <Route path="hypotheses" element={<Hypotheses />} />
         <Route path="mechanism" element={<Mechanism />} />
         <Route path="assays" element={<Assays />} />

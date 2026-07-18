@@ -440,6 +440,9 @@ td .muted{color:var(--muted)}
 .form-row.three{grid-template-columns:1fr 1fr 1fr}
 @media(max-width:560px){.form-row,.form-row.three{grid-template-columns:1fr}}
 .form-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:8px; padding-top:14px; border-top:1px solid var(--line)}
+.fld{display:block; margin-bottom:10px}
+.fld-l{display:block; font-size:12px; font-weight:700; color:var(--ink-2); margin-bottom:5px}
+.fld .input,.fld .textarea{width:100%}
 .checks{display:flex; flex-wrap:wrap; gap:8px}
 .check{display:flex; align-items:center; gap:7px; font-size:12.5px; border:1px solid var(--line); border-radius:9px; padding:7px 10px; cursor:pointer}
 .check input{accent-color:var(--blue)}
