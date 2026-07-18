@@ -110,15 +110,15 @@ export const seed: ProjectState = {
 
   // ---- assays ----
   assays: [
-    { id: 'assay_pyroseq', method: 'Pyrosequencing', measures: 'CpG methylation %', cellType: 'whole blood + iPSC-CM', controls: 'SCN5A-neg healthy', sampleN: 24, phase: 1, effort: 'low', genomeWide: false, expectedEffect: 1.3, status: 'running', claims: ['hyp_h1'] },
-    { id: 'assay_rrbs', method: 'RRBS', measures: 'genome-wide methylation', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 6, phase: 1, effort: 'high', genomeWide: true, status: 'piloting', claims: ['hyp_h1', 'hyp_h2'] },
-    { id: 'assay_rnaseq', method: 'RNA-seq + qRT-PCR', measures: 'Nav1.5 expression', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, status: 'piloting', claims: ['hyp_h1', 'hyp_h3'] },
-    { id: 'assay_smallrna', method: 'Small RNA-seq', measures: 'miRNA profile', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, status: 'queued', claims: ['hyp_h3'] },
-    { id: 'assay_cuttag', method: 'CUT&Tag', measures: 'H3K27me3 / H3K4me3 / H3K27ac', cellType: 'iPSC-CM', controls: 'IgG + spike-in', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, status: 'queued', claims: ['hyp_h2'] },
-    { id: 'assay_atac', method: 'ATAC-seq', measures: 'chromatin accessibility', cellType: 'iPSC-CM', controls: '', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, status: 'queued', claims: ['hyp_h2'] },
-    { id: 'assay_4c', method: '4C-seq @ SCN5A', measures: 'enhancer–promoter looping', cellType: 'iPSC-CM', controls: 'input', sampleN: 6, phase: 2, effort: 'high', genomeWide: false, status: 'design', claims: ['hyp_h2'] },
-    { id: 'assay_patch', method: 'Patch clamp + MEA', measures: 'I_Na · conduction velocity', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 3, phase: 3, effort: 'high', genomeWide: false, status: 'blocked', claims: ['hyp_h1', 'hyp_h3'] },
-    { id: 'assay_drug', method: 'Drug challenge', measures: 'ajmaline / flecainide / quinidine response', cellType: 'iPSC-CM', controls: 'vehicle', sampleN: 6, phase: 3, effort: 'med', genomeWide: false, status: 'design', claims: ['hyp_h3'] },
+    { id: 'assay_pyroseq', method: 'Pyrosequencing', measures: 'CpG methylation %', cellType: 'whole blood + iPSC-CM', controls: 'SCN5A-neg healthy', sampleN: 24, phase: 1, effort: 'low', genomeWide: false, expectedEffect: 1.3, costK: 9, weeks: 4, status: 'running', claims: ['hyp_h1'] },
+    { id: 'assay_rrbs', method: 'RRBS', measures: 'genome-wide methylation', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 6, phase: 1, effort: 'high', genomeWide: true, costK: 46, weeks: 10, status: 'piloting', claims: ['hyp_h1', 'hyp_h2'] },
+    { id: 'assay_rnaseq', method: 'RNA-seq + qRT-PCR', measures: 'Nav1.5 expression', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, costK: 28, weeks: 8, status: 'piloting', claims: ['hyp_h1', 'hyp_h3'] },
+    { id: 'assay_smallrna', method: 'Small RNA-seq', measures: 'miRNA profile', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, costK: 22, weeks: 6, status: 'queued', claims: ['hyp_h3'] },
+    { id: 'assay_cuttag', method: 'CUT&Tag', measures: 'H3K27me3 / H3K4me3 / H3K27ac', cellType: 'iPSC-CM', controls: 'IgG + spike-in', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, costK: 42, weeks: 10, status: 'queued', claims: ['hyp_h2'] },
+    { id: 'assay_atac', method: 'ATAC-seq', measures: 'chromatin accessibility', cellType: 'iPSC-CM', controls: '', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, costK: 34, weeks: 8, status: 'queued', claims: ['hyp_h2'] },
+    { id: 'assay_4c', method: '4C-seq @ SCN5A', measures: 'enhancer–promoter looping', cellType: 'iPSC-CM', controls: 'input', sampleN: 6, phase: 2, effort: 'high', genomeWide: false, costK: 30, weeks: 8, status: 'design', claims: ['hyp_h2'] },
+    { id: 'assay_patch', method: 'Patch clamp + MEA', measures: 'I_Na · conduction velocity', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 3, phase: 3, effort: 'high', genomeWide: false, costK: 52, weeks: 14, status: 'blocked', claims: ['hyp_h1', 'hyp_h3'] },
+    { id: 'assay_drug', method: 'Drug challenge', measures: 'ajmaline / flecainide / quinidine response', cellType: 'iPSC-CM', controls: 'vehicle', sampleN: 6, phase: 3, effort: 'med', genomeWide: false, costK: 19, weeks: 6, status: 'design', claims: ['hyp_h3'] },
   ],
 
   // ---- papers (real references pulled from PubMed) ----
