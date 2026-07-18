@@ -338,6 +338,106 @@ export function eggersTest(studies: Study[], measure: EffectMeasure): EggerResul
   return { intercept: a, se: seA, t, p: tTwoTailedP(t, n - 2), k: n }
 }
 
+// ---- influence diagnostics (Baujat coordinates + leave-one-out influence) ----
+export interface InfluenceRow { id: string; label: string; qContrib: number; influence: number; estOmit: number }
+export function influenceDiagnostics(studies: Study[], model: 'random' | 'fixed', measure: EffectMeasure): InfluenceRow[] {
+  const incl = studies.filter((s) => usable(s, measure))
+  if (incl.length < 3) return []
+  const full = computeMeta(incl, model, measure)
+  const wF = full.rows.map((r) => 1 / (r.se * r.se))
+  const sumWF = wF.reduce((a, b) => a + b, 0)
+  const fixedPool = full.rows.reduce((a, r, i) => a + wF[i] * r.pool, 0) / sumWF
+  return full.rows.map((r, i) => {
+    const omit = computeMeta(incl.filter((s) => s.id !== r.id), model, measure)
+    const sePoolOmit = omit.scale === 'log'
+      ? (Math.log(Math.max(omit.pooledHigh, 1e-9)) - Math.log(Math.max(omit.pooledLow, 1e-9))) / (2 * 1.96)
+      : (omit.pooledHigh - omit.pooledLow) / (2 * 1.96)
+    const influence = sePoolOmit > 0 ? ((full.pooledPool - omit.pooledPool) / sePoolOmit) ** 2 : 0
+    return { id: r.id, label: r.label, qContrib: wF[i] * (r.pool - fixedPool) ** 2, influence, estOmit: omit.pooledEst }
+  })
+}
+
+// ---- weighted least squares y = b0 + b1·x ----
+function wls(y: number[], x: number[], w: number[]): { b0: number; b1: number; seB0: number } {
+  const sw = w.reduce((a, b) => a + b, 0)
+  const mx = x.reduce((a, v, i) => a + w[i] * v, 0) / sw
+  const my = y.reduce((a, v, i) => a + w[i] * v, 0) / sw
+  const Sxx = x.reduce((a, v, i) => a + w[i] * (v - mx) ** 2, 0)
+  const Sxy = x.reduce((a, v, i) => a + w[i] * (v - mx) * (y[i] - my), 0)
+  const b1 = Sxx > 0 ? Sxy / Sxx : 0
+  const b0 = my - b1 * mx
+  const resid = y.map((v, i) => v - (b0 + b1 * x[i]))
+  const s2 = y.length > 2 ? resid.reduce((a, r, i) => a + w[i] * r * r, 0) / (y.length - 2) : 0
+  const seB0 = Sxx > 0 ? Math.sqrt(Math.max(0, s2) * (1 / sw + (mx * mx) / Sxx)) : Infinity
+  return { b0, b1, seB0 }
+}
+
+// ---- PET-PEESE (conditional small-study-effect correction) ----
+export interface PetPeeseResult { petEst: number; petP: number; peeseEst: number; corrected: number; correctedLow: number; correctedHigh: number; method: 'PET' | 'PEESE'; k: number }
+export function petPeese(studies: Study[], measure: EffectMeasure): PetPeeseResult | null {
+  const incl = studies.filter((s) => usable(s, measure)).map((s) => effectPool(s, measure)!)
+  const n = incl.length
+  if (n < 3) return null
+  const w = incl.map((c) => 1 / (c.se * c.se))
+  const y = incl.map((c) => c.pool)
+  const pet = wls(y, incl.map((c) => c.se), w)
+  const peese = wls(y, incl.map((c) => c.se * c.se), w)
+  const petP = 2 * (1 - normCdf(Math.abs(pet.b0 / (pet.seB0 || 1e-9))))
+  // conditional: if PET intercept is "significant", trust PEESE, else PET
+  const method: 'PET' | 'PEESE' = petP < 0.1 ? 'PEESE' : 'PET'
+  const fit = method === 'PEESE' ? peese : pet
+  const back = (x: number) => (measureInfo(measure).scale === 'log' ? Math.exp(x) : x)
+  return {
+    petEst: back(pet.b0),
+    petP,
+    peeseEst: back(peese.b0),
+    corrected: back(fit.b0),
+    correctedLow: back(fit.b0 - 1.96 * fit.seB0),
+    correctedHigh: back(fit.b0 + 1.96 * fit.seB0),
+    method,
+    k: n,
+  }
+}
+
+// ---- Begg & Mazumdar rank-correlation test ----
+export interface BeggResult { tau: number; z: number; p: number; k: number }
+export function beggsTest(studies: Study[], measure: EffectMeasure): BeggResult | null {
+  const incl = studies.filter((s) => usable(s, measure)).map((s) => effectPool(s, measure)!)
+  const n = incl.length
+  if (n < 4) return null
+  const w = incl.map((c) => 1 / (c.se * c.se))
+  const sw = w.reduce((a, b) => a + b, 0)
+  const pooled = incl.reduce((a, c, i) => a + w[i] * c.pool, 0) / sw
+  const pts = incl.map((c) => {
+    const vstar = c.se * c.se - 1 / sw
+    return { s: (c.pool - pooled) / Math.sqrt(Math.max(vstar, 1e-9)), v: c.se * c.se }
+  })
+  let net = 0
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) net += Math.sign(pts[i].s - pts[j].s) * Math.sign(pts[i].v - pts[j].v)
+  const tau = net / (0.5 * n * (n - 1))
+  const z = net / Math.sqrt((n * (n - 1) * (2 * n + 5)) / 18)
+  return { tau, z, p: 2 * (1 - normCdf(Math.abs(z))), k: n }
+}
+
+// ---- absolute effects + NNT from a pooled relative measure and a baseline risk ----
+export interface AbsoluteEffect { cer: number; eer: number; ard: number; per1000: number; nnt: number }
+export function absoluteEffect(measure: EffectMeasure, pooledEst: number, cer: number): AbsoluteEffect | null {
+  if (cer <= 0 || cer >= 1) return null
+  let eer: number
+  if (measure === 'OR') {
+    const odds = (cer / (1 - cer)) * pooledEst
+    eer = odds / (1 + odds)
+  } else if (measure === 'RR') {
+    eer = Math.min(1, cer * pooledEst)
+  } else if (measure === 'RD') {
+    eer = Math.min(1, Math.max(0, cer + pooledEst))
+  } else {
+    return null // SMD has no absolute-risk interpretation
+  }
+  const ard = eer - cer
+  return { cer, eer, ard, per1000: Math.round(ard * 1000), nnt: ard !== 0 ? Math.abs(1 / ard) : Infinity }
+}
+
 // ---- Duval & Tweedie trim-and-fill (L0 estimator, iterative) ----
 export interface TrimFillResult {
   k0: number

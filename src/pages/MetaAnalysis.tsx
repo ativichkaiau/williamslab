@@ -4,7 +4,7 @@ import { Kicker, Rule, StatCard } from '../components/ui'
 import { Markdown } from '../components/Markdown'
 import { ForestPlot, FunnelPlot } from '../components/srmaPlots'
 import { FigureFrame } from '../components/FigureFrame'
-import { computeMeta, leaveOneOut, subgroupAnalysis, eggersTest, computeGrade, trimAndFill, cumulativeMeta, metaRegression, dataIntegrity, measureInfo, MEASURES, fmt } from '../lib/metaAnalysis'
+import { computeMeta, leaveOneOut, subgroupAnalysis, eggersTest, computeGrade, trimAndFill, cumulativeMeta, metaRegression, dataIntegrity, influenceDiagnostics, petPeese, beggsTest, absoluteEffect, measureInfo, MEASURES, fmt } from '../lib/metaAnalysis'
 import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
 import type { Study, EffectMeasure } from '../types'
 
@@ -29,6 +29,9 @@ export default function MetaAnalysis() {
   const sub = useMemo(() => subgroupAnalysis(r.studies, r.model, r.effect, GROUPINGS[groupBy].key), [r.studies, r.model, r.effect, groupBy])
   const loo = useMemo(() => leaveOneOut(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
   const egger = useMemo(() => eggersTest(r.studies, r.effect), [r.studies, r.effect])
+  const influence = useMemo(() => influenceDiagnostics(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
+  const pp = useMemo(() => petPeese(r.studies, r.effect), [r.studies, r.effect])
+  const begg = useMemo(() => beggsTest(r.studies, r.effect), [r.studies, r.effect])
   const tf = useMemo(() => trimAndFill(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
   const grade = useMemo(() => computeGrade(r, meta, egger), [r, meta, egger])
   const cum = useMemo(() => cumulativeMeta(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
@@ -40,6 +43,14 @@ export default function MetaAnalysis() {
   const binary = measureInfo(r.effect).binary
   const totalEvents = meta.rows.reduce((a, x) => a + x.expEvents + x.ctrlEvents, 0)
   const totalN = meta.rows.reduce((a, x) => a + x.expTotal + x.ctrlTotal, 0)
+  const defaultCer = useMemo(() => {
+    const e = meta.rows.reduce((a, x) => a + x.ctrlEvents, 0)
+    const t = meta.rows.reduce((a, x) => a + x.ctrlTotal, 0)
+    return t > 0 ? e / t : 0.2
+  }, [meta])
+  const [cer, setCer] = useState<number | null>(null)
+  const cerVal = cer ?? defaultCer
+  const abs = meta.k > 0 ? absoluteEffect(r.effect, meta.pooledEst, cerVal) : null
   const sig = meta.k > 0 && (meta.pooledLow > meta.refValue || meta.pooledHigh < meta.refValue)
   const setGrade = (patch: Record<string, string>) => updateReview({ grade: { design: r.grade?.design ?? 'observational', ...(r.grade || {}), ...patch } as typeof r.grade })
 
@@ -163,18 +174,61 @@ export default function MetaAnalysis() {
           )}
         </div>
         <div className="card lg">
-          <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />PUBLICATION BIAS · EGGER'S TEST</div>
+          <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />PUBLICATION BIAS · SMALL-STUDY EFFECTS</div>
           {!egger ? <p className="empty">Needs ≥3 pooled studies.</p> : (
             <>
-              <div className="kv"><span className="k">Intercept</span><span className="val">{fmt(egger.intercept)} (SE {fmt(egger.se)})</span></div>
-              <div className="kv"><span className="k">t ({egger.k - 2} df)</span><span className="val">{fmt(egger.t)}</span></div>
-              <div className="kv"><span className="k">p-value</span><span className="val"><b style={{ color: egger.p < 0.05 ? 'var(--red)' : 'var(--ink)' }}>{fmt(egger.p, 3)}</b></span></div>
+              <div className="kv"><span className="k">Egger's test</span><span className="val">intercept {fmt(egger.intercept)}, t = {fmt(egger.t)}, <b style={{ color: egger.p < 0.05 ? 'var(--red)' : 'var(--ink)' }}>p = {fmt(egger.p, 3)}</b></span></div>
+              {begg && <div className="kv"><span className="k">Begg's rank test</span><span className="val">τ = {fmt(begg.tau, 3)}, z = {fmt(begg.z)}, <b style={{ color: begg.p < 0.05 ? 'var(--red)' : 'var(--ink)' }}>p = {fmt(begg.p, 3)}</b></span></div>}
+              {pp && <div className="kv"><span className="k">PET-PEESE ({pp.method})</span><span className="val">bias-adjusted {r.effect} <b style={{ color: 'var(--green)' }}>{fmt(pp.corrected)}</b> [{fmt(pp.correctedLow)}, {fmt(pp.correctedHigh)}]</span></div>}
               <div className="divider" />
-              <p className="small">{egger.p < 0.05 ? <>Significant intercept → evidence of <b>small-study effects</b>.</> : <>No significant asymmetry.</>} Underpowered with &lt; 10 studies — read with the funnel plot.</p>
+              <p className="small">{egger.p < 0.05 || (begg && begg.p < 0.05) ? <>Evidence of <b>small-study effects</b>{pp && <> — PET-PEESE re-estimates the effect at <b>{fmt(pp.corrected)}</b> vs observed {fmt(meta.pooledEst)}</>}.</> : <>No significant funnel asymmetry.</>} All underpowered with &lt; 10 studies — read with the funnel plot.</p>
             </>
           )}
         </div>
       </div>
+
+      {influence.length >= 3 && (() => {
+        const maxQ = Math.max(...influence.map((x) => x.qContrib)) || 1
+        const maxI = Math.max(...influence.map((x) => x.influence)) || 1
+        const topInf = [...influence].sort((a, b) => b.influence - a.influence)[0]
+        const topQ = [...influence].sort((a, b) => b.qContrib - a.qContrib)[0]
+        const BW = 460, BH = 240, bx0 = 44, bx1 = BW - 14, by0 = 14, by1 = BH - 30
+        const BX = (q: number) => bx0 + (q / maxQ) * (bx1 - bx0)
+        const BY = (inf: number) => by1 - (inf / maxI) * (by1 - by0)
+        return (
+          <div className="card lg" style={{ marginTop: 16 }}>
+            <div className="card-h"><span className="sq" style={{ background: 'var(--red)' }} />INFLUENCE · BAUJAT PLOT</div>
+            <div className="grid g2" style={{ alignItems: 'start' }}>
+              <svg viewBox={`0 0 ${BW} ${BH}`} width="100%" style={{ display: 'block' }}>
+                <line x1={bx0} y1={by1} x2={bx1} y2={by1} stroke="var(--line)" strokeWidth={1} />
+                <line x1={bx0} y1={by0} x2={bx0} y2={by1} stroke="var(--line)" strokeWidth={1} />
+                {influence.map((x) => {
+                  const hot = x.id === topInf.id || x.id === topQ.id
+                  return (
+                    <g key={x.id}>
+                      <circle cx={BX(x.qContrib)} cy={BY(x.influence)} r={hot ? 5.5 : 4} fill={hot ? 'var(--red)' : 'var(--navy)'} opacity={0.75} />
+                      {hot && <text x={BX(x.qContrib)} y={BY(x.influence) - 8} textAnchor="middle" fontSize="9" fill="var(--red)" fontFamily="var(--mono)">{x.label}</text>}
+                    </g>
+                  )
+                })}
+                <text x={4} y={by0 + 4} fontSize="8.5" fill="var(--muted)" fontFamily="var(--mono)">influence ↑</text>
+                <text x={BW / 2} y={BH - 4} textAnchor="middle" fontSize="9" fill="var(--muted)" fontFamily="var(--mono)">contribution to heterogeneity (Q) →</text>
+              </svg>
+              <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+                <table>
+                  <thead><tr><th>Study</th><th>Q contrib.</th><th>Influence</th><th>{r.effect} omitting</th></tr></thead>
+                  <tbody>
+                    {[...influence].sort((a, b) => b.influence - a.influence).map((x) => (
+                      <tr key={x.id}><td>{x.label}</td><td className="mono">{fmt(x.qContrib)}</td><td className="mono" style={x.id === topInf.id ? { color: 'var(--red)', fontWeight: 700 } : undefined}>{fmt(x.influence)}</td><td className="mono">{fmt(x.estOmit)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p className="small" style={{ marginTop: 10 }}><b style={{ color: 'var(--red)' }}>{topInf.label}</b> most influences the pooled estimate (omitting it → {r.effect} {fmt(topInf.estOmit)} vs {fmt(meta.pooledEst)}); <b>{topQ.label}</b> contributes most to heterogeneity. Points to the top-right drive both — worth a sensitivity check.</p>
+          </div>
+        )
+      })()}
 
       <div className="grid g2" style={{ marginTop: 16 }}>
         <div className="card lg">
@@ -265,7 +319,21 @@ export default function MetaAnalysis() {
             </tbody>
           </table>
         </div>
-        <p className="small" style={{ marginTop: 10 }}>Summary of findings: {meta.k} studies, {binary ? `${totalEvents} events / ` : ''}{totalN} participants; pooled {r.effect} {fmt(meta.pooledEst)} [{fmt(meta.pooledLow)}, {fmt(meta.pooledHigh)}]; <b style={{ color: CERT[grade.certainty] }}>{grade.certainty}</b> certainty of evidence.</p>
+        {abs && (
+          <>
+            <div className="divider" />
+            <div className="card-h" style={{ fontSize: 10 }}>ABSOLUTE EFFECTS (per 1000)</div>
+            <div className="kv" style={{ alignItems: 'center' }}>
+              <span className="k">Assumed risk</span>
+              <span className="val">
+                <input className="input" style={{ width: 66, display: 'inline-block', padding: '4px 8px' }} type="number" min="0" max="99" value={Math.round(cerVal * 100)} onChange={(e) => setCer(Math.min(0.99, Math.max(0.01, +e.target.value / 100)))} />% in <b>{r.comparatorLabel}</b> <span className="small muted">(default = pooled comparator rate)</span>
+              </span>
+            </div>
+            <div className="kv"><span className="k">Corresponding risk</span><span className="val"><b>{Math.round(abs.eer * 1000)}</b> per 1000 in {r.indexLabel} vs {Math.round(abs.cer * 1000)} per 1000 in {r.comparatorLabel}</span></div>
+            <div className="kv"><span className="k">Risk difference</span><span className="val"><b style={{ color: abs.ard > 0 ? 'var(--red)' : 'var(--green)' }}>{abs.per1000 > 0 ? '+' : ''}{abs.per1000} per 1000</b> · NNT{abs.ard > 0 ? 'H' : 'B'} = <b>{Number.isFinite(abs.nnt) ? Math.ceil(abs.nnt) : '∞'}</b></span></div>
+          </>
+        )}
+        <p className="small" style={{ marginTop: 10 }}>Summary of findings: {meta.k} studies, {binary ? `${totalEvents} events / ` : ''}{totalN} participants; pooled {r.effect} {fmt(meta.pooledEst)} [{fmt(meta.pooledLow)}, {fmt(meta.pooledHigh)}]{abs ? `; NNT ${Number.isFinite(abs.nnt) ? Math.ceil(abs.nnt) : '∞'} at ${Math.round(cerVal * 100)}% baseline risk` : ''}; <b style={{ color: CERT[grade.certainty] }}>{grade.certainty}</b> certainty of evidence.</p>
       </div>
 
       <div className="card lg" style={{ marginTop: 16, borderLeft: '4px solid var(--accent, var(--blue))' }}>
