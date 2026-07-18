@@ -40,6 +40,7 @@ const NAV = [
       { to: '/references', label: 'References', icon: '❋', color: '#1746d1' },
       { to: '/manuscript', label: 'Manuscript', icon: '¶', color: '#ea580c' },
       { to: '/poster', label: 'Poster & Slides', icon: '◳', color: '#e2001a' },
+      { to: '/reviewers', label: 'Rebuttal Letter', icon: '✎', color: '#0891b2' },
     ],
   },
   {
@@ -81,6 +82,7 @@ const TITLES: Record<string, string> = {
   '/references': 'Reference Library',
   '/manuscript': 'Manuscript',
   '/poster': 'Poster & Slides',
+  '/reviewers': 'Response to Reviewers',
   '/hypotheses': 'Hypotheses',
   '/mechanism': 'Mechanism Map',
   '/assays': 'Assays',
