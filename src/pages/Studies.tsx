@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { Modal, Field } from '../components/Modal'
@@ -49,7 +49,8 @@ export default function Studies() {
   const r = state.review
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null)
   const [imp, setImp] = useState<{ text: string; result: ImportResult | null } | null>(null)
-  const [extract, setExtract] = useState<{ text: string; loading: boolean; error?: string } | null>(null)
+  const [extract, setExtract] = useState<{ text: string; loading: boolean; error?: string; source?: string; reading?: string } | null>(null)
+  const pdfRef = useRef<HTMLInputElement>(null)
 
   function onFile(file: File) {
     const reader = new FileReader()
@@ -97,17 +98,37 @@ export default function Studies() {
   }
   const set = (patch: Partial<Draft>) => editing && setEditing({ ...editing, draft: { ...editing.draft, ...patch } })
 
+  async function onPdf(file: File | undefined) {
+    if (!file) return
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setExtract((e) => (e ? { ...e, error: 'That file is not a PDF.' } : e)); return
+    }
+    setExtract((e) => (e ? { ...e, error: undefined, reading: 'Loading PDF…' } : e))
+    try {
+      const { extractPdfText } = await import('../lib/pdfText')
+      const res = await extractPdfText(file, (p, n) => setExtract((e) => (e ? { ...e, reading: `Reading page ${p} of ${n}…` } : e)))
+      if (!res.text.trim()) {
+        setExtract((e) => (e ? { ...e, reading: undefined, error: 'No selectable text — this looks like a scanned/image PDF. Paste the text manually.' } : e)); return
+      }
+      setExtract((e) => (e ? { ...e, text: res.text, reading: undefined, source: `${file.name} · ${res.pages} page${res.pages === 1 ? '' : 's'} · ${res.chars.toLocaleString()} chars` } : e))
+    } catch (err) {
+      setExtract((e) => (e ? { ...e, reading: undefined, error: `Could not read the PDF${err instanceof Error ? `: ${err.message}` : ''}.` } : e))
+    }
+  }
+
   async function runExtract() {
     if (!extract || !extract.text.trim()) return
     if (!hasKey()) { setExtract({ ...extract, error: 'Add an OpenAI key in Knowledge Review → Settings to use extraction.' }); return }
     setExtract({ ...extract, loading: true, error: undefined })
+    const fullText = !!extract.source
+    const cap = fullText ? 16000 : 6000
     try {
       const out = await complete(
         [
-          { role: 'system', content: 'You extract structured data from a study abstract for a systematic review. Output ONLY valid JSON, no prose. Use null for any field not explicitly reported or directly computable — never guess counts.' },
+          { role: 'system', content: 'You extract structured data from a study abstract or full-text article for a systematic review. Output ONLY valid JSON, no prose. Use null for any field not explicitly reported or directly computable — never guess counts.' },
           {
             role: 'user',
-            content: `Review context — index/exposed group: "${r.indexLabel}"; comparator: "${r.comparatorLabel}"; outcome: "${r.outcomeLabel}". Effect type: ${binary ? 'binary 2×2 event counts' : 'continuous mean/SD/n'}.\n\nReturn this JSON shape:\n{"author":"first-author surname","year":2020,"pmid":"","design":"e.g. prospective cohort","expEvents":null,"expTotal":null,"ctrlEvents":null,"ctrlTotal":null,"mean1":null,"sd1":null,"n1":null,"mean2":null,"sd2":null,"n2":null,"note":"one-line summary","confidence":"high|medium|low"}\nexpEvents/expTotal = outcome events and group size in the "${r.indexLabel}" arm; ctrlEvents/ctrlTotal = the "${r.comparatorLabel}" arm. mean1/sd1/n1 = "${r.indexLabel}"; mean2/sd2/n2 = "${r.comparatorLabel}".\n\nAbstract / text:\n${extract.text.slice(0, 6000)}`,
+            content: `Review context — index/exposed group: "${r.indexLabel}"; comparator: "${r.comparatorLabel}"; outcome: "${r.outcomeLabel}". Effect type: ${binary ? 'binary 2×2 event counts' : 'continuous mean/SD/n'}.\n\nReturn this JSON shape:\n{"author":"first-author surname","year":2020,"pmid":"","design":"e.g. prospective cohort","expEvents":null,"expTotal":null,"ctrlEvents":null,"ctrlTotal":null,"mean1":null,"sd1":null,"n1":null,"mean2":null,"sd2":null,"n2":null,"note":"one-line summary","confidence":"high|medium|low"}\nexpEvents/expTotal = outcome events and group size in the "${r.indexLabel}" arm; ctrlEvents/ctrlTotal = the "${r.comparatorLabel}" arm. mean1/sd1/n1 = "${r.indexLabel}"; mean2/sd2/n2 = "${r.comparatorLabel}".${fullText ? ' This is full article text — the outcome counts are usually in the Results paragraphs or a table; prefer per-arm numbers reported there over the abstract if they differ.' : ''}\n\n${fullText ? 'Full-text article' : 'Abstract / text'}:\n${extract.text.slice(0, cap)}`,
           },
         ],
         getModel(),
@@ -139,7 +160,7 @@ export default function Studies() {
         <p>{r.indexLabel} vs {r.comparatorLabel} → {r.outcomeLabel}. Toggle inclusion, edit the extracted 2×2 counts, and rate risk of bias.</p>
         <div className="head-actions">
           <button className="btn primary sm" onClick={() => setEditing({ id: null, draft: { ...blank } })}>＋ Add study</button>
-          <button className="btn ghost sm" onClick={() => setExtract({ text: '', loading: false })}>✦ Extract from abstract</button>
+          <button className="btn ghost sm" onClick={() => setExtract({ text: '', loading: false })}>✦ Extract from abstract / PDF</button>
           <button className="btn ghost sm" onClick={() => setImp({ text: '', result: null })}>⤓ Import CSV / RIS</button>
         </div>
       </div>
@@ -254,13 +275,29 @@ export default function Studies() {
       )}
 
       {extract && (
-        <Modal title="✦ Extract study data from an abstract" onClose={() => setExtract(null)} wide>
-          <p className="small" style={{ marginBottom: 12 }}>Paste an abstract (or a results paragraph). The AI pulls the author, year, design and the 2×2 counts for <b>{r.indexLabel}</b> vs <b>{r.comparatorLabel}</b>, then opens the study editor pre-filled for you to check before saving. It never invents numbers — anything not reported is left blank.</p>
-          <textarea className="textarea" rows={9} style={{ width: '100%' }} placeholder="Paste the abstract or full-text excerpt here…" value={extract.text} onChange={(e) => setExtract({ ...extract, text: e.target.value })} />
+        <Modal title="✦ Extract study data from an abstract or PDF" onClose={() => setExtract(null)} wide>
+          <p className="small" style={{ marginBottom: 12 }}>Drop a <b>full-text PDF</b> or paste an abstract / results paragraph. The AI pulls the author, year, design and the 2×2 counts for <b>{r.indexLabel}</b> vs <b>{r.comparatorLabel}</b>, then opens the study editor pre-filled for you to check before saving. It never invents numbers — anything not reported is left blank.</p>
+          <input ref={pdfRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={(e) => { onPdf(e.target.files?.[0]); e.target.value = '' }} />
+          <div
+            className="pdf-drop"
+            onClick={() => pdfRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault() }}
+            onDrop={(e) => { e.preventDefault(); onPdf(e.dataTransfer.files?.[0]) }}
+            style={{ border: '1.5px dashed color-mix(in srgb, var(--accent, var(--blue)) 45%, var(--line))', borderRadius: 10, padding: '14px 16px', textAlign: 'center', cursor: 'pointer', marginBottom: 12, background: 'color-mix(in srgb, var(--accent, var(--blue)) 5%, transparent)' }}
+          >
+            {extract.reading ? (
+              <span className="small"><b>{extract.reading}</b></span>
+            ) : extract.source ? (
+              <span className="small">✓ <b>{extract.source}</b> — text below. Click to replace, or edit before extracting.</span>
+            ) : (
+              <span className="small">⬆ <b>Drop a PDF here</b> or click to choose — the text is read in your browser (nothing is uploaded to a server).</span>
+            )}
+          </div>
+          <textarea className="textarea" rows={9} style={{ width: '100%' }} placeholder="…or paste the abstract / full-text excerpt here" value={extract.text} onChange={(e) => setExtract({ ...extract, text: e.target.value, source: undefined })} />
           {extract.error && <div className="err" style={{ marginTop: 12, marginBottom: 0 }}>{extract.error}</div>}
           <div className="form-actions">
             <button className="btn ghost" onClick={() => setExtract(null)}>Cancel</button>
-            <button className="btn primary" onClick={runExtract} disabled={extract.loading || !extract.text.trim()}>{extract.loading ? 'Extracting…' : '✦ Extract & review'}</button>
+            <button className="btn primary" onClick={runExtract} disabled={extract.loading || !!extract.reading || !extract.text.trim()}>{extract.loading ? 'Extracting…' : '✦ Extract & review'}</button>
           </div>
         </Modal>
       )}
