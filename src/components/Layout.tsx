@@ -39,6 +39,7 @@ const NAV = [
       { to: '/diagnostic', label: 'Diagnostic MA', icon: '⊹', color: '#0d9488' },
       { to: '/references', label: 'References', icon: '❋', color: '#1746d1' },
       { to: '/manuscript', label: 'Manuscript', icon: '¶', color: '#ea580c' },
+      { to: '/poster', label: 'Poster & Slides', icon: '◳', color: '#e2001a' },
     ],
   },
   {
@@ -79,6 +80,7 @@ const TITLES: Record<string, string> = {
   '/diagnostic': 'Diagnostic Meta-analysis',
   '/references': 'Reference Library',
   '/manuscript': 'Manuscript',
+  '/poster': 'Poster & Slides',
   '/hypotheses': 'Hypotheses',
   '/mechanism': 'Mechanism Map',
   '/assays': 'Assays',
