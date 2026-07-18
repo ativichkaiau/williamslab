@@ -186,6 +186,22 @@ export interface Study {
 
 export type EffectMeasure = 'OR' | 'RR' | 'RD' | 'SMD'
 
+// A diagnostic-accuracy study: one 2×2 of an index test against a reference
+// standard (e.g. ajmaline challenge / type-1 ECG vs clinical-genetic Brugada).
+export interface DiagnosticStudy {
+  id: string
+  author: string
+  year: number
+  pmid?: string
+  test?: string // the index test (e.g. "Ajmaline challenge")
+  tp?: number // true positives
+  fp?: number // false positives
+  fn?: number // false negatives
+  tn?: number // true negatives
+  include: boolean // counts toward the pooled sensitivity / specificity
+  note?: string
+}
+
 // A candidate reference moving through title/abstract → full-text screening.
 export type ScreenDecision = 'include' | 'exclude' | 'maybe'
 export interface ScreenRecord {
@@ -245,6 +261,7 @@ export interface Review {
     included: number
   }
   studies: Study[]
+  dxStudies?: DiagnosticStudy[] // diagnostic-accuracy 2×2s (SROC meta-analysis)
 }
 
 export interface ProjectState {
