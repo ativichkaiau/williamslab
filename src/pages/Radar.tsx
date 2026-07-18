@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { searchPubmed, type PubmedHit } from '../lib/pubmed'
+import { searchSources, crossrefByDoi, ALL_SOURCES, type SourceHit, type SourceName } from '../lib/sources'
 import { complete, parseJsonLoose, hasKey, getModel } from '../lib/openai'
 import { listSearches, saveSearch, recordRun, removeSearch, findSearch, type SavedSearch } from '../lib/savedSearches'
 import { taStatus, advanced } from '../lib/screening'
@@ -18,6 +19,9 @@ const STANCE_CLASS: Record<string, string> = {
 
 type Verdict = 'include' | 'maybe' | 'exclude'
 const VERDICT_CLASS: Record<Verdict, string> = { include: 'v-include', maybe: 'v-maybe', exclude: 'v-exclude' }
+
+const SRC_COLOR: Record<SourceName, string> = { PubMed: '#1746d1', 'Europe PMC': '#0d9488', CrossRef: '#ea580c', 'ClinicalTrials.gov': '#7c3aed' }
+const SRC_ABBR: Record<SourceName, string> = { PubMed: 'PM', 'Europe PMC': 'EPMC', CrossRef: 'CR', 'ClinicalTrials.gov': 'CT' }
 
 function firstAuthorSurname(authors?: string): string {
   if (!authors) return 'Unknown'
@@ -40,6 +44,17 @@ export default function Radar() {
   const [triage, setTriage] = useState<Record<string, { verdict: Verdict; reason: string }>>({})
   const [triaging, setTriaging] = useState(false)
   const [living, setLiving] = useState<{ running: boolean; ran: boolean; newHits: (PubmedHit & { search: string })[] }>({ running: false, ran: false, newHits: [] })
+
+  // ---- multi-source search (Europe PMC · CrossRef · ClinicalTrials.gov) ----
+  const [msQuery, setMsQuery] = useState('Brugada syndrome ajmaline diagnostic accuracy')
+  const [msSources, setMsSources] = useState<Set<SourceName>>(() => new Set(ALL_SOURCES))
+  const [msHits, setMsHits] = useState<SourceHit[]>([])
+  const [msMeta, setMsMeta] = useState<{ rawCount: number; perSource: Record<string, number>; errors: { source: SourceName; msg: string }[] } | null>(null)
+  const [msLoading, setMsLoading] = useState(false)
+  const [msError, setMsError] = useState<string | null>(null)
+  const [doi, setDoi] = useState('')
+  const [doiBusy, setDoiBusy] = useState(false)
+  const [doiMsg, setDoiMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => setSaved(listSearches()), [])
 
@@ -78,6 +93,55 @@ export default function Radar() {
   const paperId = (pmid: string) => `paper_pmid_${pmid}`
   const isAdded = (pmid: string) => state.papers.some((p) => p.id === paperId(pmid))
   const inStudies = (pmid: string) => state.review.studies.some((s) => s.pmid === pmid)
+
+  function toggleSource(s: SourceName) {
+    setMsSources((prev) => {
+      const n = new Set(prev)
+      if (n.has(s)) n.delete(s)
+      else n.add(s)
+      return n
+    })
+  }
+  async function runMulti() {
+    const srcs = ALL_SOURCES.filter((s) => msSources.has(s))
+    if (!srcs.length) { setMsError('Select at least one source.'); return }
+    setMsLoading(true); setMsError(null); setMsMeta(null)
+    try {
+      const r = await searchSources(msQuery, srcs, 20)
+      setMsHits(r.hits)
+      setMsMeta({ rawCount: r.rawCount, perSource: r.perSource, errors: r.errors })
+      if (!r.hits.length) setMsError('No results across the selected sources.')
+    } catch (e) {
+      setMsError(e instanceof Error ? e.message : 'Multi-source search failed.')
+    } finally {
+      setMsLoading(false)
+    }
+  }
+  // a source hit is "known" if its PMID matches, or its title already appears in a study note
+  function sourceInStudies(h: SourceHit): boolean {
+    return state.review.studies.some((s) => (h.pmid && s.pmid === h.pmid) || (!!s.note && s.note.toLowerCase().includes(h.title.toLowerCase().slice(0, 40))))
+  }
+  function sourceToStudies(h: SourceHit): 'added' | 'dup' {
+    if (sourceInStudies(h)) return 'dup'
+    addStudy({ author: firstAuthorSurname(h.authors), year: h.year ?? new Date().getFullYear(), pmid: h.pmid, include: false, note: `${h.title}${h.journal ? ' — ' + h.journal : ''}${h.doi ? ' · doi:' + h.doi : ''}${h.nctId ? ' · ' + h.nctId : ''}` })
+    return 'added'
+  }
+  async function runDoi() {
+    const d = doi.trim()
+    if (!d) return
+    setDoiBusy(true); setDoiMsg(null)
+    try {
+      const hit = await crossrefByDoi(d)
+      if (!hit) { setDoiMsg({ ok: false, text: 'No CrossRef record for that DOI.' }); return }
+      const r = sourceToStudies(hit)
+      setDoiMsg({ ok: true, text: `${r === 'dup' ? 'Already in Studies' : '✓ Added to Studies'}: ${firstAuthorSurname(hit.authors)} ${hit.year ?? ''} — ${hit.title.slice(0, 64)}${hit.title.length > 64 ? '…' : ''}` })
+      if (r === 'added') setDoi('')
+    } catch (e) {
+      setDoiMsg({ ok: false, text: e instanceof Error ? e.message : 'DOI lookup failed.' })
+    } finally {
+      setDoiBusy(false)
+    }
+  }
   const isSaved = !!findSearch(query)
 
   async function run(q = query) {
@@ -272,6 +336,61 @@ export default function Radar() {
                   </div>
                 )
               })}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--violet, #7c3aed)' }}>
+        <div className="card-h"><span className="sq" style={{ background: 'var(--violet, #7c3aed)' }} />MULTI-SOURCE SEARCH · EUROPE PMC · CROSSREF · TRIALS</div>
+        <p className="small" style={{ marginTop: -4, marginBottom: 12 }}>Search several databases at once and fuzzy-de-duplicate the union (by DOI, PMID, then near-identical title). Everything runs in your browser — no proxy, no key.</p>
+        <div className="flex" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          {ALL_SOURCES.map((s) => (
+            <button key={s} className={`chip-btn${msSources.has(s) ? ' active' : ''}`} onClick={() => toggleSource(s)} style={msSources.has(s) ? { borderColor: SRC_COLOR[s], color: SRC_COLOR[s] } : undefined} title={msSources.has(s) ? 'Included — click to exclude' : 'Excluded — click to include'}>
+              {msSources.has(s) ? '✓ ' : ''}{s}
+            </button>
+          ))}
+        </div>
+        <div className="flex" style={{ gap: 10 }}>
+          <input className="input" value={msQuery} onChange={(e) => setMsQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runMulti()} placeholder="e.g. Brugada ajmaline diagnostic accuracy" />
+          <button className="btn primary" onClick={runMulti} disabled={msLoading}>{msLoading ? 'Searching…' : 'Search all'}</button>
+        </div>
+
+        <div className="flex" style={{ gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className="small mono muted">DOI auto-fill →</span>
+          <input className="input" style={{ maxWidth: 280 }} value={doi} onChange={(e) => setDoi(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runDoi()} placeholder="10.1093/europace/euz122" />
+          <button className="btn ghost sm" onClick={runDoi} disabled={doiBusy || !doi.trim()}>{doiBusy ? 'Looking up…' : '＋ Fetch & add to Studies'}</button>
+          {doiMsg && <span className="small" style={{ color: doiMsg.ok ? 'var(--green)' : 'var(--red)' }}>{doiMsg.text}</span>}
+        </div>
+
+        {msError && <div className="err" style={{ marginTop: 12, marginBottom: 0 }}>{msError}</div>}
+
+        {msMeta && msHits.length > 0 && (
+          <>
+            <div className="flex" style={{ gap: 8, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span className="pill" style={{ borderColor: 'var(--violet, #7c3aed)', color: 'var(--violet, #7c3aed)' }}>{msHits.length} unique</span>
+              {msMeta.rawCount > msHits.length && <span className="small muted">{msMeta.rawCount - msHits.length} duplicate{msMeta.rawCount - msHits.length === 1 ? '' : 's'} merged</span>}
+              <span className="small mono muted" style={{ marginLeft: 'auto' }}>{ALL_SOURCES.filter((s) => msMeta.perSource[s] != null).map((s) => `${s} ${msMeta.perSource[s]}`).join(' · ')}</span>
+            </div>
+            {msMeta.errors.length > 0 && <p className="small" style={{ color: 'var(--amber)', marginTop: 6 }}>⚠ {msMeta.errors.map((e) => `${e.source}: ${e.msg}`).join('; ')}</p>}
+            <div style={{ marginTop: 12 }}>
+              {msHits.map((h) => (
+                <div key={h.key} className="stint" style={{ alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="nm">
+                      {h.sources.map((s) => <span key={s} className="src-badge" style={{ background: SRC_COLOR[s] }} title={s}>{SRC_ABBR[s]}</span>)}
+                      {h.url ? <a href={h.url} target="_blank" rel="noreferrer">{h.title}</a> : h.title}
+                    </div>
+                    <div className="meta">
+                      {h.authors || (h.nctId ? 'Clinical trial' : 'Unknown authors')} · {h.journal ?? '—'} {h.year ?? ''}
+                      {h.pmid ? <> · PMID {h.pmid}</> : ''}{h.doi ? <> · <span className="mono">{h.doi}</span></> : ''}{h.nctId ? <> · {h.nctId}</> : ''}
+                    </div>
+                  </div>
+                  <div className="flex" style={{ gap: 8, flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <button className="btn ghost sm" onClick={() => sourceToStudies(h)} disabled={sourceInStudies(h)} title="Add to the SRMA extraction table">{sourceInStudies(h) ? 'In Studies ✓' : '→ Studies'}</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         )}
