@@ -105,6 +105,8 @@ export interface Paper {
   pmid?: string
   doi?: string
   title: string
+  authors?: string // author string as reported by the source (for citations)
+  journal?: string // source journal (for citations)
   year?: number
   stance?: 'supports' | 'refutes' | 'background'
   targets?: string[] // Hypothesis ids

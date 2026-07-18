@@ -174,7 +174,7 @@ export default function Radar() {
 
   function add(h: PubmedHit) {
     addPaper(
-      { id: paperId(h.pmid), pmid: h.pmid, doi: h.doi, title: h.title, year: h.year, stance: 'background', tags: h.journal ? [h.journal] : [] },
+      { id: paperId(h.pmid), pmid: h.pmid, doi: h.doi, title: h.title, authors: h.authors, journal: h.journal, year: h.year, stance: 'background', tags: h.journal ? [h.journal] : [] },
       links[h.pmid] || undefined,
     )
   }

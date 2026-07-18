@@ -5,6 +5,7 @@ import { Markdown } from '../components/Markdown'
 import { ForestPlot, FunnelPlot, PrismaFlow, RobPlot } from '../components/srmaPlots'
 import { computeMeta, eggersTest, leaveOneOut, computeGrade, trimAndFill } from '../lib/metaAnalysis'
 import { buildMarkdown, EXPORT_CSS } from '../lib/manuscript'
+import { collectReferences, referenceListMd, toBibtex, toRis } from '../lib/references'
 import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
 
 function download(content: string, name: string, type: string) {
@@ -25,10 +26,14 @@ export default function Manuscript() {
   const grade = useMemo(() => computeGrade(r, meta, egger), [r, meta, egger])
   const tf = useMemo(() => trimAndFill(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
   const md = useMemo(() => buildMarkdown(state, meta, egger, loo, grade, tf), [state, meta, egger, loo, grade, tf])
+  const refs = useMemo(() => collectReferences(state), [state])
+  const refsMd = refs.length ? `## References\n\n${referenceListMd(refs)}\n` : ''
 
   const splitIdx = md.indexOf('## PRISMA 2020 checklist')
   const narrative = (splitIdx >= 0 ? md.slice(0, splitIdx) : md).replace(/^#\s.*\n+/, '')
   const checklistMd = splitIdx >= 0 ? md.slice(splitIdx) : ''
+  // References sit after the Discussion/figures, before the PRISMA-checklist appendix
+  const exportMd = splitIdx >= 0 ? `${md.slice(0, splitIdx)}${refsMd}\n${md.slice(splitIdx)}` : `${md}\n\n${refsMd}`
   const slug = r.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
 
   const previewRef = useRef<HTMLDivElement | null>(null)
@@ -70,8 +75,10 @@ export default function Manuscript() {
           </div>
           <div className="row-actions" style={{ flex: 'none', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
             <button className="btn primary sm" onClick={downloadHtml}>⤓ HTML (with figures)</button>
-            <button className="btn ghost sm" onClick={() => download(md, `${slug}.md`, 'text/markdown')}>⤓ Markdown</button>
-            <button className="btn ghost sm" onClick={() => { navigator.clipboard?.writeText(md); setCopied(true); setTimeout(() => setCopied(false), 1500) }}>{copied ? 'Copied ✓' : 'Copy'}</button>
+            <button className="btn ghost sm" onClick={() => download(exportMd, `${slug}.md`, 'text/markdown')}>⤓ Markdown</button>
+            {refs.length > 0 && <button className="btn ghost sm" onClick={() => download(toBibtex(refs), `${slug}.bib`, 'application/x-bibtex')} title="Export the reference list as BibTeX">⤓ BibTeX</button>}
+            {refs.length > 0 && <button className="btn ghost sm" onClick={() => download(toRis(refs), `${slug}.ris`, 'application/x-research-info-systems')} title="Export the reference list as RIS">⤓ RIS</button>}
+            <button className="btn ghost sm" onClick={() => { navigator.clipboard?.writeText(exportMd); setCopied(true); setTimeout(() => setCopied(false), 1500) }}>{copied ? 'Copied ✓' : 'Copy'}</button>
             {aiOn ? <button className="btn ghost sm" onClick={() => abortRef.current?.abort()}>Stop</button> : <button className="btn ghost sm" onClick={polish}>✦ AI polish</button>}
           </div>
         </div>
@@ -96,6 +103,7 @@ export default function Manuscript() {
           <figure><FunnelPlot result={meta} imputed={tf.imputed} adjustedPool={tf.adjustedPool} /></figure>
           <div className="fig-cap">Figure 4. Risk-of-bias summary.</div>
           <figure><RobPlot studies={r.studies} domains={r.robDomains} /></figure>
+          {refsMd && <Markdown text={refsMd} />}
           <Markdown text={checklistMd} />
         </div>
       </div>
