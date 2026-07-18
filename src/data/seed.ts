@@ -192,6 +192,18 @@ export const seed: ProjectState = {
       { id: 'st_tuijnenburg', author: 'Tuijnenburg', year: 2025, pmid: '39491571', design: 'cohort', expEvents: 25, expTotal: 200, ctrlEvents: 18, ctrlTotal: 260, include: true, rob: { Selection: 'low', Comparability: 'low', Outcome: 'low' } },
       { id: 'st_monaco', author: 'Monaco', year: 2025, pmid: '40088219', design: 'cohort', expEvents: 30, expTotal: 210, ctrlEvents: 12, ctrlTotal: 190, include: true, rob: { Selection: 'low', Comparability: 'some', Outcome: 'low' } },
     ],
+    // Diagnostic-accuracy sub-review: ajmaline challenge for unmasking a type-1
+    // ECG, against a clinical-genetic Brugada reference standard. Counts are
+    // illustrative but reflect the literature (high sensitivity, threshold spread).
+    dxStudies: [
+      { id: 'dx_hong', author: 'Hong', year: 2004, test: 'Ajmaline challenge', tp: 24, fp: 3, fn: 5, tn: 58, include: true },
+      { id: 'dx_wolpert', author: 'Wolpert', year: 2005, test: 'Ajmaline challenge', tp: 19, fp: 4, fn: 4, tn: 41, include: true },
+      { id: 'dx_meregalli', author: 'Meregalli', year: 2006, test: 'Ajmaline challenge', tp: 31, fp: 8, fn: 7, tn: 66, include: true },
+      { id: 'dx_conte', author: 'Conte', year: 2013, test: 'Ajmaline challenge', tp: 48, fp: 9, fn: 9, tn: 110, include: true, note: 'Large single-centre series' },
+      { id: 'dx_mcmillan', author: 'McMillan', year: 2014, test: 'Ajmaline challenge', tp: 35, fp: 14, fn: 11, tn: 79, include: true },
+      { id: 'dx_dobbels', author: 'Dobbels', year: 2016, test: 'Ajmaline challenge', tp: 22, fp: 2, fn: 6, tn: 49, include: true, note: 'Conservative type-1 criteria → high specificity' },
+      { id: 'dx_therasse', author: 'Therasse', year: 2017, test: 'Ajmaline challenge', tp: 40, fp: 18, fn: 5, tn: 72, include: true, note: 'Liberal reading → high sensitivity, lower specificity' },
+    ],
   },
 
   activity: [],

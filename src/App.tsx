@@ -17,6 +17,7 @@ import Screening from './pages/Screening'
 import Prisma from './pages/Prisma'
 import Studies from './pages/Studies'
 import MetaAnalysis from './pages/MetaAnalysis'
+import DiagnosticMA from './pages/DiagnosticMA'
 import Manuscript from './pages/Manuscript'
 import NotFound from './pages/NotFound'
 
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="prisma" element={<Prisma />} />
         <Route path="studies" element={<Studies />} />
         <Route path="meta" element={<MetaAnalysis />} />
+        <Route path="diagnostic" element={<DiagnosticMA />} />
         <Route path="manuscript" element={<Manuscript />} />
         <Route path="*" element={<NotFound />} />
       </Route>
