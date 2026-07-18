@@ -24,6 +24,7 @@ const NAV = [
       { to: '/', label: 'Overview', icon: '⌂', color: '#1746d1', end: true },
       { to: '/portfolio', label: 'Portfolio', icon: '▦', color: '#7c3aed' },
       { to: '/pit-wall', label: 'Dashboard', icon: '▤', color: '#0891b2' },
+      { to: '/litlink', label: 'LitLink', icon: '⛓', color: '#0891b2' },
     ],
   },
   {
@@ -73,6 +74,7 @@ const TITLES: Record<string, string> = {
   '/': 'Overview',
   '/portfolio': 'Portfolio',
   '/pit-wall': 'Dashboard',
+  '/litlink': 'LitLink',
   '/protocol': 'Review Protocol',
   '/screening': 'Screening',
   '/prisma': 'PRISMA Flow',
