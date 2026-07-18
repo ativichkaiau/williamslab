@@ -22,6 +22,7 @@ import DiagnosticMA from './pages/DiagnosticMA'
 import References from './pages/References'
 import Manuscript from './pages/Manuscript'
 import Poster from './pages/Poster'
+import Reviewers from './pages/Reviewers'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="references" element={<References />} />
         <Route path="manuscript" element={<Manuscript />} />
         <Route path="poster" element={<Poster />} />
+        <Route path="reviewers" element={<Reviewers />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
