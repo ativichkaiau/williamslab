@@ -138,14 +138,16 @@ export const seed: ProjectState = {
       'Spontaneous versus drug-induced type-1 electrocardiographic pattern and major arrhythmic events in Brugada syndrome: a systematic review and meta-analysis of cohort studies',
     // Prognostic-factor question, framed PICOTS. The adjustment clause matters:
     // the crude association is well described — the open question is whether it
-    // survives correction for the established risk markers.
+    // survives correction. Proband-vs-relative status is in the minimum set
+    // because drug-induced cases are disproportionately family-screened
+    // relatives, which confounds the exposure with ascertainment route.
     question:
-      'In adults with Brugada syndrome, is a spontaneous type-1 ECG pattern — versus a type-1 pattern elicited only by sodium-channel-blocker provocation — associated with a higher rate of major arrhythmic events during follow-up, and does that association persist after adjustment for syncope, prior cardiac arrest and SCN5A status?',
+      'In adults with Brugada syndrome, is a spontaneous type-1 ECG pattern — versus a type-1 pattern elicited only by sodium-channel-blocker provocation — associated with a higher rate of major arrhythmic events during follow-up, and does that association persist after adjustment for the minimum set (age, sex, baseline symptom status, proband versus family-screened relative, family history of sudden cardiac death, and SCN5A status)?',
     pico: {
       p: 'Adults (≥18 y) with Brugada syndrome, diagnosed by a type-1 pattern — coved ST-elevation ≥2 mm in ≥1 right precordial lead (V1–V2, standard or high position) — arising spontaneously or on provocation',
-      i: 'Spontaneous type-1 pattern: documented on ≥1 baseline or ambulatory ECG without drug provocation (fever-induced patterns extracted separately for subgroup analysis)',
+      i: 'Spontaneous type-1 pattern: documented on ≥1 baseline or ambulatory ECG at normal body temperature, without drug provocation. Fever-induced patterns are NOT counted as spontaneous in the primary analysis, and are reclassified as spontaneous in a pre-specified sensitivity analysis',
       c: 'Drug-induced type-1 only: pattern manifest solely after ajmaline, flecainide, procainamide or pilsicainide challenge, never spontaneously',
-      o: 'Primary — major arrhythmic events: sudden cardiac death, documented ventricular fibrillation or sustained ventricular tachycardia, aborted cardiac arrest, or appropriate ICD therapy. Secondary — arrhythmic syncope; all-cause mortality',
+      o: 'Primary — major arrhythmic events: sudden cardiac death, documented ventricular fibrillation or sustained ventricular tachycardia, aborted cardiac arrest, or appropriate ICD therapy. Because appropriate therapy is only observable in device carriers — and devices are implanted more often after a spontaneous pattern — a pre-specified sensitivity analysis restricts to device-independent endpoints (SCD, VF, aborted arrest). Secondary — arrhythmic syncope; all-cause mortality',
     },
     inclusion: [
       'Design: prospective or retrospective cohort studies, registries, or case-control nested within a cohort',
@@ -204,7 +206,11 @@ export const seed: ProjectState = {
     comparatorLabel: 'Drug-induced type-1',
     effect: 'OR',
     model: 'random',
-    robDomains: ['Selection', 'Comparability', 'Outcome'],
+    // QUIPS is the instrument for prognostic-factor reviews — Newcastle-Ottawa
+    // is built for aetiological cohort/case-control questions and carries no
+    // attrition, confounding-specific or analysis/reporting domain.
+    robTool: 'QUIPS (Quality In Prognosis Studies)',
+    robDomains: ['Participation', 'Attrition', 'Prognostic factor', 'Outcome', 'Confounding', 'Analysis & reporting'],
     // Fill these in as you run the search and screen — the PRISMA diagram is
     // generated from them.
     prisma: {
@@ -259,6 +265,7 @@ export function blankProject(id: string, name: string, code: string, opts?: { qu
       comparatorLabel: opts?.comparator ?? 'Comparator',
       effect: 'OR',
       model: 'random',
+      robTool: 'Newcastle-Ottawa Scale',
       robDomains: ['Selection', 'Comparability', 'Outcome'],
       prisma: { dbRecords: 0, otherRecords: 0, duplicates: 0, screened: 0, excludedScreen: 0, fullText: 0, fullTextExcluded: [], included: 0 },
       studies: [],

@@ -98,7 +98,7 @@ export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: Egge
 
 **Background.** ${r.question}
 
-**Methods.** We systematically searched ${r.databases.join(', ')} and screened records against pre-specified eligibility criteria. ${dataPhrase} and pooled using an inverse-variance ${r.model}-effects model; heterogeneity was quantified with I² and τ². Risk of bias was assessed across ${r.robDomains.join(', ')}. ${r.registration ? `Registration: ${r.registration}.` : ''}
+**Methods.** We systematically searched ${r.databases.join(', ')} and screened records against pre-specified eligibility criteria. ${dataPhrase} and pooled using an inverse-variance ${r.model}-effects model; heterogeneity was quantified with I² and τ². Risk of bias was assessed${r.robTool ? ` using ${r.robTool}` : ''} across ${r.robDomains.join(', ')}. ${r.registration ? `Registration: ${r.registration}.` : ''}
 
 **Results.** ${p.included} studies (from ${p.dbRecords + p.otherRecords} records identified) were included. The pooled estimate was ${pooled}, with ${hetWord(meta.I2)} heterogeneity (I² = ${fmt(meta.I2, 0)}%). ${egger ? `Egger's test p = ${fmt(egger.p, 3)}.` : ''} Certainty of evidence (GRADE): **${grade.certainty}**.
 
@@ -122,7 +122,7 @@ Brugada Syndrome is an inherited arrhythmia syndrome in which risk stratificatio
 
 **Data items and extraction.** For each study we extracted ${extractPhrase}.
 
-**Risk of bias.** Assessed across ${r.robDomains.join(', ')} (low / some / high).
+**Risk of bias.** Assessed${r.robTool ? ` with ${r.robTool}` : ''} across ${r.robDomains.join(', ')} (low / some / high).
 
 **Synthesis.** ${poolTerm} were pooled by inverse-variance ${r.model}-effects (DerSimonian–Laird τ²). Heterogeneity: Cochran's Q and I². Robustness: leave-one-out sensitivity analysis and subgroup analysis. Small-study effects: funnel plot and Egger's regression test.
 
@@ -134,7 +134,7 @@ Brugada Syndrome is an inherited arrhythmia syndrome in which risk stratificatio
 
 ${charTable}
 
-**Risk of bias.** Risk of bias across ${r.robDomains.join(', ')} is summarised in Figure 4.
+**Risk of bias.** Risk of bias${r.robTool ? ` (${r.robTool})` : ''} across ${r.robDomains.join(', ')} is summarised in Figure 4.
 
 **Synthesis of results.** Pooling ${meta.k} studies (${meta.rows.reduce((a, x) => a + x.expTotal + x.ctrlTotal, 0)} patients), the ${r.model}-effects estimate was **${pooled}** (Figure 2). Heterogeneity was ${hetWord(meta.I2)} (Q = ${fmt(meta.Q)}, df = ${meta.df}, p = ${fmt(meta.pValue, 3)}; I² = ${fmt(meta.I2, 0)}%; τ² = ${fmt(meta.tau2, 3)}).
 

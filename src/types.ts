@@ -248,6 +248,7 @@ export interface Review {
   effect: EffectMeasure
   model: 'random' | 'fixed'
   robDomains: string[]
+  robTool?: string // the appraisal instrument the domains come from (e.g. QUIPS, ROBINS-I, Newcastle-Ottawa)
   grade?: GradeState
   screening?: ScreenRecord[] // title/abstract + full-text screening pipeline
   dualExtraction?: boolean // data extracted in duplicate (AMSTAR-2 item 6)
