@@ -67,7 +67,7 @@ export default function SrmaProtocol() {
             <div className="kv"><span className="k">Registration</span><input className="input" style={{ maxWidth: 260 }} value={r.registration ?? ''} onChange={(e) => updateReview({ registration: e.target.value })} placeholder="PROSPERO CRD…" /></div>
             <div className="kv"><span className="k">Effect measure</span><span className="val">{r.effect} · {r.indexLabel} vs {r.comparatorLabel}</span></div>
             <div className="kv"><span className="k">Synthesis</span><span className="val">Inverse-variance {r.model}-effects; heterogeneity by I² / τ²</span></div>
-            <div className="kv"><span className="k">Risk of bias</span><span className="val">Domains: {r.robDomains.join(', ')}</span></div>
+            <div className="kv"><span className="k">Risk of bias</span><span className="val">{r.robTool ? <><b>{r.robTool}</b> — </> : null}{r.robDomains.join(', ')}</span></div>
             <div className="kv"><span className="k">Reporting</span><span className="val">PRISMA 2020</span></div>
           </div>
           <div className="card lg" style={{ borderLeft: '4px solid var(--accent, var(--blue))' }}>
