@@ -106,55 +106,8 @@ export function newGroup(name: string): LitGroup {
 const STORAGE_KEY = 'williamslab.litlink'
 
 const SEED: LitLinkState = {
-  cohort: 'LitLink 2026 · Cohort 1',
-  groups: [
-    {
-      id: 'grp_seed_a', name: 'Group 1 · Cardio-Epigenetics', topic: 'DNA methylation of cardiac ion-channel genes', foundationArea: 'Cardiac electrophysiology & gene regulation',
-      members: [{ id: 'm1', name: 'น้อง A', role: 'Y2' }, { id: 'm2', name: 'น้อง B', role: 'Y2' }, { id: 'm3', name: 'น้อง C', role: 'Y1' }],
-      mentor: 'Dr. Mentor (EP lab)', acad: 'ACAD · Ravindran', currentPhase: 3,
-      phases: [
-        { status: 'done', deliverable: 'Concept map: action potential → I_Na → conduction', notes: 'Covered cardiac AP, Nav1.5, and the basics of epigenetic regulation.', mentorFeedback: 'Solid grasp of the AP — ready for the specific topic.' },
-        { status: 'done', deliverable: '8 key papers annotated; synthesis drafted', notes: 'Focused on SCN5A promoter methylation in Brugada.', mentorFeedback: 'Good coverage; note the small sample sizes.' },
-        { status: 'active', deliverable: '', notes: 'Debating whether the RQ is answerable with available tissue.' },
-      ],
-      outcome: 'research-question',
-      researchQuestion: 'Does promoter DNA methylation of SCN5A independently predict arrhythmic risk beyond coding mutation status in Brugada syndrome?',
-    },
-    {
-      id: 'grp_seed_b', name: 'Group 2 · Microbiome & Immunity', topic: 'Gut microbiome and autoimmune modulation', foundationArea: 'Immunology & host–microbe interaction',
-      members: [{ id: 'm4', name: 'น้อง D', role: 'Y2' }, { id: 'm5', name: 'น้อง E', role: 'Y2' }, { id: 'm6', name: 'น้อง F', role: 'Y2' }, { id: 'm7', name: 'น้อง G', role: 'Y1' }],
-      mentor: 'Dr. Mentor (Immunology)', acad: 'ACAD · Suphon', currentPhase: 2,
-      phases: [
-        { status: 'done', deliverable: 'Foundations note on innate vs adaptive immunity', notes: 'Built up from the immunology block.', mentorFeedback: 'Clear — move to the specific literature.' },
-        { status: 'active', deliverable: '', notes: 'Screening reviews on SCFA and Treg induction.' },
-        { status: 'not-started' },
-      ],
-      outcome: 'in-progress',
-    },
-    {
-      id: 'grp_seed_c', name: 'Group 3 · AI in ECG', topic: 'Deep learning for ECG interpretation', foundationArea: 'Cardiology basics + ML fundamentals',
-      members: [{ id: 'm8', name: 'น้อง H', role: 'Y1' }, { id: 'm9', name: 'น้อง I', role: 'Y1' }, { id: 'm10', name: 'น้อง J', role: 'Y1' }],
-      mentor: 'Dr. Mentor (Cardiology)', acad: 'ACAD · Ravindran', currentPhase: 1,
-      phases: [
-        { status: 'active', deliverable: '', notes: 'Learning ECG lead systems and what a CNN actually does.' },
-        { status: 'not-started' },
-        { status: 'not-started' },
-      ],
-      outcome: 'in-progress',
-    },
-    {
-      id: 'grp_seed_d', name: 'Group 4 · Sleep & Metabolism', topic: 'Sleep deprivation and insulin resistance', foundationArea: 'Endocrinology & sleep physiology',
-      members: [{ id: 'm11', name: 'น้อง K', role: 'Y2' }, { id: 'm12', name: 'น้อง L', role: 'Y2' }],
-      mentor: 'Dr. Mentor (Endocrine)', acad: 'ACAD · Suphon', currentPhase: 2,
-      phases: [
-        { status: 'done', deliverable: 'Foundations: glucose homeostasis + sleep architecture', notes: 'Two members; one had clinical rotations clash.', mentorFeedback: 'Good start despite the schedule.' },
-        { status: 'active', deliverable: '', notes: 'Struggling with time — considering a reflection instead of a full RQ.' },
-        { status: 'not-started' },
-      ],
-      outcome: 'reflection',
-      reflection: 'We found the topic fascinating but underestimated the time alongside clinical rotations. We most enjoyed learning to read primary papers critically, and would want a mentor to help scope a smaller question next time.',
-    },
-  ],
+  cohort: 'LitLink · Cohort 1',
+  groups: [],
 }
 
 function load(): LitLinkState {
