@@ -134,33 +134,70 @@ export const seed: ProjectState = {
   // Real PubMed identities from the search. 2×2 event counts and risk-of-bias
   // ratings are intentionally empty — extract and rate them on the Studies page.
   review: {
-    title: 'Spontaneous vs drug-induced type-1 ECG and arrhythmic events in Brugada Syndrome: a systematic review and meta-analysis',
+    title:
+      'Spontaneous versus drug-induced type-1 electrocardiographic pattern and major arrhythmic events in Brugada syndrome: a systematic review and meta-analysis of cohort studies',
+    // Prognostic-factor question, framed PICOTS. The adjustment clause matters:
+    // the crude association is well described — the open question is whether it
+    // survives correction for the established risk markers.
     question:
-      'In patients with Brugada Syndrome, does a spontaneous (vs drug-induced) type-1 ECG pattern predict a higher risk of major arrhythmic events?',
+      'In adults with Brugada syndrome, is a spontaneous type-1 ECG pattern — versus a type-1 pattern elicited only by sodium-channel-blocker provocation — associated with a higher rate of major arrhythmic events during follow-up, and does that association persist after adjustment for syncope, prior cardiac arrest and SCN5A status?',
     pico: {
-      p: 'Patients with Brugada Syndrome',
-      i: 'Spontaneous type-1 ECG pattern',
-      c: 'Drug-induced type-1 ECG pattern',
-      o: 'Major arrhythmic events (VF, appropriate ICD shock, sudden cardiac death)',
+      p: 'Adults (≥18 y) with Brugada syndrome, diagnosed by a type-1 pattern — coved ST-elevation ≥2 mm in ≥1 right precordial lead (V1–V2, standard or high position) — arising spontaneously or on provocation',
+      i: 'Spontaneous type-1 pattern: documented on ≥1 baseline or ambulatory ECG without drug provocation (fever-induced patterns extracted separately for subgroup analysis)',
+      c: 'Drug-induced type-1 only: pattern manifest solely after ajmaline, flecainide, procainamide or pilsicainide challenge, never spontaneously',
+      o: 'Primary — major arrhythmic events: sudden cardiac death, documented ventricular fibrillation or sustained ventricular tachycardia, aborted cardiac arrest, or appropriate ICD therapy. Secondary — arrhythmic syncope; all-cause mortality',
     },
     inclusion: [
-      'Cohort / observational studies of Brugada patients',
-      'Arrhythmic events reported by spontaneous vs drug-induced type-1 status',
-      'Adults (≥18y); mean follow-up ≥12 months',
-      'Extractable 2×2 event data (or adjustable to it)',
+      'Design: prospective or retrospective cohort studies, registries, or case-control nested within a cohort',
+      'Population: adults (≥18 y) meeting contemporary criteria (2013 HRS/EHRA/APHRS or 2022 ESC consensus)',
+      'Exposure: spontaneous vs drug-induced type-1 status explicitly distinguished and reported',
+      'Outcome: ≥1 major arrhythmic event reported separately for each exposure group',
+      'Follow-up: mean or median ≥12 months',
+      'Data: extractable 2×2 counts, events with person-time, or an adjusted HR/OR with 95% CI',
+      'No language or date restriction — translation sought where required',
     ],
     exclusion: [
-      'Case reports / series (n < 10)',
-      'No event data stratified by type-1 status',
-      'Reviews, editorials, conference abstracts only',
-      'Overlapping / duplicate cohorts (keep the largest)',
+      'Case reports or case series with n < 10',
+      'Outcomes not stratified by spontaneous vs drug-induced type-1 status',
+      'Reviews, editorials or conference abstracts without extractable outcome data',
+      'Overlapping / duplicate cohorts — retain the largest or most complete, and document the decision',
+      'Exclusively paediatric cohorts (<18 y)',
+      'Type-2/type-3 (saddleback) patterns only, or a Brugada ECG pattern in unselected populations without a syndrome diagnosis',
     ],
-    databases: ['PubMed / MEDLINE', 'Embase', 'Cochrane CENTRAL', 'Web of Science'],
+    databases: ['PubMed / MEDLINE', 'Embase', 'Cochrane CENTRAL', 'Web of Science Core Collection', 'Scopus', 'ClinicalTrials.gov', 'WHO ICTRP'],
+    // Fully spelled-out strategies: controlled vocabulary (MeSH/Emtree) OR'd
+    // with free-text synonyms, three concept blocks AND'ed together.
     searches: [
-      { db: 'PubMed', query: '("Brugada Syndrome"[Mesh] OR Brugada) AND (spontaneous OR "drug-induced" OR ajmaline OR flecainide) AND ("arrhythmic events" OR "ventricular fibrillation" OR "sudden cardiac death" OR prognosis)' },
-      { db: 'Embase', query: "'brugada syndrome'/exp AND ('spontaneous type 1' OR 'drug induced') AND ('arrhythmia'/exp OR 'sudden death'/exp)" },
+      {
+        db: 'PubMed',
+        query: `("Brugada Syndrome"[Mesh] OR "Brugada syndrome"[tiab] OR "Brugada pattern"[tiab] OR "Brugada sign"[tiab] OR "type 1 Brugada"[tiab] OR "coved ST"[tiab]) AND (spontaneous*[tiab] OR "drug induced"[tiab] OR drug-induced[tiab] OR provocation[tiab] OR provocative[tiab] OR challenge[tiab] OR unmask*[tiab] OR ajmaline[tiab] OR flecainide[tiab] OR procainamide[tiab] OR pilsicainide[tiab] OR "Sodium Channel Blockers"[Mesh]) AND ("Death, Sudden, Cardiac"[Mesh] OR "Ventricular Fibrillation"[Mesh] OR "Tachycardia, Ventricular"[Mesh] OR "Defibrillators, Implantable"[Mesh] OR "arrhythmic event*"[tiab] OR "ventricular fibrillation"[tiab] OR "ventricular tachycardia"[tiab] OR "sudden cardiac death"[tiab] OR "cardiac arrest"[tiab] OR "appropriate shock*"[tiab] OR "ICD therap*"[tiab] OR prognos*[tiab] OR "risk stratification"[tiab]) NOT "Case Reports"[pt]`,
+      },
+      {
+        db: 'Embase',
+        query: `'brugada syndrome'/exp AND (spontaneous*:ti,ab OR 'drug induced':ti,ab OR 'provocation test':ti,ab OR unmask*:ti,ab OR ajmaline/exp OR flecainide/exp OR procainamide/exp OR pilsicainide/exp) AND ('sudden cardiac death'/exp OR 'heart ventricle fibrillation'/exp OR 'heart ventricle tachycardia'/exp OR 'implantable cardioverter defibrillator'/exp OR 'arrhythmic event*':ti,ab OR 'appropriate shock*':ti,ab OR prognos*:ti,ab) NOT ('case report'/exp OR 'editorial'/it OR 'note'/it)`,
+      },
+      {
+        db: 'Cochrane CENTRAL',
+        query: `(Brugada):ti,ab,kw AND (spontaneous OR "drug induced" OR ajmaline OR flecainide OR provocation):ti,ab,kw AND (arrhythmi* OR "sudden death" OR fibrillation OR defibrillator OR prognos*):ti,ab,kw`,
+      },
+      {
+        db: 'Web of Science',
+        query: `TS=(Brugada AND (spontaneous OR "drug-induced" OR ajmaline OR flecainide OR provocation) AND ("arrhythmic event*" OR "sudden cardiac death" OR "ventricular fibrillation" OR "appropriate shock*" OR prognos*))`,
+      },
+      {
+        db: 'Scopus',
+        query: `TITLE-ABS-KEY(Brugada AND (spontaneous OR "drug induced" OR ajmaline OR flecainide OR provocation) AND ("arrhythmic event*" OR "sudden cardiac death" OR "ventricular fibrillation" OR prognos*))`,
+      },
+      {
+        db: 'Trial registries',
+        query: `ClinicalTrials.gov + WHO ICTRP — condition: "Brugada syndrome" (screened for cohort/registry studies reporting arrhythmic outcomes)`,
+      },
+      {
+        db: 'Supplementary',
+        query: `Backward + forward citation chasing of all included studies and relevant reviews; hand-search of major EP journals; contact authors for unstratified outcome data`,
+      },
     ],
-    registration: 'PROSPERO — to register',
+    registration: 'PROSPERO — to register before screening (protocol drafted to PRISMA-P)',
     screenerUrl: 'https://vestrippn-srma-telemetry.vercel.app',
     outcomeLabel: 'Arrhythmic events',
     indexLabel: 'Spontaneous type-1',
