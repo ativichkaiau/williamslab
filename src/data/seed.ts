@@ -110,15 +110,15 @@ export const seed: ProjectState = {
 
   // ---- assays ----
   assays: [
-    { id: 'assay_pyroseq', method: 'Pyrosequencing', measures: 'CpG methylation %', cellType: 'whole blood + iPSC-CM', controls: 'SCN5A-neg healthy', sampleN: 24, phase: 1, effort: 'low', genomeWide: false, expectedEffect: 1.3, costK: 9, weeks: 4, status: 'running', claims: ['hyp_h1'] },
-    { id: 'assay_rrbs', method: 'RRBS', measures: 'genome-wide methylation', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 6, phase: 1, effort: 'high', genomeWide: true, costK: 46, weeks: 10, status: 'piloting', claims: ['hyp_h1', 'hyp_h2'] },
-    { id: 'assay_rnaseq', method: 'RNA-seq + qRT-PCR', measures: 'Nav1.5 expression', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, costK: 28, weeks: 8, status: 'piloting', claims: ['hyp_h1', 'hyp_h3'] },
-    { id: 'assay_smallrna', method: 'Small RNA-seq', measures: 'miRNA profile', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, costK: 22, weeks: 6, status: 'queued', claims: ['hyp_h3'] },
-    { id: 'assay_cuttag', method: 'CUT&Tag', measures: 'H3K27me3 / H3K4me3 / H3K27ac', cellType: 'iPSC-CM', controls: 'IgG + spike-in', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, costK: 42, weeks: 10, status: 'queued', claims: ['hyp_h2'] },
-    { id: 'assay_atac', method: 'ATAC-seq', measures: 'chromatin accessibility', cellType: 'iPSC-CM', controls: '', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, costK: 34, weeks: 8, status: 'queued', claims: ['hyp_h2'] },
-    { id: 'assay_4c', method: '4C-seq @ SCN5A', measures: 'enhancer–promoter looping', cellType: 'iPSC-CM', controls: 'input', sampleN: 6, phase: 2, effort: 'high', genomeWide: false, costK: 30, weeks: 8, status: 'design', claims: ['hyp_h2'] },
-    { id: 'assay_patch', method: 'Patch clamp + MEA', measures: 'I_Na · conduction velocity', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 3, phase: 3, effort: 'high', genomeWide: false, costK: 52, weeks: 14, status: 'blocked', claims: ['hyp_h1', 'hyp_h3'] },
-    { id: 'assay_drug', method: 'Drug challenge', measures: 'ajmaline / flecainide / quinidine response', cellType: 'iPSC-CM', controls: 'vehicle', sampleN: 6, phase: 3, effort: 'med', genomeWide: false, costK: 19, weeks: 6, status: 'design', claims: ['hyp_h3'] },
+    { id: 'assay_pyroseq', method: 'Pyrosequencing', measures: 'CpG methylation %', cellType: 'whole blood + iPSC-CM', controls: 'SCN5A-neg healthy', sampleN: 24, phase: 1, effort: 'low', genomeWide: false, expectedEffect: 1.3, status: 'running', claims: ['hyp_h1'] },
+    { id: 'assay_rrbs', method: 'RRBS', measures: 'genome-wide methylation', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 6, phase: 1, effort: 'high', genomeWide: true, status: 'piloting', claims: ['hyp_h1', 'hyp_h2'] },
+    { id: 'assay_rnaseq', method: 'RNA-seq + qRT-PCR', measures: 'Nav1.5 expression', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, status: 'piloting', claims: ['hyp_h1', 'hyp_h3'] },
+    { id: 'assay_smallrna', method: 'Small RNA-seq', measures: 'miRNA profile', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 12, phase: 1, effort: 'med', genomeWide: true, status: 'queued', claims: ['hyp_h3'] },
+    { id: 'assay_cuttag', method: 'CUT&Tag', measures: 'H3K27me3 / H3K4me3 / H3K27ac', cellType: 'iPSC-CM', controls: 'IgG + spike-in', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, status: 'queued', claims: ['hyp_h2'] },
+    { id: 'assay_atac', method: 'ATAC-seq', measures: 'chromatin accessibility', cellType: 'iPSC-CM', controls: '', sampleN: 8, phase: 2, effort: 'high', genomeWide: true, status: 'queued', claims: ['hyp_h2'] },
+    { id: 'assay_4c', method: '4C-seq @ SCN5A', measures: 'enhancer–promoter looping', cellType: 'iPSC-CM', controls: 'input', sampleN: 6, phase: 2, effort: 'high', genomeWide: false, status: 'design', claims: ['hyp_h2'] },
+    { id: 'assay_patch', method: 'Patch clamp + MEA', measures: 'I_Na · conduction velocity', cellType: 'iPSC-CM', controls: 'isogenic corrected', sampleN: 3, phase: 3, effort: 'high', genomeWide: false, status: 'blocked', claims: ['hyp_h1', 'hyp_h3'] },
+    { id: 'assay_drug', method: 'Drug challenge', measures: 'ajmaline / flecainide / quinidine response', cellType: 'iPSC-CM', controls: 'vehicle', sampleN: 6, phase: 3, effort: 'med', genomeWide: false, status: 'design', claims: ['hyp_h3'] },
   ],
 
   // ---- papers (real references pulled from PubMed) ----
@@ -131,8 +131,8 @@ export const seed: ProjectState = {
   ],
 
   // ---- systematic review & meta-analysis ----
-  // Studies are REAL (PubMed identities); the 2×2 event counts are EXAMPLE
-  // values to be replaced with your extracted data (edit on the Studies page).
+  // Real PubMed identities from the search. 2×2 event counts and risk-of-bias
+  // ratings are intentionally empty — extract and rate them on the Studies page.
   review: {
     title: 'Spontaneous vs drug-induced type-1 ECG and arrhythmic events in Brugada Syndrome: a systematic review and meta-analysis',
     question:
@@ -168,42 +168,30 @@ export const seed: ProjectState = {
     effect: 'OR',
     model: 'random',
     robDomains: ['Selection', 'Comparability', 'Outcome'],
+    // Fill these in as you run the search and screen — the PRISMA diagram is
+    // generated from them.
     prisma: {
-      dbRecords: 842,
-      otherRecords: 15,
-      duplicates: 236,
-      screened: 621,
-      excludedScreen: 548,
-      fullText: 73,
-      fullTextExcluded: [
-        { reason: 'No event data by type-1 status', n: 31 },
-        { reason: 'Overlapping / duplicate cohort', n: 14 },
-        { reason: 'Review / editorial / abstract', n: 12 },
-        { reason: 'Follow-up < 12 months', n: 9 },
-      ],
-      included: 7,
+      dbRecords: 0,
+      otherRecords: 0,
+      duplicates: 0,
+      screened: 0,
+      excludedScreen: 0,
+      fullText: 0,
+      fullTextExcluded: [],
+      included: 0,
     },
     studies: [
-      { id: 'st_nishizaki', author: 'Nishizaki', year: 2010, pmid: '20962431', design: 'prospective cohort', expEvents: 8, expTotal: 60, ctrlEvents: 3, ctrlTotal: 70, include: true, rob: { Selection: 'low', Comparability: 'some', Outcome: 'low' } },
-      { id: 'st_mizusawa', author: 'Mizusawa', year: 2016, pmid: '27033637', design: 'cohort', expEvents: 12, expTotal: 90, ctrlEvents: 6, ctrlTotal: 110, include: true, rob: { Selection: 'low', Comparability: 'low', Outcome: 'low' } },
-      { id: 'st_sieira', author: 'Sieira', year: 2017, pmid: '28479512', design: 'cohort', expEvents: 20, expTotal: 140, ctrlEvents: 15, ctrlTotal: 180, include: true, rob: { Selection: 'low', Comparability: 'low', Outcome: 'some' } },
-      { id: 'st_michowitz', author: 'Michowitz', year: 2018, pmid: '29649615', design: 'multicentre registry', expEvents: 15, expTotal: 85, ctrlEvents: 9, ctrlTotal: 120, include: true, rob: { Selection: 'some', Comparability: 'some', Outcome: 'low' } },
-      { id: 'st_camkiran', author: 'Camkiran', year: 2024, pmid: '38701276', design: 'cohort', expEvents: 6, expTotal: 50, ctrlEvents: 4, ctrlTotal: 65, include: true, rob: { Selection: 'some', Comparability: 'high', Outcome: 'some' } },
-      { id: 'st_tuijnenburg', author: 'Tuijnenburg', year: 2025, pmid: '39491571', design: 'cohort', expEvents: 25, expTotal: 200, ctrlEvents: 18, ctrlTotal: 260, include: true, rob: { Selection: 'low', Comparability: 'low', Outcome: 'low' } },
-      { id: 'st_monaco', author: 'Monaco', year: 2025, pmid: '40088219', design: 'cohort', expEvents: 30, expTotal: 210, ctrlEvents: 12, ctrlTotal: 190, include: true, rob: { Selection: 'low', Comparability: 'some', Outcome: 'low' } },
+      { id: 'st_nishizaki', author: 'Nishizaki', year: 2010, pmid: '20962431', design: 'prospective cohort', include: true },
+      { id: 'st_mizusawa', author: 'Mizusawa', year: 2016, pmid: '27033637', design: 'cohort', include: true },
+      { id: 'st_sieira', author: 'Sieira', year: 2017, pmid: '28479512', design: 'cohort', include: true },
+      { id: 'st_michowitz', author: 'Michowitz', year: 2018, pmid: '29649615', design: 'multicentre registry', include: true },
+      { id: 'st_camkiran', author: 'Camkiran', year: 2024, pmid: '38701276', design: 'cohort', include: true },
+      { id: 'st_tuijnenburg', author: 'Tuijnenburg', year: 2025, pmid: '39491571', design: 'cohort', include: true },
+      { id: 'st_monaco', author: 'Monaco', year: 2025, pmid: '40088219', design: 'cohort', include: true },
     ],
-    // Diagnostic-accuracy sub-review: ajmaline challenge for unmasking a type-1
-    // ECG, against a clinical-genetic Brugada reference standard. Counts are
-    // illustrative but reflect the literature (high sensitivity, threshold spread).
-    dxStudies: [
-      { id: 'dx_hong', author: 'Hong', year: 2004, test: 'Ajmaline challenge', tp: 24, fp: 3, fn: 5, tn: 58, include: true },
-      { id: 'dx_wolpert', author: 'Wolpert', year: 2005, test: 'Ajmaline challenge', tp: 19, fp: 4, fn: 4, tn: 41, include: true },
-      { id: 'dx_meregalli', author: 'Meregalli', year: 2006, test: 'Ajmaline challenge', tp: 31, fp: 8, fn: 7, tn: 66, include: true },
-      { id: 'dx_conte', author: 'Conte', year: 2013, test: 'Ajmaline challenge', tp: 48, fp: 9, fn: 9, tn: 110, include: true, note: 'Large single-centre series' },
-      { id: 'dx_mcmillan', author: 'McMillan', year: 2014, test: 'Ajmaline challenge', tp: 35, fp: 14, fn: 11, tn: 79, include: true },
-      { id: 'dx_dobbels', author: 'Dobbels', year: 2016, test: 'Ajmaline challenge', tp: 22, fp: 2, fn: 6, tn: 49, include: true, note: 'Conservative type-1 criteria → high specificity' },
-      { id: 'dx_therasse', author: 'Therasse', year: 2017, test: 'Ajmaline challenge', tp: 40, fp: 18, fn: 5, tn: 72, include: true, note: 'Liberal reading → high sensitivity, lower specificity' },
-    ],
+    // Diagnostic-accuracy sub-review (e.g. ajmaline challenge vs a
+    // clinical-genetic reference standard) — add 2×2s on the Diagnostic MA page.
+    dxStudies: [],
   },
 
   activity: [],

@@ -165,9 +165,11 @@ export default function Studies() {
         </div>
       </div>
 
-      <div className="err" style={{ background: 'var(--warn)', color: 'var(--warn-ink)', border: '1px solid color-mix(in srgb,var(--amber) 30%,var(--line))', marginBottom: 16 }}>
-        ⚠ Study identities are real (PubMed), but the 2×2 event counts are <b>example values</b> — replace them with your extracted data.
-      </div>
+      {r.studies.length > 0 && !r.studies.some((s) => (s.expTotal ?? 0) > 0 || (s.ctrlTotal ?? 0) > 0 || (s.n1 ?? 0) > 0 || (s.n2 ?? 0) > 0) && (
+        <div className="err" style={{ background: 'var(--warn)', color: 'var(--warn-ink)', border: '1px solid color-mix(in srgb,var(--amber) 30%,var(--line))', marginBottom: 16 }}>
+          ⚠ Study identities are from PubMed, but <b>no outcome data has been extracted yet</b> — add the counts per study (or use ✦ Extract from abstract / PDF) to enable pooling.
+        </div>
+      )}
 
       <div className="tbl-scroll">
         <table>
