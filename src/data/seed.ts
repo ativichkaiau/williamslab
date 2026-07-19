@@ -131,8 +131,9 @@ export const seed: ProjectState = {
   ],
 
   // ---- systematic review & meta-analysis ----
-  // Real PubMed identities from the search. 2×2 event counts and risk-of-bias
-  // ratings are intentionally empty — extract and rate them on the Studies page.
+  // ---- systematic review & meta-analysis ----
+  // Protocol only. No studies are seeded — run the search, screen, and add the
+  // included literature yourself (Literature → Studies, or CSV/RIS import).
   review: {
     title:
       'Spontaneous versus drug-induced type-1 electrocardiographic pattern and major arrhythmic events in Brugada syndrome: a systematic review and meta-analysis of cohort studies',
@@ -223,15 +224,7 @@ export const seed: ProjectState = {
       fullTextExcluded: [],
       included: 0,
     },
-    studies: [
-      { id: 'st_nishizaki', author: 'Nishizaki', year: 2010, pmid: '20962431', design: 'prospective cohort', include: true },
-      { id: 'st_mizusawa', author: 'Mizusawa', year: 2016, pmid: '27033637', design: 'cohort', include: true },
-      { id: 'st_sieira', author: 'Sieira', year: 2017, pmid: '28479512', design: 'cohort', include: true },
-      { id: 'st_michowitz', author: 'Michowitz', year: 2018, pmid: '29649615', design: 'multicentre registry', include: true },
-      { id: 'st_camkiran', author: 'Camkiran', year: 2024, pmid: '38701276', design: 'cohort', include: true },
-      { id: 'st_tuijnenburg', author: 'Tuijnenburg', year: 2025, pmid: '39491571', design: 'cohort', include: true },
-      { id: 'st_monaco', author: 'Monaco', year: 2025, pmid: '40088219', design: 'cohort', include: true },
-    ],
+    studies: [],
     // Diagnostic-accuracy sub-review (e.g. ajmaline challenge vs a
     // clinical-genetic reference standard) — add 2×2s on the Diagnostic MA page.
     dxStudies: [],
