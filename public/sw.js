@@ -4,8 +4,8 @@
    - same-origin assets: stale-while-revalidate
    - cross-origin (PubMed / OpenAI): always network, never cached
 */
-const CACHE = 'williamslab-v1'
-const SHELL = ['/', '/index.html', '/favicon.svg', '/icon.svg', '/manifest.webmanifest']
+const CACHE = 'williamslab-v2'
+const SHELL = ['/', '/index.html', '/williams.png', '/favicon.svg', '/icon.svg', '/manifest.webmanifest']
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()))

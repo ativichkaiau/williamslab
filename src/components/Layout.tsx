@@ -205,7 +205,7 @@ export default function Layout() {
       {navOpen && <div className="sb-drawer-backdrop" onClick={() => setNavOpen(false)} />}
       <aside className={`sidebar${navOpen ? ' open' : ''}`}>
         <div className="sb-brand">
-          <div className="wtile">W</div>
+          <img className="wtile" src="/williams.png" alt="WilliamsLab" width={38} height={38} />
           <div className="nm">
             Williams<b>Lab</b>
             <small>RESEARCH OS</small>
