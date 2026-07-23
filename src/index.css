@@ -54,10 +54,7 @@ a{color:var(--blue); text-decoration:none}
 .sidebar{width:var(--sidebar); flex:none; border-right:1px solid var(--line); background:var(--card);
   display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto}
 .sb-brand{display:flex; align-items:center; gap:11px; padding:18px 18px 14px}
-.wtile{width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--navy),var(--blue));
-  color:#fff; display:grid; place-items:center; font-weight:900; font-size:19px; position:relative; overflow:hidden; flex:none}
-.wtile::after{content:""; position:absolute; right:-6px; top:0; bottom:0; width:9px;
-  background:linear-gradient(var(--red),var(--red) 50%, var(--yellow) 50%)}
+.wtile{width:38px; height:38px; object-fit:contain; display:block; flex:none}
 .sb-brand .nm{font-weight:800; letter-spacing:-.02em}
 .sb-brand .nm b{color:var(--blue)}
 .sb-brand .nm small{display:block; font-size:9px; letter-spacing:.32em; color:var(--muted); font-weight:700; margin-top:2px}
@@ -655,7 +652,7 @@ html[data-theme="night"] .diagram{box-shadow:inset 0 2px 5px rgba(0,0,0,.35)}
 .btn.primary:active{transform:translateY(1px); box-shadow:0 3px 8px -3px rgba(18,32,90,.45), inset 0 -2px 5px rgba(10,18,48,.22)}
 .btn.ghost{box-shadow:0 7px 14px -7px rgba(18,32,90,.24), inset 0 2px 2px rgba(255,255,255,.7)}
 html[data-theme="night"] .btn.ghost{box-shadow:0 7px 14px -7px rgba(0,0,0,.6), inset 0 2px 2px rgba(255,255,255,.06)}
-.wtile{border-radius:13px; box-shadow:0 6px 12px -4px rgba(10,18,48,.45), inset 0 2px 3px rgba(255,255,255,.4), inset 0 -4px 8px rgba(0,0,0,.28)}
+.wtile{filter:drop-shadow(0 3px 6px rgba(10,18,48,.28))}
 .stat,.preset{box-shadow:var(--shadow)}
 .sb-link.active{box-shadow:inset 0 2px 5px rgba(18,32,90,.10), inset 0 -1px 1px rgba(255,255,255,.5)}
 html[data-theme="night"] .sb-link.active{box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
