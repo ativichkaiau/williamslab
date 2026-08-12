@@ -11,11 +11,11 @@ import type { ProjectState } from '../types'
 export const seed: ProjectState = {
   project: {
     id: 'brs-epi',
-    name: 'Epigenetic Regulation of Na⁺-Channel Genes in Brugada Syndrome',
+    name: 'Epigenetic and Non-coding Regulatory Mechanisms of SCN5A in Brugada Syndrome',
     code: 'BrS-EPI',
-    domain: 'Cardiac electrophysiology · epigenetics',
+    domain: 'Cardiovascular genetics · epigenetics · systematic review (Phase 1)',
     centralHypothesis:
-      'In Brugada Syndrome, epigenetic dysregulation of sodium-channel loci (SCN5A/SCN10A) — promoter/enhancer DNA methylation, repressive histone remodeling, and ncRNA-mediated repression — reduces Nav1.5-dependent I_Na and conduction reserve, producing the type-1 ECG and arrhythmic risk independently of, and additively to, SCN5A coding mutations.',
+      'In Brugada syndrome, epigenetic and non-coding regulation of SCN5A — promoter and enhancer DNA methylation, repressive histone/chromatin remodeling, cis-regulatory variation at the SCN5A–SCN10A enhancer, and microRNA/lncRNA-mediated repression — lowers Nav1.5 expression, sodium current (I_Na) and conduction reserve, contributing to the type-1 ECG and arrhythmic risk beyond, and additively to, SCN5A coding mutations. Phase 1 systematically synthesizes this evidence to rank the best-supported mechanisms and biomarker candidates for Phase-2 mechanistic validation.',
     preRegistered: false,
     primaryEndpoint: undefined,
     stage: 'Protocol',
