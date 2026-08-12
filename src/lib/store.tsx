@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ProjectState, Project, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper, Study, Review } from '../types'
-import { seed, seed2, blankProject } from '../data/seed'
+import { seed, blankProject } from '../data/seed'
 import { computeInstabilities, stabilityScore } from './suspension'
 
 // localStorage-backed, multi-project store. No backend — data lives in the browser.
 const KEY = 'williamslab.app.v2'
 const OLD_KEY = 'williamslab.project.v1'
+const RETIRED_SEED_PROJECT_IDS = new Set(['scn5a-risk'])
 
 interface AppState {
   projects: ProjectState[]
@@ -21,12 +22,19 @@ function normalize(p: ProjectState): ProjectState {
   return { ...p, activity: p.activity ?? [], project: { ...p.project, stage: p.project.stage ?? 'Protocol' } }
 }
 
+function pruneRetiredSeedProjects(projects: ProjectState[]): ProjectState[] {
+  return projects.filter((p) => !RETIRED_SEED_PROJECT_IDS.has(p.project.id))
+}
+
 function load(): AppState {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const a = JSON.parse(raw) as AppState
-      if (a.projects?.length) return { projects: a.projects.map(normalize), activeId: a.activeId ?? a.projects[0].project.id }
+      if (a.projects?.length) {
+        const projects = pruneRetiredSeedProjects(a.projects.map(normalize))
+        if (projects.length) return { projects, activeId: projects.some((p) => p.project.id === a.activeId) ? a.activeId : projects[0].project.id }
+      }
     }
     const old = localStorage.getItem(OLD_KEY)
     if (old) {
@@ -36,7 +44,7 @@ function load(): AppState {
   } catch {
     /* ignore corrupt state, fall back to seed */
   }
-  return { projects: [seed, seed2], activeId: seed.project.id }
+  return { projects: [seed], activeId: seed.project.id }
 }
 
 interface StoreCtx {
@@ -347,7 +355,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return false
       }
     },
-    reset: () => apply({ projects: [seed, seed2], activeId: seed.project.id }),
+    reset: () => apply({ projects: [seed], activeId: seed.project.id }),
     undo,
     redo,
     canUndo: past.current.length > 0,
