@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ProjectState, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper, Study, Review } from '../types'
+import type { ProjectState, Project, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper, Study, Review } from '../types'
 import { seed, seed2, blankProject } from '../data/seed'
 import { computeInstabilities, stabilityScore } from './suspension'
 
@@ -79,6 +79,7 @@ interface StoreCtx {
   switchProject: (id: string) => void
   createProject: (name: string, code?: string, opts?: { question?: string; index?: string; comparator?: string; outcome?: string }) => string
   renameProject: (id: string, name: string) => void
+  updateProject: (patch: Partial<Project>) => void
   deleteProject: (id: string) => void
   setStage: (stage: string) => void
   exportActive: () => string
@@ -320,6 +321,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       apply({ ...a, projects: [...a.projects, p], activeId: id })
       return id
     },
+    updateProject: (patch) => setState((s) => ({ ...s, project: { ...s.project, ...patch } })),
     renameProject: (id, name) => {
       const a = appRef.current
       apply({ ...a, projects: a.projects.map((p) => (p.project.id === id ? { ...p, project: { ...p.project, name } } : p)) })
