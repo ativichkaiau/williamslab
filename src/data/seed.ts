@@ -131,87 +131,76 @@ export const seed: ProjectState = {
   ],
 
   // ---- systematic review & meta-analysis ----
-  // ---- systematic review & meta-analysis ----
-  // Protocol only. No studies are seeded — run the search, screen, and add the
-  // included literature yourself (Literature → Studies, or CSV/RIS import).
+  // Phase 1 evidence synthesis for the BrS project. Protocol only — no studies
+  // seeded; run the search, screen, and add the included literature yourself.
+  // A mechanism (PECO) review: continuous molecular markers are the headline
+  // quantitative synthesis (SMD/Hedges' g), with dichotomous clinical outcomes
+  // pooled as OR/RR where data allow. Every protocol field is editable in-app.
   review: {
     title:
-      'Spontaneous versus drug-induced type-1 electrocardiographic pattern and major arrhythmic events in Brugada syndrome: a systematic review and meta-analysis of cohort studies',
-    // Prognostic-factor question, framed PICOTS. The adjustment clause matters:
-    // the crude association is well described — the open question is whether it
-    // survives correction. Proband-vs-relative status is in the minimum set
-    // because drug-induced cases are disproportionately family-screened
-    // relatives, which confounds the exposure with ascertainment route.
+      'Epigenetic and Non-coding Regulatory Mechanisms of SCN5A in Brugada Syndrome: A Systematic Review and Meta-analysis',
     question:
-      'In adults with Brugada syndrome, is a spontaneous type-1 ECG pattern — versus a type-1 pattern elicited only by sodium-channel-blocker provocation — associated with a higher rate of major arrhythmic events during follow-up, and does that association persist after adjustment for the minimum set (age, sex, baseline symptom status, proband versus family-screened relative, family history of sudden cardiac death, and SCN5A status)?',
+      'What epigenetic and non-coding regulatory mechanisms affecting SCN5A are associated with Brugada syndrome — its molecular phenotype, electrophysiological abnormalities, and clinical severity? Secondary questions: (1) do BrS cases differ from controls in SCN5A-related DNA methylation, non-coding RNA expression or regulatory markers; (2) do these regulatory alterations track SCN5A/Nav1.5 expression or sodium current (I_Na); (3) do they track ECG phenotype, conduction abnormalities, ventricular arrhythmia or clinical severity; (4) which mechanism or marker has evidence strong enough to become a Phase-2 experimental target?',
     pico: {
-      p: 'Adults (≥18 y) with Brugada syndrome, diagnosed by a type-1 pattern — coved ST-elevation ≥2 mm in ≥1 right precordial lead (V1–V2, standard or high position) — arising spontaneously or on provocation',
-      i: 'Spontaneous type-1 pattern: documented on ≥1 baseline or ambulatory ECG at normal body temperature, without drug provocation. Fever-induced patterns are NOT counted as spontaneous in the primary analysis, and are reclassified as spontaneous in a pre-specified sensitivity analysis',
-      c: 'Drug-induced type-1 only: pattern manifest solely after ajmaline, flecainide, procainamide or pilsicainide challenge, never spontaneously',
-      o: 'Primary — major arrhythmic events: sudden cardiac death, documented ventricular fibrillation or sustained ventricular tachycardia, aborted cardiac arrest, or appropriate ICD therapy. Because appropriate therapy is only observable in device carriers — and devices are implanted more often after a spontaneous pattern — a pre-specified sensitivity analysis restricts to device-independent endpoints (SCD, VF, aborted arrest). Secondary — arrhythmic syncope; all-cause mortality',
+      p: 'Population / model — patients diagnosed with Brugada syndrome; non-BrS controls; patient-derived or iPSC-derived cardiomyocytes; and animal or cellular models of SCN5A regulation directly relevant to BrS (human clinical and experimental evidence kept as separate layers)',
+      i: 'Exposure — epigenetic or non-coding regulatory alterations affecting SCN5A: DNA methylation, histone modifications, chromatin accessibility, chromatin architecture, enhancer/promoter activity, microRNAs, long non-coding and other ncRNAs, and non-coding regulatory variants with a functional effect on SCN5A (incl. the SCN5A–SCN10A regulatory locus)',
+      c: 'Comparator — healthy / non-BrS controls, wild-type controls, unexposed / reference genotype, or baseline expression / regulatory state',
+      o: 'Molecular — SCN5A mRNA, Nav1.5 protein, DNA methylation level, ncRNA expression, chromatin accessibility, histone marks, enhancer activity. Functional — I_Na, action-potential parameters, conduction velocity, EP abnormalities. Clinical — spontaneous vs drug-induced type-1 ECG, PR interval, QRS duration, ventricular arrhythmia/VF, syncope, SCA/SCD, clinical severity / risk phenotype',
     },
     inclusion: [
-      'Design: prospective or retrospective cohort studies, registries, or case-control nested within a cohort',
-      'Population: adults (≥18 y) meeting contemporary criteria (2013 HRS/EHRA/APHRS or 2022 ESC consensus)',
-      'Exposure: spontaneous vs drug-induced type-1 status explicitly distinguished and reported',
-      'Outcome: ≥1 major arrhythmic event reported separately for each exposure group',
-      'Follow-up: mean or median ≥12 months',
-      'Data: extractable 2×2 counts, events with person-time, or an adjusted HR/OR with 95% CI',
-      'No language or date restriction — translation sought where required',
+      'Original research articles',
+      'Study of BrS, or a model directly relevant to BrS',
+      'Investigates epigenetic / non-coding regulation affecting SCN5A or the SCN5A–SCN10A regulatory network',
+      'Reports relevant molecular, electrophysiological or clinical outcomes',
+      'Sufficient data for qualitative or quantitative extraction',
     ],
     exclusion: [
-      'Case reports or case series with n < 10',
-      'Outcomes not stratified by spontaneous vs drug-induced type-1 status',
-      'Reviews, editorials or conference abstracts without extractable outcome data',
-      'Overlapping / duplicate cohorts — retain the largest or most complete, and document the decision',
-      'Exclusively paediatric cohorts (<18 y)',
-      'Type-2/type-3 (saddleback) patterns only, or a Brugada ECG pattern in unselected populations without a syndrome diagnosis',
+      'Narrative reviews, editorials, commentaries or conference abstracts without sufficient data',
+      'Case reports without mechanistic or quantitative regulatory data',
+      'Studies of coding mutation or channel biophysics only, with no regulatory mechanism',
+      'SCN5A in other diseases with no link to BrS',
+      'Duplicate or same-cohort reports without independent additional data',
     ],
-    databases: ['PubMed / MEDLINE', 'Embase', 'Cochrane CENTRAL', 'Web of Science Core Collection', 'Scopus', 'ClinicalTrials.gov', 'WHO ICTRP'],
-    // Fully spelled-out strategies: controlled vocabulary (MeSH/Emtree) OR'd
-    // with free-text synonyms, three concept blocks AND'ed together.
+    databases: ['PubMed / MEDLINE', 'Embase', 'Scopus', 'Web of Science'],
+    // Three concept blocks AND'ed: (1) Brugada, (2) SCN5A / Nav1.5 / SCN10A,
+    // (3) epigenetic & non-coding regulatory mechanisms — controlled vocabulary
+    // (MeSH/Emtree) OR'd with free-text synonyms.
     searches: [
       {
         db: 'PubMed',
-        query: `("Brugada Syndrome"[Mesh] OR "Brugada syndrome"[tiab] OR "Brugada pattern"[tiab] OR "Brugada sign"[tiab] OR "type 1 Brugada"[tiab] OR "coved ST"[tiab]) AND (spontaneous*[tiab] OR "drug induced"[tiab] OR drug-induced[tiab] OR provocation[tiab] OR provocative[tiab] OR challenge[tiab] OR unmask*[tiab] OR ajmaline[tiab] OR flecainide[tiab] OR procainamide[tiab] OR pilsicainide[tiab] OR "Sodium Channel Blockers"[Mesh]) AND ("Death, Sudden, Cardiac"[Mesh] OR "Ventricular Fibrillation"[Mesh] OR "Tachycardia, Ventricular"[Mesh] OR "Defibrillators, Implantable"[Mesh] OR "arrhythmic event*"[tiab] OR "ventricular fibrillation"[tiab] OR "ventricular tachycardia"[tiab] OR "sudden cardiac death"[tiab] OR "cardiac arrest"[tiab] OR "appropriate shock*"[tiab] OR "ICD therap*"[tiab] OR prognos*[tiab] OR "risk stratification"[tiab]) NOT "Case Reports"[pt]`,
+        query: `("Brugada Syndrome"[Mesh] OR "Brugada syndrome"[tiab] OR "Brugada pattern"[tiab] OR BrS[tiab]) AND (SCN5A[tiab] OR "Nav1.5"[tiab] OR "NaV1.5"[tiab] OR SCN10A[tiab] OR "NaV1.8"[tiab] OR "NAV1.8, Voltage-Gated Sodium Channel"[Mesh] OR "NAV1.5 Voltage-Gated Sodium Channel"[Mesh]) AND ("Epigenesis, Genetic"[Mesh] OR epigenetic*[tiab] OR "DNA Methylation"[Mesh] OR "DNA methylation"[tiab] OR "Histones"[Mesh] OR histone*[tiab] OR "Chromatin"[Mesh] OR chromatin[tiab] OR "Enhancer Elements, Genetic"[Mesh] OR enhancer*[tiab] OR "Promoter Regions, Genetic"[Mesh] OR promoter*[tiab] OR "RNA, Untranslated"[Mesh] OR "non-coding RNA"[tiab] OR "noncoding RNA"[tiab] OR "MicroRNAs"[Mesh] OR microRNA*[tiab] OR miRNA*[tiab] OR "RNA, Long Noncoding"[Mesh] OR lncRNA*[tiab] OR "long non-coding"[tiab] OR "gene regulation"[tiab] OR "Gene Expression Regulation"[Mesh] OR cis-regulatory[tiab])`,
       },
       {
         db: 'Embase',
-        query: `'brugada syndrome'/exp AND (spontaneous*:ti,ab OR 'drug induced':ti,ab OR 'provocation test':ti,ab OR unmask*:ti,ab OR ajmaline/exp OR flecainide/exp OR procainamide/exp OR pilsicainide/exp) AND ('sudden cardiac death'/exp OR 'heart ventricle fibrillation'/exp OR 'heart ventricle tachycardia'/exp OR 'implantable cardioverter defibrillator'/exp OR 'arrhythmic event*':ti,ab OR 'appropriate shock*':ti,ab OR prognos*:ti,ab) NOT ('case report'/exp OR 'editorial'/it OR 'note'/it)`,
-      },
-      {
-        db: 'Cochrane CENTRAL',
-        query: `(Brugada):ti,ab,kw AND (spontaneous OR "drug induced" OR ajmaline OR flecainide OR provocation):ti,ab,kw AND (arrhythmi* OR "sudden death" OR fibrillation OR defibrillator OR prognos*):ti,ab,kw`,
-      },
-      {
-        db: 'Web of Science',
-        query: `TS=(Brugada AND (spontaneous OR "drug-induced" OR ajmaline OR flecainide OR provocation) AND ("arrhythmic event*" OR "sudden cardiac death" OR "ventricular fibrillation" OR "appropriate shock*" OR prognos*))`,
+        query: `('brugada syndrome'/exp OR 'brugada syndrome':ti,ab OR BrS:ti,ab) AND (SCN5A:ti,ab OR 'SCN5A gene'/exp OR 'Nav1.5':ti,ab OR SCN10A:ti,ab OR 'sodium channel Nav1.5'/exp) AND ('epigenetics'/exp OR epigenetic*:ti,ab OR 'DNA methylation'/exp OR 'DNA methylation':ti,ab OR 'histone'/exp OR histone*:ti,ab OR 'chromatin'/exp OR chromatin:ti,ab OR 'enhancer'/exp OR enhancer*:ti,ab OR promoter*:ti,ab OR 'noncoding RNA'/exp OR 'non-coding RNA':ti,ab OR 'microRNA'/exp OR microRNA*:ti,ab OR miRNA*:ti,ab OR 'long noncoding RNA'/exp OR lncRNA*:ti,ab OR 'gene regulation':ti,ab)`,
       },
       {
         db: 'Scopus',
-        query: `TITLE-ABS-KEY(Brugada AND (spontaneous OR "drug induced" OR ajmaline OR flecainide OR provocation) AND ("arrhythmic event*" OR "sudden cardiac death" OR "ventricular fibrillation" OR prognos*))`,
+        query: `TITLE-ABS-KEY(("Brugada syndrome" OR BrS) AND (SCN5A OR "Nav1.5" OR SCN10A) AND (epigenetic* OR "DNA methylation" OR histone* OR chromatin OR enhancer* OR promoter* OR "non-coding RNA" OR microRNA* OR miRNA* OR lncRNA* OR "gene regulation"))`,
       },
       {
-        db: 'Trial registries',
-        query: `ClinicalTrials.gov + WHO ICTRP — condition: "Brugada syndrome" (screened for cohort/registry studies reporting arrhythmic outcomes)`,
+        db: 'Web of Science',
+        query: `TS=(("Brugada syndrome" OR BrS) AND (SCN5A OR "Nav1.5" OR SCN10A) AND (epigenetic* OR "DNA methylation" OR histone* OR chromatin OR enhancer* OR promoter* OR "non-coding RNA" OR microRNA* OR miRNA* OR lncRNA* OR "gene regulation"))`,
       },
       {
         db: 'Supplementary',
-        query: `Backward + forward citation chasing of all included studies and relevant reviews; hand-search of major EP journals; contact authors for unstratified outcome data`,
+        query: `Backward + forward citation chasing of all included studies and relevant reviews; hand-search of cardiac electrophysiology / cardiovascular genetics journals.`,
       },
     ],
-    registration: 'PROSPERO — to register before screening (protocol drafted to PRISMA-P)',
+    registration: 'PROSPERO — to register before screening (Phase 1 evidence synthesis; protocol to PRISMA-P)',
     screenerUrl: 'https://vestrippn-srma-telemetry.vercel.app',
-    outcomeLabel: 'Arrhythmic events',
-    indexLabel: 'Spontaneous type-1',
-    comparatorLabel: 'Drug-induced type-1',
-    effect: 'OR',
+    outcomeLabel: 'Regulatory / molecular marker',
+    indexLabel: 'Brugada syndrome',
+    comparatorLabel: 'Control',
+    // Headline synthesis is continuous molecular markers across differing assays
+    // → SMD (Hedges' g). Switch to OR/RR on the Meta page for dichotomous outcomes.
+    effect: 'SMD',
     model: 'random',
-    // QUIPS is the instrument for prognostic-factor reviews — Newcastle-Ottawa
-    // is built for aetiological cohort/case-control questions and carries no
-    // attrition, confounding-specific or analysis/reporting domain.
-    robTool: 'QUIPS (Quality In Prognosis Studies)',
-    robDomains: ['Participation', 'Attrition', 'Prognostic factor', 'Outcome', 'Confounding', 'Analysis & reporting'],
+    // Mixed-design mechanism review — appraise with the instrument that fits each
+    // study type (human observational, SYRCLE for animal, in-vitro appraisal);
+    // human clinical and experimental evidence are kept in separate layers.
+    robTool: 'Design-specific (observational · SYRCLE · in-vitro appraisal)',
+    robDomains: ['Selection', 'Comparability', 'Measurement', 'Confounding', 'Reporting'],
     // Fill these in as you run the search and screen — the PRISMA diagram is
     // generated from them.
     prisma: {
