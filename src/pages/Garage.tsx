@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard, SevDot } from '../components/ui'
 import { INSTABILITY_LABEL } from '../lib/palette'
@@ -22,10 +22,11 @@ const KIND_COLOR: Record<string, string> = {
 }
 
 export default function Garage() {
-  const { state, instabilities, stability, reset, setStage, exportActive, importProject } = useStore()
+  const { state, instabilities, stability, reset, setStage, updateProject, exportActive, importProject } = useStore()
   const open = instabilities.filter((i) => i.status === 'open')
   const highs = open.filter((i) => i.severity === 'high')
   const fileRef = useRef<HTMLInputElement>(null)
+  const [editing, setEditing] = useState(false)
   // Date.now is fine at render time in the browser
   const now = Date.now()
 
@@ -71,9 +72,26 @@ export default function Garage() {
     <>
       <div className="page-head">
         <Rule />
-        <Kicker>PROJECT OVERVIEW</Kicker>
-        <h1>{state.project.name}</h1>
-        <p>{state.project.domain} · {state.project.code}</p>
+        <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Kicker>PROJECT OVERVIEW</Kicker>
+            {editing ? (
+              <>
+                <textarea className="textarea" style={{ width: '100%', maxWidth: 820, fontSize: 22, fontWeight: 800, marginTop: 8 }} rows={2} value={state.project.name} onChange={(e) => updateProject({ name: e.target.value })} placeholder="Project name" />
+                <div className="flex" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  <input className="input" style={{ flex: 1, minWidth: 220 }} value={state.project.domain} onChange={(e) => updateProject({ domain: e.target.value })} placeholder="Domain / field" />
+                  <input className="input mono" style={{ width: 130 }} value={state.project.code} onChange={(e) => updateProject({ code: e.target.value })} placeholder="CODE" />
+                </div>
+              </>
+            ) : (
+              <>
+                <h1>{state.project.name}</h1>
+                <p>{state.project.domain} · {state.project.code}</p>
+              </>
+            )}
+          </div>
+          <button className={`btn sm ${editing ? 'primary' : 'ghost'}`} style={{ flex: 'none' }} onClick={() => setEditing((v) => !v)}>{editing ? '✓ Done' : '✎ Edit'}</button>
+        </div>
       </div>
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
@@ -98,7 +116,9 @@ export default function Garage() {
       <div className="grid g2">
         <div className="card lg">
           <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />CENTRAL HYPOTHESIS</div>
-          <p className="hyp-quote">{state.project.centralHypothesis}</p>
+          {editing
+            ? <textarea className="textarea" style={{ width: '100%' }} rows={7} value={state.project.centralHypothesis} onChange={(e) => updateProject({ centralHypothesis: e.target.value })} placeholder="The project's central hypothesis" />
+            : <p className="hyp-quote">{state.project.centralHypothesis}</p>}
           <div className="divider" />
           <div className="wrap-gap">
             <Link className="btn primary sm" to="/pit-wall">Open the Dashboard →</Link>
@@ -181,7 +201,7 @@ export default function Garage() {
           <button className="btn ghost sm" onClick={() => fileRef.current?.click()}>⤒ Import project</button>
           <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={onImportFile} />
         </div>
-        <button className="icon-btn danger" onClick={() => { if (confirm('Reset all edits back to the seed Brugada project?')) reset() }}>Reset to seed data</button>
+        <button className="icon-btn danger" onClick={() => { if (confirm('Reset everything to the latest seed? This replaces the current projects and clears all edits, studies and stage changes — use it to refresh stale data after an app update.')) reset() }}>↺ Reset to seed data</button>
       </div>
     </>
   )
