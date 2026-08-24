@@ -24,6 +24,7 @@ import References from './pages/References'
 import Manuscript from './pages/Manuscript'
 import Poster from './pages/Poster'
 import Reviewers from './pages/Reviewers'
+import SharedImport from './pages/SharedImport'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="manuscript" element={<Manuscript />} />
         <Route path="poster" element={<Poster />} />
         <Route path="reviewers" element={<Reviewers />} />
+        <Route path="shared/:id" element={<SharedImport />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

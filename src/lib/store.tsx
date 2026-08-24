@@ -128,6 +128,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem(KEY, JSON.stringify(app))
+      window.dispatchEvent(new Event('williamslab:save')) // cloud auto-sync hook
     } catch {
       /* storage may be unavailable; app still works in-memory */
     }

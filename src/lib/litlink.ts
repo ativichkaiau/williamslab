@@ -134,6 +134,7 @@ export function useLitLink() {
       const next = typeof updater === 'function' ? (updater as (s: LitLinkState) => LitLinkState)(prev) : updater
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        window.dispatchEvent(new Event('williamslab:save')) // cloud auto-sync hook
       } catch {
         /* ignore quota */
       }
