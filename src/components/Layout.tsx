@@ -4,6 +4,7 @@ import { useStore } from '../lib/store'
 import { SEVERITY_COLOR } from '../lib/palette'
 import AssistantDock from './AssistantDock'
 import CommandPalette from './CommandPalette'
+import Cloud from './Cloud'
 
 // g-chord destinations (press "g" then the key)
 const GNAV: Record<string, string> = { o: '/', d: '/pit-wall', r: '/review', t: '/theory', k: '/graph', m: '/meta', s: '/studies', h: '/hypotheses', p: '/prisma' }
@@ -108,6 +109,7 @@ export default function Layout() {
   const { state, stability, instabilities, projects, activeId, switchProject, createProject, undo, redo, canUndo, canRedo } = store
   const [projMenu, setProjMenu] = useState(false)
   const [help, setHelp] = useState(false)
+  const [cloudOpen, setCloudOpen] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
@@ -260,6 +262,7 @@ export default function Layout() {
               <button className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">↶</button>
               <button className="icon-btn" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">↷</button>
             </span>
+            <button className="icon-btn" onClick={() => setCloudOpen(true)} title="Cloud sync &amp; sharing">☁</button>
             <button className="icon-btn kbd-btn" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)">⌘</button>
             <div className="proj-switch">
               <button className="proj-chip" onClick={() => setProjMenu((v) => !v)} title={state.project.name}>{state.project.code} ▾</button>
@@ -301,6 +304,7 @@ export default function Layout() {
         onToggleTheme={() => setTheme(theme === 'day' ? 'night' : 'day')}
         onOpenCopilot={() => window.dispatchEvent(new CustomEvent('wl-open-copilot'))}
       />
+      <Cloud open={cloudOpen} onClose={() => setCloudOpen(false)} />
 
       {help && (
         <div className="kbd-overlay" onClick={() => setHelp(false)}>
