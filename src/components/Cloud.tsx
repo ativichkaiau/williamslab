@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import {
   isCloudConfigured, cloudConfigSource, setCloudConfig,
-  signInEmail, signOut, onAuth,
+  signInEmail, verifyEmailCode, signOut, onAuth,
   saveCloudState, restoreCloudState, cloudStateInfo, shareProject,
 } from '../lib/supabase'
 
@@ -24,6 +24,8 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
   const [key, setKey] = useState('')
   // sign-in form
   const [loginEmail, setLoginEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
 
   // track auth state
   useEffect(() => {
@@ -65,8 +67,15 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
   async function sendLink() {
     if (!loginEmail.trim()) return
     setBusy('login'); setMsg(null)
-    try { await signInEmail(loginEmail); setMsg({ ok: true, text: `Magic link sent to ${loginEmail.trim()} — open it on this device to finish signing in.` }) }
-    catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Could not send the link.' }) }
+    try { await signInEmail(loginEmail); setSent(true); setMsg({ ok: true, text: `Email sent to ${loginEmail.trim()}. Paste the 6-digit code below, or click the link (in this browser).` }) }
+    catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Could not send the email.' }) }
+    finally { setBusy(null) }
+  }
+  async function verifyCode() {
+    if (!code.trim()) return
+    setBusy('verify'); setMsg(null)
+    try { await verifyEmailCode(loginEmail, code); setSent(false); setCode('') /* onAuth flips to signed-in */ }
+    catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'That code is invalid or expired — send a fresh one.' }) }
     finally { setBusy(null) }
   }
   async function doSave() {
@@ -115,12 +124,21 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
             </>
           ) : !email ? (
             <>
-              <p className="small" style={{ marginBottom: 4 }}>✓ Connected <span className="muted">({source === 'env' ? 'from environment' : 'this device'})</span>. Sign in to sync across devices.</p>
-              <label className="fld"><span className="fld-l">Email — magic link (no password)</span><input className="input" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendLink()} placeholder="you@example.com" /></label>
+              <p className="small" style={{ marginBottom: 4 }}>✓ Connected <span className="muted">({source === 'env' ? 'from environment' : 'this device'})</span>. Sign in to sync across devices — passwordless.</p>
+              <label className="fld"><span className="fld-l">Email</span><input className="input" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendLink()} placeholder="you@example.com" /></label>
+              {sent && (
+                <label className="fld"><span className="fld-l">6-digit code from the email</span>
+                  <div className="flex" style={{ gap: 8 }}>
+                    <input className="input mono" style={{ letterSpacing: '0.3em', maxWidth: 140 }} inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => e.key === 'Enter' && verifyCode()} placeholder="123456" />
+                    <button className="btn primary sm" onClick={verifyCode} disabled={busy === 'verify' || code.length < 6}>{busy === 'verify' ? 'Verifying…' : 'Verify code'}</button>
+                  </div>
+                </label>
+              )}
               <div className="wrap-gap">
-                <button className="btn primary sm" onClick={sendLink} disabled={busy === 'login' || !loginEmail.trim()}>{busy === 'login' ? 'Sending…' : 'Send magic link'}</button>
+                <button className={`btn sm ${sent ? 'ghost' : 'primary'}`} onClick={sendLink} disabled={busy === 'login' || !loginEmail.trim()}>{busy === 'login' ? 'Sending…' : sent ? 'Resend' : 'Send sign-in email'}</button>
                 {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
               </div>
+              {sent && <p className="small muted" style={{ marginTop: 8 }}>The <b>code</b> is the reliable way — links can be consumed by email scanners. If you don’t see a code in the email, add <span className="mono">{'{{ .Token }}'}</span> to your Supabase “Magic Link” email template.</p>}
             </>
           ) : (
             <>

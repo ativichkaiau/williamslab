@@ -119,6 +119,13 @@ export async function signInEmail(email: string): Promise<void> {
   const { error } = await c.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin + location.pathname } })
   if (error) throw error
 }
+// Verify the 6-digit code from the email — immune to link prefetching / expiry.
+export async function verifyEmailCode(email: string, token: string): Promise<void> {
+  const c = await loadClient()
+  if (!c) throw new Error('Cloud not configured.')
+  const { error } = await c.auth.verifyOtp({ email: email.trim(), token: token.trim(), type: 'email' })
+  if (error) throw error
+}
 export async function signOut(): Promise<void> {
   await (await loadClient())?.auth.signOut()
 }
