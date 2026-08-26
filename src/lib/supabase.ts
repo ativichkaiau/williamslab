@@ -126,6 +126,21 @@ export async function verifyEmailCode(email: string, token: string): Promise<voi
   const { error } = await c.auth.verifyOtp({ email: email.trim(), token: token.trim(), type: 'email' })
   if (error) throw error
 }
+// Password auth — no email at all (disable "Confirm email" in Supabase so
+// sign-up needs no confirmation link). Sidesteps the built-in email rate limit.
+export async function signInPassword(email: string, password: string): Promise<void> {
+  const c = await loadClient()
+  if (!c) throw new Error('Cloud not configured.')
+  const { error } = await c.auth.signInWithPassword({ email: email.trim(), password })
+  if (error) throw error
+}
+export async function signUpPassword(email: string, password: string): Promise<{ needsConfirm: boolean }> {
+  const c = await loadClient()
+  if (!c) throw new Error('Cloud not configured.')
+  const { data, error } = await c.auth.signUp({ email: email.trim(), password })
+  if (error) throw error
+  return { needsConfirm: !data.session } // no immediate session ⇒ email confirmation is on
+}
 export async function signOut(): Promise<void> {
   await (await loadClient())?.auth.signOut()
 }

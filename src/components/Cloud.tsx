@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import {
   isCloudConfigured, cloudConfigSource, setCloudConfig,
-  signInEmail, verifyEmailCode, signOut, onAuth,
+  signInEmail, verifyEmailCode, signInPassword, signUpPassword, signOut, onAuth,
   saveCloudState, restoreCloudState, cloudStateInfo, shareProject,
 } from '../lib/supabase'
 
@@ -26,6 +26,8 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
   const [loginEmail, setLoginEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
+  const [method, setMethod] = useState<'code' | 'password'>('password')
+  const [password, setPassword] = useState('')
 
   // track auth state
   useEffect(() => {
@@ -78,6 +80,23 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
     catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'That code is invalid or expired — send a fresh one.' }) }
     finally { setBusy(null) }
   }
+  async function pwSignIn() {
+    if (!loginEmail.trim() || !password) return
+    setBusy('pw'); setMsg(null)
+    try { await signInPassword(loginEmail, password); setPassword('') /* onAuth flips */ }
+    catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Sign-in failed.' }) }
+    finally { setBusy(null) }
+  }
+  async function pwSignUp() {
+    if (!loginEmail.trim() || password.length < 6) { setMsg({ ok: false, text: 'Use a password of at least 6 characters.' }); return }
+    setBusy('pw'); setMsg(null)
+    try {
+      const { needsConfirm } = await signUpPassword(loginEmail, password)
+      if (needsConfirm) setMsg({ ok: false, text: 'Account made, but Supabase wants email confirmation. Turn off Authentication → Providers → Email → “Confirm email”, then Sign in.' })
+      else { setPassword('') /* onAuth flips */ }
+    } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Sign-up failed.' }) }
+    finally { setBusy(null) }
+  }
   async function doSave() {
     setBusy('save'); setMsg(null)
     try { await saveCloudState(); setCloudInfo(await cloudStateInfo()); setMsg({ ok: true, text: 'Saved this workspace to the cloud.' }) }
@@ -124,21 +143,40 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
             </>
           ) : !email ? (
             <>
-              <p className="small" style={{ marginBottom: 4 }}>✓ Connected <span className="muted">({source === 'env' ? 'from environment' : 'this device'})</span>. Sign in to sync across devices — passwordless.</p>
-              <label className="fld"><span className="fld-l">Email</span><input className="input" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendLink()} placeholder="you@example.com" /></label>
-              {sent && (
-                <label className="fld"><span className="fld-l">6-digit code from the email</span>
-                  <div className="flex" style={{ gap: 8 }}>
-                    <input className="input mono" style={{ letterSpacing: '0.3em', maxWidth: 140 }} inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => e.key === 'Enter' && verifyCode()} placeholder="123456" />
-                    <button className="btn primary sm" onClick={verifyCode} disabled={busy === 'verify' || code.length < 6}>{busy === 'verify' ? 'Verifying…' : 'Verify code'}</button>
-                  </div>
-                </label>
-              )}
-              <div className="wrap-gap">
-                <button className={`btn sm ${sent ? 'ghost' : 'primary'}`} onClick={sendLink} disabled={busy === 'login' || !loginEmail.trim()}>{busy === 'login' ? 'Sending…' : sent ? 'Resend' : 'Send sign-in email'}</button>
-                {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
+              <p className="small" style={{ marginBottom: 8 }}>✓ Connected <span className="muted">({source === 'env' ? 'from environment' : 'this device'})</span>. Sign in to sync across devices.</p>
+              <label className="fld"><span className="fld-l">Email</span><input className="input" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="you@example.com" /></label>
+              <div className="seg" style={{ marginBottom: 10 }}>
+                <button className={`seg-b${method === 'password' ? ' on' : ''}`} onClick={() => setMethod('password')}>Password</button>
+                <button className={`seg-b${method === 'code' ? ' on' : ''}`} onClick={() => setMethod('code')}>Email code</button>
               </div>
-              {sent && <p className="small muted" style={{ marginTop: 8 }}>The <b>code</b> is the reliable way — links can be consumed by email scanners. If you don’t see a code in the email, add <span className="mono">{'{{ .Token }}'}</span> to your Supabase “Magic Link” email template.</p>}
+
+              {method === 'password' ? (
+                <>
+                  <label className="fld"><span className="fld-l">Password</span><input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pwSignIn()} placeholder="••••••••" /></label>
+                  <div className="wrap-gap">
+                    <button className="btn primary sm" onClick={pwSignIn} disabled={busy === 'pw' || !loginEmail.trim() || !password}>{busy === 'pw' ? '…' : 'Sign in'}</button>
+                    <button className="btn ghost sm" onClick={pwSignUp} disabled={busy === 'pw' || !loginEmail.trim() || password.length < 6}>Create account</button>
+                    {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
+                  </div>
+                  <p className="small muted" style={{ marginTop: 8 }}>No email needed — turn off <b>Confirm email</b> once in Supabase (Authentication → Providers → Email), then <b>Create account</b>. Avoids the email rate limit entirely.</p>
+                </>
+              ) : (
+                <>
+                  {sent && (
+                    <label className="fld"><span className="fld-l">6-digit code from the email</span>
+                      <div className="flex" style={{ gap: 8 }}>
+                        <input className="input mono" style={{ letterSpacing: '0.3em', maxWidth: 140 }} inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => e.key === 'Enter' && verifyCode()} placeholder="123456" />
+                        <button className="btn primary sm" onClick={verifyCode} disabled={busy === 'verify' || code.length < 6}>{busy === 'verify' ? 'Verifying…' : 'Verify code'}</button>
+                      </div>
+                    </label>
+                  )}
+                  <div className="wrap-gap">
+                    <button className={`btn sm ${sent ? 'ghost' : 'primary'}`} onClick={sendLink} disabled={busy === 'login' || !loginEmail.trim()}>{busy === 'login' ? 'Sending…' : sent ? 'Resend' : 'Send code'}</button>
+                    {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
+                  </div>
+                  <p className="small muted" style={{ marginTop: 8 }}>Built-in email is rate-limited (~2–4/hour). If it’s exhausted, use <b>Password</b> above, or set up custom SMTP in Supabase. Add <span className="mono">{'{{ .Token }}'}</span> to the Magic Link email template to see the code.</p>
+                </>
+              )}
             </>
           ) : (
             <>
