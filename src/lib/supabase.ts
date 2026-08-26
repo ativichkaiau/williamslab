@@ -34,7 +34,33 @@ function config(): { url: string; key: string } | null {
   }
   url = url || env('VITE_SUPABASE_URL')
   key = key || env('VITE_SUPABASE_ANON_KEY')
+  // Always use the bare origin — a stray path segment makes the API gateway
+  // reject requests with "Invalid path specified in request URL".
+  if (url) {
+    try {
+      url = new URL(url.startsWith('http') ? url : `https://${url}`).origin
+    } catch {
+      /* leave as-is; setCloudConfig validates on entry */
+    }
+  }
   return url && key ? { url, key } : null
+}
+
+// Validate + normalise a project URL. Returns an error string, or the clean
+// origin. Catches the two common mistakes: a pasted path, and the dashboard URL.
+export function normalizeSupabaseUrl(raw: string): { origin?: string; error?: string } {
+  const t = raw.trim()
+  if (!t) return { error: 'Enter your Supabase project URL.' }
+  let u: URL
+  try {
+    u = new URL(t.startsWith('http') ? t : `https://${t}`)
+  } catch {
+    return { error: 'That does not look like a valid URL.' }
+  }
+  if (u.hostname === 'supabase.com' || u.hostname.includes('dashboard')) {
+    return { error: 'That is the dashboard URL. Use the Project URL from Settings → API — it looks like https://<ref>.supabase.co' }
+  }
+  return { origin: u.origin }
 }
 
 export function isCloudConfigured(): boolean {
@@ -48,19 +74,26 @@ export function cloudConfigSource(): 'settings' | 'env' | 'none' {
   }
   return env('VITE_SUPABASE_URL') && env('VITE_SUPABASE_ANON_KEY') ? 'env' : 'none'
 }
-export function setCloudConfig(url: string, key: string) {
+// Returns an error message if the config is rejected, else null (and saves it).
+export function setCloudConfig(url: string, key: string): string | null {
+  const k = key.trim()
+  const raw = url.trim()
+  clientPromise = null // force re-create with new config
+  if (!raw && !k) {
+    try { localStorage.removeItem(URL_LS); localStorage.removeItem(KEY_LS) } catch { /* ignore */ }
+    return null
+  }
+  if (!raw || !k) return 'Enter both the project URL and the anon key.'
+  const { origin, error } = normalizeSupabaseUrl(raw)
+  if (error) return error
+  if (/^sb_secret_/i.test(k) || k.length < 20) return 'That key looks wrong — use the anon public key (Settings → API), never the service_role / secret key.'
   try {
-    if (url.trim() && key.trim()) {
-      localStorage.setItem(URL_LS, url.trim().replace(/\/$/, ''))
-      localStorage.setItem(KEY_LS, key.trim())
-    } else {
-      localStorage.removeItem(URL_LS)
-      localStorage.removeItem(KEY_LS)
-    }
+    localStorage.setItem(URL_LS, origin!)
+    localStorage.setItem(KEY_LS, k)
   } catch {
     /* ignore */
   }
-  clientPromise = null // force re-create with new config
+  return null
 }
 
 // supabase-js is ~130 kB gzipped — lazy-load it only when cloud is actually

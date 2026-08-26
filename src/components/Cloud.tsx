@@ -50,10 +50,12 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
   }, [email, autoSync])
 
   function saveConfig() {
-    setCloudConfig(url, key)
+    const err = setCloudConfig(url, key)
+    if (err) { setMsg({ ok: false, text: err }); return }
+    setUrl(''); setKey('')
     setConfigured(isCloudConfigured())
     setSource(cloudConfigSource())
-    setMsg(isCloudConfigured() ? { ok: true, text: 'Connected. Sign in with your email below.' } : { ok: false, text: 'Enter both the project URL and the anon key.' })
+    setMsg({ ok: true, text: 'Connected. Sign in with your email below.' })
   }
   function disconnect() {
     if (!confirm('Disconnect this device from the cloud? Your local data stays; sign-in and sync stop.')) return
