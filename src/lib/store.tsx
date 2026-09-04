@@ -86,7 +86,7 @@ interface StoreCtx {
   activeId: string
   switchProject: (id: string) => void
   createProject: (name: string, code?: string, opts?: { question?: string; index?: string; comparator?: string; outcome?: string }) => string
-  renameProject: (id: string, name: string) => void
+  patchProjectById: (id: string, patch: Partial<Project>) => void
   updateProject: (patch: Partial<Project>) => void
   deleteProject: (id: string) => void
   setStage: (stage: string) => void
@@ -331,9 +331,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return id
     },
     updateProject: (patch) => setState((s) => ({ ...s, project: { ...s.project, ...patch } })),
-    renameProject: (id, name) => {
+    patchProjectById: (id, patch) => {
       const a = appRef.current
-      apply({ ...a, projects: a.projects.map((p) => (p.project.id === id ? { ...p, project: { ...p.project, name } } : p)) })
+      apply({ ...a, projects: a.projects.map((p) => (p.project.id === id ? { ...p, project: { ...p.project, ...patch } } : p)) })
     },
     deleteProject: (id) => {
       const a = appRef.current
