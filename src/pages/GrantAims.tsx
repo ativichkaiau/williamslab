@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard, HypBadge } from '../components/ui'
 import { Markdown } from '../components/Markdown'
@@ -74,7 +75,7 @@ export default function GrantAims() {
       </div>
 
       {plan.aims.length === 0 ? (
-        <div className="card" style={{ borderLeft: '4px solid var(--amber)' }}>
+        <div className="card note">
           <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />NO AIMS YET</div>
           <p className="small">A Specific Aim is built from a <b>hypothesis</b> plus the <b>assays</b> that test it. Add hypotheses on the Hypotheses page and link assays to them (an assay's “claims”), then they appear here as aims with power and budget.{plan.orphanHyps.length ? ` You have ${plan.orphanHyps.length} hypothesis/-es but none has a linked assay yet.` : ''}</p>
         </div>
@@ -88,7 +89,7 @@ export default function GrantAims() {
           </div>
 
           {aiText && (
-            <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--violet, #7c3aed)' }}>
+            <div className="card lg rail" style={{ marginBottom: 16, ['--rail' as string]: 'var(--violet, #7c3aed)' } as CSSProperties}>
               <div className="card-h"><span className="sq" style={{ background: 'var(--violet, #7c3aed)' }} />AI-POLISHED SPECIFIC AIMS{aiOn ? ' · streaming…' : ''}</div>
               <Markdown text={aiText} />
             </div>

@@ -85,7 +85,7 @@ export default function Manuscript() {
       </div>
 
       {aiText && (
-        <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent, var(--blue))' }}>
+        <div className="card lg rail" style={{ marginBottom: 16 }}>
           <div className="card-h"><span className="sq" style={{ background: 'var(--accent, var(--blue))' }} />AI-POLISHED ABSTRACT &amp; DISCUSSION</div>
           <Markdown text={aiText} />
         </div>

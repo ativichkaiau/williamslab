@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard } from '../components/ui'
@@ -48,7 +49,7 @@ export default function LitLink() {
       </div>
 
       {about && (
-        <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent, #0891b2)' }}>
+        <div className="card lg rail" style={{ marginBottom: 16 }}>
           <div className="card-h"><span className="sq" style={{ background: '#0891b2' }} />WHY LITLINK WORKS THIS WAY</div>
           <div className="grid g2">
             <div>
@@ -232,7 +233,7 @@ function GroupDetail({ group, ll, onBack }: { group: LitGroup; ll: ReturnType<ty
       </div>
 
       {ai && (
-        <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent, #0891b2)' }}>
+        <div className="card lg rail" style={{ marginBottom: 16 }}>
           <div className="card-h" style={{ justifyContent: 'space-between' }}>
             <span><span className="sq" style={{ background: '#0891b2' }} />{ai.kind === 'reading' ? 'AI · FOUNDATIONAL READING PLAN' : 'AI · RESEARCH-QUESTION CRITIQUE'}{ai.on ? ' · streaming…' : ''}</span>
             <span className="flex" style={{ gap: 8 }}>
@@ -280,7 +281,7 @@ function GroupDetail({ group, ll, onBack }: { group: LitGroup; ll: ReturnType<ty
       })}
 
       {/* outcome */}
-      <div className="card lg" style={{ borderLeft: '4px solid var(--green)' }}>
+      <div className="card lg rail" style={{ ['--rail' as string]: 'var(--green)' } as CSSProperties}>
         <div className="card-h"><span className="sq" style={{ background: 'var(--green)' }} />OUTCOME · the endpoint is flexible</div>
         <div className="seg" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
           {(Object.keys(OUTCOME_META) as GroupOutcome[]).map((o) => (

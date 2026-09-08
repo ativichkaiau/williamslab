@@ -38,7 +38,7 @@ export default function DiagnosticMA() {
       </div>
 
       {!res ? (
-        <div className="card" style={{ borderLeft: '4px solid var(--amber)' }}>
+        <div className="card note">
           <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />NEEDS ≥ 2 STUDIES</div>
           <p className="small">Add at least two diagnostic-accuracy 2×2 tables (true/false positives &amp; negatives) with the <b>include</b> box ticked. Each row is one study of an index test versus a reference standard.</p>
           <button className="btn primary sm" style={{ marginTop: 10 }} onClick={addDx}>＋ Add the first 2×2</button>

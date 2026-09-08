@@ -37,7 +37,7 @@ This is a **frontend-first MVP** — a thinking-and-planning cockpit over one sh
 - **Knowledge Review** — an AI-powered, high-yield review of Brugada Syndrome (OpenAI, streaming), tied to your project's hypotheses. Topic presets + free-form Q&A. See setup below.
 - **✦ Ask AI copilot** — a global, context-aware assistant available on **every page** (floating dock). It knows the current page and your project, and streams answers on BrS science, study design, stats and the app. Uses the same OpenAI key as Knowledge Review.
 
-The UI uses a **claymorphism** treatment (soft, puffy surfaces with layered inset highlights) over the Williams 1993 livery palette.
+The UI uses a minimal Williams 1993 livery treatment: flat surfaces, fine borders, slim racing stripes, and restrained colour accents in both Day and Night themes.
 
 ### Knowledge Review — OpenAI setup
 

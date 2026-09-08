@@ -152,7 +152,7 @@ export default function MetaAnalysis() {
             {Object.entries(GROUPINGS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </div>
-        <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+        <div className="tbl-scroll" style={{ border: 'none' }}>
           <table>
             <thead><tr><th>Subgroup</th><th>k</th><th>Pooled {r.effect} [95% CI]</th><th>I²</th></tr></thead>
             <tbody>{sub.groups.map((g) => <tr key={g.name}><td><b>{g.name}</b></td><td className="mono">{g.k}</td><td className="mono">{fmt(g.est)} [{fmt(g.low)}, {fmt(g.high)}]</td><td className="mono">{fmt(g.I2, 0)}%</td></tr>)}</tbody>
@@ -166,7 +166,7 @@ export default function MetaAnalysis() {
           <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />SENSITIVITY · LEAVE-ONE-OUT</div>
           {loo.length === 0 ? <p className="empty">Needs ≥3 pooled studies.</p> : (
             <>
-              <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+              <div className="tbl-scroll" style={{ border: 'none' }}>
                 <table><thead><tr><th>Omitting</th><th>Pooled {r.effect} [95% CI]</th></tr></thead><tbody>{loo.map((x) => <tr key={x.excluded}><td>{x.excluded}</td><td className="mono">{fmt(x.est)} [{fmt(x.low)}, {fmt(x.high)}]</td></tr>)}</tbody></table>
               </div>
               {looRange && <p className="small" style={{ marginTop: 10 }}>Pooled {r.effect} ranges <b>{fmt(looRange.min)}–{fmt(looRange.max)}</b> across omissions — {(looRange.min > meta.refValue) === (looRange.max > meta.refValue) ? 'the direction is robust to any single study' : 'the conclusion is sensitive to individual studies'}.</p>}
@@ -214,7 +214,7 @@ export default function MetaAnalysis() {
                 <text x={4} y={by0 + 4} fontSize="8.5" fill="var(--muted)" fontFamily="var(--mono)">influence ↑</text>
                 <text x={BW / 2} y={BH - 4} textAnchor="middle" fontSize="9" fill="var(--muted)" fontFamily="var(--mono)">contribution to heterogeneity (Q) →</text>
               </svg>
-              <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+              <div className="tbl-scroll" style={{ border: 'none' }}>
                 <table>
                   <thead><tr><th>Study</th><th>Q contrib.</th><th>Influence</th><th>{r.effect} omitting</th></tr></thead>
                   <tbody>
@@ -235,7 +235,7 @@ export default function MetaAnalysis() {
           <div className="card-h"><span className="sq" style={{ background: 'var(--violet)' }} />CUMULATIVE · CHRONOLOGICAL</div>
           {cum.length < 2 ? <p className="empty">Needs ≥2 pooled studies with years.</p> : (
             <>
-              <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+              <div className="tbl-scroll" style={{ border: 'none' }}>
                 <table><thead><tr><th>Through</th><th>k</th><th>Pooled {r.effect} [95% CI]</th></tr></thead>
                   <tbody>{cum.map((x, i) => <tr key={i}><td>{x.label}</td><td className="mono">{x.k}</td><td className="mono">{fmt(x.est)} [{fmt(x.low)}, {fmt(x.high)}]</td></tr>)}</tbody>
                 </table>
@@ -295,7 +295,7 @@ export default function MetaAnalysis() {
           <span className="grade-badge" style={{ background: CERT[grade.certainty] }}>⊕ {grade.certainty}</span>
           <span className="small">Outcome: <b>{r.outcomeLabel}</b> · {grade.startLabel}</span>
         </div>
-        <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+        <div className="tbl-scroll" style={{ border: 'none' }}>
           <table>
             <thead><tr><th>Domain</th><th>Judgment</th><th>Δ certainty</th></tr></thead>
             <tbody>
@@ -336,7 +336,7 @@ export default function MetaAnalysis() {
         <p className="small" style={{ marginTop: 10 }}>Summary of findings: {meta.k} studies, {binary ? `${totalEvents} events / ` : ''}{totalN} participants; pooled {r.effect} {fmt(meta.pooledEst)} [{fmt(meta.pooledLow)}, {fmt(meta.pooledHigh)}]{abs ? `; NNT ${Number.isFinite(abs.nnt) ? Math.ceil(abs.nnt) : '∞'} at ${Math.round(cerVal * 100)}% baseline risk` : ''}; <b style={{ color: CERT[grade.certainty] }}>{grade.certainty}</b> certainty of evidence.</p>
       </div>
 
-      <div className="card lg" style={{ marginTop: 16, borderLeft: '4px solid var(--accent, var(--blue))' }}>
+      <div className="card lg rail" style={{ marginTop: 16 }}>
         <div className="card-h" style={{ justifyContent: 'space-between' }}>
           <span><span className="sq" style={{ background: 'var(--accent, var(--blue))' }} />RESULTS PARAGRAPH · AI DRAFT</span>
           {aiOn ? <button className="icon-btn" onClick={() => abortRef.current?.abort()}>Stop</button> : <button className="btn primary sm" onClick={draft}>✦ Draft</button>}

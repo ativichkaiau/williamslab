@@ -94,14 +94,14 @@ export default function Garage() {
         </div>
       </div>
 
-      <div className="grid g4" style={{ marginBottom: 16 }}>
+      <div className="grid g4 overview-stats">
         <StatCard value={`${Math.round(stability * 100)}%`} label="Project rigor" sub={`${open.length} open flags`} tone="#1746d1" />
         <StatCard value={state.hypotheses.length} label="Hypotheses" sub="on the graph" tone="#7c3aed" />
         <StatCard value={state.assays.length} label="Assays planned" sub={`${state.assays.filter((a) => a.status === 'running' || a.status === 'piloting').length} in progress`} tone="#12b981" />
         <StatCard value={state.nodes.length} label="Graph nodes" sub={`${state.edges.length} edges`} tone="#f59e0b" />
       </div>
 
-      <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid #0d9488', background: 'linear-gradient(180deg, color-mix(in srgb,#0d9488 7%, var(--card)), var(--card))' }}>
+      <div className="card lg overview-review">
         <div className="card-h"><span className="sq" style={{ background: '#0d9488' }} />SYSTEMATIC REVIEW &amp; META-ANALYSIS</div>
         <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>{state.review.title}</p>
         <p className="small" style={{ marginBottom: 12 }}>{state.review.question}</p>
@@ -195,7 +195,7 @@ export default function Garage() {
         ))}
       </div>
 
-      <div className="flex" style={{ marginTop: 18, justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="flex overview-tools">
         <div className="wrap-gap">
           <button className="btn ghost sm" onClick={doExport}>⤓ Export project (JSON)</button>
           <button className="btn ghost sm" onClick={() => fileRef.current?.click()}>⤒ Import project</button>

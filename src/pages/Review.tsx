@@ -156,7 +156,7 @@ export default function Review() {
       </div>
 
       {src === 'none' && (
-        <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--amber)' }}>
+        <div className="card lg note" style={{ marginBottom: 16 }}>
           <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />NO API KEY</div>
           <p className="small" style={{ marginBottom: 12 }}>Add your OpenAI API key to start. It is stored only in this browser (localStorage) and never leaves your machine except in calls to OpenAI.</p>
           <button className="btn primary sm" onClick={() => { setKeyDraft(''); setSettings(true) }}>Add API key</button>

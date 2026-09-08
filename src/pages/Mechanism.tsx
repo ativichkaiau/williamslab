@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useStore } from '../lib/store'
 import GraphView, { type GraphHandle } from '../components/GraphView'
 import { Kicker, Rule } from '../components/ui'
@@ -129,7 +130,7 @@ export default function Mechanism() {
             )}
           </div>
 
-          <div className="card" style={{ borderLeft: '4px solid var(--red)' }}>
+          <div className="card rail" style={{ ['--rail' as string]: 'var(--red)' } as CSSProperties}>
             <div className="card-h"><span className="sq" style={{ background: 'var(--red)' }} />BRIDGE THE WEAK LINKS</div>
             {weakEdges.length === 0 ? (
               <p className="empty">No unproven links — every mechanistic edge has support or an assay.</p>
