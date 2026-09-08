@@ -34,7 +34,9 @@ html,body,#root{height:100%}
 body{
   margin:0; font-family:var(--sans); color:var(--ink); background:var(--paper);
   -webkit-font-smoothing:antialiased; line-height:1.5; letter-spacing:-.01em;
-  overflow-x:hidden; /* contain the off-canvas drawer + any wide figure */
+  overflow-x:clip; /* contain the off-canvas drawer + any wide figure. clip, not hidden:
+     hidden coerces overflow-y to auto, making body its own scroll container, and
+     page scroll has to stay on the document for window.scrollY to track it */
 }
 h1,h2,h3,h4{margin:0; line-height:1.16; letter-spacing:-.025em; font-weight:650}
 p{margin:0}
@@ -793,6 +795,54 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
   .modal-x, .ai-x, .stage-pill, .read-toggle, .tool-toggle, .proj-chip{
     display:inline-flex; align-items:center; justify-content:center }
 }
+
+/* ============================================================
+   Livery motion — 1993 Williams: skewed racing stripes that sweep
+   in, and scroll read out as telemetry. The time-based animations
+   here are all neutralised by the reduced-motion block at the end
+   of this file; the scroll-driven pieces are JS-gated instead, in
+   lib/motion.ts, which declines to run under the same preference.
+   ============================================================ */
+
+@keyframes lv-stripe{from{transform:skewX(-28deg) scaleX(0)}to{transform:skewX(-28deg) scaleX(1)}}
+@keyframes lv-wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes lv-bar{from{transform:scaleY(.2); opacity:0}to{transform:scaleY(1); opacity:1}}
+@keyframes lv-in{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+@keyframes lv-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* the three racing stripes streak in, staggered — the page's signature */
+.rule i{transform-origin:0 50%; animation:lv-stripe .42s cubic-bezier(.2,.8,.2,1) both}
+.rule i:nth-child(2){animation-delay:.07s}
+.rule i:nth-child(3){animation-delay:.14s}
+
+/* page header settles in behind them */
+.page-head .kicker{animation:lv-in .4s ease both}
+.page-head h1{animation:lv-in .45s .05s ease both}
+
+/* the topbar livery bar wipes across once, on load */
+.topbar::before{transform-origin:0 50%; animation:lv-wipe .7s cubic-bezier(.2,.8,.2,1) both}
+
+/* the active nav marker grows into place */
+.sb-link.active::before{animation:lv-bar .26s cubic-bezier(.2,.8,.2,1) both}
+
+/* live telemetry tick on the assistant */
+.ai-fab .rdot{animation:lv-pulse 2.4s ease-in-out infinite}
+
+/* press feedback, skewed like the livery */
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn{transition:background .12s, border-color .12s, color .12s, transform .08s}
+
+/* ---- scroll: progress telemetry + section reveal ----
+   Driven from JS (lib/motion.ts), not CSS scroll timelines: this app's root is
+   height-constrained (html,body,#root{height:100%}), so scroll()/view() can't
+   resolve a scrollport here. The reveal fails safe — if .lv-hide is ever
+   dropped by a re-render the section is simply visible. */
+.tb-progress{position:absolute; left:0; right:0; bottom:-1px; height:2px; transform-origin:0 50%;
+  transform:scaleX(var(--scroll-progress,0)); pointer-events:none;
+  background:linear-gradient(90deg,var(--navy),var(--blue) 55%,var(--red) 82%,var(--yellow))}
+.lv-hide{opacity:.28; transform:translateY(10px)}
+.lv-show{opacity:1; transform:none;
+  transition:opacity .45s cubic-bezier(.2,.8,.2,1), transform .45s cubic-bezier(.2,.8,.2,1)}
 
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important}
