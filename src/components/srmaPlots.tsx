@@ -151,7 +151,7 @@ export function RobPlot({ studies, domains }: { studies: Study[]; domains: strin
   }
   const cols = [...domains, 'Overall']
   const dot = (lvl: RobLevel | undefined) => (
-    <span style={{ display: 'inline-block', width: 15, height: 15, borderRadius: '50%', background: ROB_COLOR[lvl ?? 'some'], boxShadow: 'inset 0 -2px 3px rgba(0,0,0,.18)' }} />
+    <span style={{ display: 'inline-block', width: 15, height: 15, borderRadius: '50%', background: ROB_COLOR[lvl ?? 'some'] }} />
   )
   const levels: RobLevel[] = ['low', 'some', 'high']
   const barFor = (col: string) => {

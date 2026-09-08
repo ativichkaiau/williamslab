@@ -54,7 +54,7 @@ export default function References() {
       </div>
 
       {refs.length === 0 ? (
-        <div className="card" style={{ borderLeft: '4px solid var(--amber)' }}>
+        <div className="card note">
           <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />NO REFERENCES YET</div>
           <p className="small">Add references on the <b>Literature</b> page (→ Graph) or include studies on the <b>Studies</b> page — they appear here automatically, de-duplicated and cite-keyed.</p>
         </div>

@@ -211,7 +211,7 @@ export default function Power() {
       </div>
 
       <div className="card" style={{ padding: 0 }}>
-        <div className="tbl-scroll" style={{ border: 'none', boxShadow: 'none' }}>
+        <div className="tbl-scroll" style={{ border: 'none' }}>
           <table>
             <thead>
               <tr>

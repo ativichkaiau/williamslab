@@ -73,7 +73,7 @@ export default function Portfolio() {
       </div>
 
       {adding && (
-        <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--accent, var(--blue))' }}>
+        <div className="card lg rail" style={{ marginBottom: 16 }}>
           <div className="card-h"><span className="sq" style={{ background: 'var(--accent, var(--blue))' }} />NEW PROJECT</div>
           <div className="grid g2">
             <label className="fld"><span className="fld-l">Project name</span><input className="input" autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && create()} placeholder="e.g. SCN5A variants and arrhythmic risk" /></label>

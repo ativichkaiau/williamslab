@@ -57,7 +57,7 @@ export default function Prisma() {
             ))}
           </div>
 
-          <div className="card" style={{ borderLeft: '4px solid var(--accent, var(--blue))' }}>
+          <div className="card rail">
             <p className="small">Screening runs in your dedicated app.</p>
             <a className="btn ghost sm" href={state.review.screenerUrl} target="_blank" rel="noreferrer" style={{ marginTop: 8 }}>Open the SRMA screener ↗</a>
           </div>

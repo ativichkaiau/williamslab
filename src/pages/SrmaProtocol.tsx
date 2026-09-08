@@ -125,7 +125,7 @@ export default function SrmaProtocol() {
             <div className="kv"><span className="k">Risk of bias</span><span className="val">{r.robTool ? <><b>{r.robTool}</b> — </> : null}{r.robDomains.join(', ')}</span></div>
             <div className="kv"><span className="k">Reporting</span><span className="val">PRISMA 2020</span></div>
           </div>
-          <div className="card lg" style={{ borderLeft: '4px solid var(--accent, var(--blue))' }}>
+          <div className="card lg rail">
             <div className="card-h"><span className="sq" style={{ background: 'var(--accent, var(--blue))' }} />SCREENING</div>
             <p className="small" style={{ marginBottom: 12 }}>Title/abstract and full-text screening run in your dedicated screener. Its counts feed the <b>PRISMA flow</b> here.</p>
             <a className="btn primary" href={r.screenerUrl} target="_blank" rel="noreferrer">Open the SRMA screener ↗</a>

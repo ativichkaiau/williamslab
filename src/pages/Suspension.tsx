@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { Kicker, Rule, SevDot } from '../components/ui'
@@ -189,7 +190,7 @@ export default function Suspension() {
       </div>
 
       {(aiText || aiStreaming || aiError) && (
-        <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--blue)' }}>
+        <div className="card lg rail" style={{ marginBottom: 16, ['--rail' as string]: 'var(--blue)' } as CSSProperties}>
           <div className="card-h" style={{ justifyContent: 'space-between' }}>
             <span><span className="sq" style={{ background: 'var(--blue)' }} />AI REVIEW · {getModel()}</span>
             {aiStreaming ? <button className="icon-btn" onClick={() => abortRef.current?.abort()}>Stop</button> : <button className="icon-btn" onClick={() => setAiText('')}>Dismiss</button>}

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { AssayStatus, HypothesisStatus, Severity } from '../types'
 import { SEVERITY_COLOR } from '../lib/palette'
 
@@ -12,7 +13,7 @@ export function Kicker({ children }: { children: React.ReactNode }) {
 
 export function Rule() {
   return (
-    <span className="rule">
+    <span className="rule" aria-hidden="true">
       <i className="b" />
       <i className="r" />
       <i className="y" />
@@ -55,8 +56,8 @@ export function SevDot({ severity, label }: { severity: Severity; label?: string
 
 export function StatCard({ value, label, sub, tone }: { value: React.ReactNode; label: string; sub?: string; tone?: string }) {
   return (
-    <div className="stat" style={tone ? { borderTopColor: tone } : undefined}>
-      <b style={tone ? { color: tone } : undefined}>{value}</b>
+    <div className="stat" style={tone ? { '--stat-tone': tone } as CSSProperties : undefined}>
+      <b>{value}</b>
       <span>{label}</span>
       {sub && <div className="sub">{sub}</div>}
     </div>

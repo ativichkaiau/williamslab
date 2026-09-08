@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
@@ -228,7 +229,7 @@ export default function Radar() {
         <p>Search PubMed live, triage hits for the review with AI, link them to a hypothesis, and send them straight into the SRMA extraction table. Saved searches flag what's new since you last looked.</p>
       </div>
 
-      <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--green)' }}>
+      <div className="card lg rail" style={{ marginBottom: 16, ['--rail' as string]: 'var(--green)' } as CSSProperties}>
         <div className="card-h" style={{ justifyContent: 'space-between' }}>
           <span><span className="sq" style={{ background: 'var(--green)' }} />LIVING REVIEW</span>
           <button className="btn primary sm" onClick={runLiving} disabled={living.running || saved.length === 0}>{living.running ? 'Re-running…' : `⟳ Re-run ${saved.length} saved search${saved.length === 1 ? '' : 'es'}`}</button>
@@ -341,7 +342,7 @@ export default function Radar() {
         )}
       </div>
 
-      <div className="card lg" style={{ marginBottom: 16, borderLeft: '4px solid var(--violet, #7c3aed)' }}>
+      <div className="card lg rail" style={{ marginBottom: 16, ['--rail' as string]: 'var(--violet, #7c3aed)' } as CSSProperties}>
         <div className="card-h"><span className="sq" style={{ background: 'var(--violet, #7c3aed)' }} />MULTI-SOURCE SEARCH · EUROPE PMC · CROSSREF · TRIALS</div>
         <p className="small" style={{ marginTop: -4, marginBottom: 12 }}>Search several databases at once and fuzzy-de-duplicate the union (by DOI, PMID, then near-identical title). Everything runs in your browser — no proxy, no key.</p>
         <div className="flex" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -422,7 +423,7 @@ export default function Radar() {
           </table>
         </div>
 
-        <div className="card" style={{ borderLeft: '4px solid var(--amber)' }}>
+        <div className="card note">
           <div className="card-h"><span className="sq" style={{ background: 'var(--amber)' }} />GAP MAP</div>
           {gaps.length === 0 ? (
             <p className="empty">Every hypothesis has literature on record.</p>

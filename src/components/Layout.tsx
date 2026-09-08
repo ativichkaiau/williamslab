@@ -5,6 +5,7 @@ import { SEVERITY_COLOR } from '../lib/palette'
 import AssistantDock from './AssistantDock'
 import CommandPalette from './CommandPalette'
 import Cloud from './Cloud'
+import { Rule } from './ui'
 
 // g-chord destinations (press "g" then the key)
 const GNAV: Record<string, string> = { o: '/', d: '/pit-wall', r: '/review', t: '/theory', k: '/graph', m: '/meta', s: '/studies', h: '/hypotheses', p: '/prisma' }
@@ -20,7 +21,6 @@ const SHORTCUTS: { keys: string; label: string }[] = [
 const NAV = [
   {
     group: 'OVERVIEW',
-    accent: '#1746d1',
     items: [
       { to: '/', label: 'Overview', icon: '⌂', color: '#1746d1', end: true },
       { to: '/portfolio', label: 'Portfolio', icon: '▦', color: '#7c3aed' },
@@ -30,7 +30,6 @@ const NAV = [
   },
   {
     group: 'SYSTEMATIC REVIEW',
-    accent: '#0d9488',
     items: [
       { to: '/radar', label: 'Literature', icon: '◎', color: '#f59e0b' },
       { to: '/protocol', label: 'Protocol', icon: '⊞', color: '#0d9488' },
@@ -47,7 +46,6 @@ const NAV = [
   },
   {
     group: 'EXPERIMENTS',
-    accent: '#7c3aed',
     items: [
       { to: '/hypotheses', label: 'Hypotheses', icon: '◆', color: '#7c3aed' },
       { to: '/mechanism', label: 'Mechanism Map', icon: '⇄', color: '#2f6bff' },
@@ -59,7 +57,6 @@ const NAV = [
   },
   {
     group: 'KNOWLEDGE',
-    accent: '#db2777',
     items: [
       { to: '/graph', label: 'Knowledge Graph', icon: '⬡', color: '#4f46e5' },
       { to: '/theory', label: 'BrS Theory', icon: '§', color: '#db2777' },
@@ -68,7 +65,7 @@ const NAV = [
   },
 ]
 
-// each route's signature accent (drives the page-head glow, kicker, stats, topbar)
+// Each route's signature accent is reserved for small navigation and header details.
 const ACCENT: Record<string, string> = Object.fromEntries(NAV.flatMap((g) => g.items.map((i) => [i.to, i.color])))
 
 const TITLES: Record<string, string> = {
@@ -214,12 +211,12 @@ export default function Layout() {
           </div>
           <button className="sb-close" onClick={() => setNavOpen(false)} aria-label="Close menu">✕</button>
         </div>
-        <nav className="sb-nav">
+        <nav className="sb-nav" aria-label="Main navigation">
           {NAV.map((g) => {
             const isCollapsed = collapsed.has(g.group)
             return (
-              <div className={`sb-sec${isCollapsed ? ' collapsed' : ''}`} key={g.group} style={{ ['--grp' as string]: g.accent } as CSSProperties}>
-                <button className="h" onClick={() => toggleGroup(g.group)} title={isCollapsed ? `Show ${g.group}` : `Hide ${g.group}`}>
+              <div className={`sb-sec${isCollapsed ? ' collapsed' : ''}`} key={g.group}>
+                <button className="h" onClick={() => toggleGroup(g.group)} aria-expanded={!isCollapsed} title={isCollapsed ? `Show ${g.group}` : `Hide ${g.group}`}>
                   <span className="chev">▾</span>
                   {g.group}
                 </button>
@@ -229,10 +226,10 @@ export default function Layout() {
                     to={it.to}
                     end={it.end}
                     onClick={() => setNavOpen(false)}
-                    style={{ ['--ic' as string]: g.accent } as CSSProperties}
+                    style={{ ['--ic' as string]: it.color } as CSSProperties}
                     className={({ isActive }) => `sb-link${isActive ? ' active' : ''}`}
                   >
-                    <span className="ic">{it.icon}</span>
+                    <span className="ic" aria-hidden="true">{it.icon}</span>
                     {it.label}
                     {it.to === '/suspension' && openFlags > 0 && (
                       <span className="fl" style={{ background: SEVERITY_COLOR.high }} title={`${openFlags} open`} />
@@ -288,14 +285,18 @@ export default function Layout() {
               </span>
               {Math.round(stability * 100)}%
             </span>
-            <span className="toggle" onClick={() => setTheme(theme === 'day' ? 'night' : 'day')}>
+            <button className="toggle" type="button" onClick={() => setTheme(theme === 'day' ? 'night' : 'day')} aria-label={`Switch to ${theme === 'day' ? 'night' : 'day'} theme`} aria-pressed={theme === 'night'}>
               {theme === 'day' ? '☀︎ Day' : '☾ Night'}
-            </span>
+            </button>
           </div>
         </div>
         <div className="content">
           <Outlet />
         </div>
+        <footer className="workspace-footer">
+          <span>WilliamsLab <span className="footer-slash" aria-hidden="true">/</span> Research OS</span>
+          <span className="footer-signature"><Rule /> Machine 03</span>
+        </footer>
       </div>
       <AssistantDock />
       <CommandPalette
