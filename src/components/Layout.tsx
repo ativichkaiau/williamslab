@@ -6,6 +6,7 @@ import AssistantDock from './AssistantDock'
 import CommandPalette from './CommandPalette'
 import Cloud from './Cloud'
 import { Rule } from './ui'
+import { useLiveryMotion } from '../lib/motion'
 
 // g-chord destinations (press "g" then the key)
 const GNAV: Record<string, string> = { o: '/', d: '/pit-wall', r: '/review', t: '/theory', k: '/graph', m: '/meta', s: '/studies', h: '/hypotheses', p: '/prisma' }
@@ -195,6 +196,8 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [nav])
 
+  useLiveryMotion(loc.pathname)
+
   const openFlags = instabilities.filter((i) => i.status === 'open').length
   const title = TITLES[loc.pathname] ?? 'WilliamsLab'
   const accent = ACCENT[loc.pathname] ?? '#1746d1'
@@ -289,6 +292,7 @@ export default function Layout() {
               {theme === 'day' ? '☀︎ Day' : '☾ Night'}
             </button>
           </div>
+          <i className="tb-progress" aria-hidden="true" />
         </div>
         <div className="content">
           <Outlet />
