@@ -5,7 +5,7 @@ import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { searchPubmed, type PubmedHit } from '../lib/pubmed'
 import { searchSources, crossrefByDoi, ALL_SOURCES, type SourceHit, type SourceName } from '../lib/sources'
-import { complete, parseJsonLoose, hasKey, getModel } from '../lib/openai'
+import { complete, parseJsonLoose, hasKey, getModel, type JsonSchemaResponseFormat } from '../lib/openai'
 import { listSearches, saveSearch, recordRun, removeSearch, findSearch, type SavedSearch } from '../lib/savedSearches'
 import { taStatus, advanced } from '../lib/screening'
 import type { ScreenRecord } from '../types'
@@ -21,6 +21,34 @@ const STANCE_CLASS: Record<string, string> = {
 type Verdict = 'include' | 'maybe' | 'exclude'
 const VERDICT_CLASS: Record<Verdict, string> = { include: 'v-include', maybe: 'v-maybe', exclude: 'v-exclude' }
 
+const TRIAGE_RESPONSE_FORMAT: JsonSchemaResponseFormat = {
+  type: 'json_schema',
+  json_schema: {
+    name: 'literature_triage',
+    strict: true,
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        results: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              pmid: { type: 'string' },
+              verdict: { type: 'string', enum: ['include', 'maybe', 'exclude'] },
+              reason: { type: 'string' },
+            },
+            required: ['pmid', 'verdict', 'reason'],
+          },
+        },
+      },
+      required: ['results'],
+    },
+  },
+}
+
 const SRC_COLOR: Record<SourceName, string> = { PubMed: '#1746d1', 'Europe PMC': '#0d9488', CrossRef: '#ea580c', 'ClinicalTrials.gov': '#7c3aed' }
 const SRC_ABBR: Record<SourceName, string> = { PubMed: 'PM', 'Europe PMC': 'EPMC', CrossRef: 'CR', 'ClinicalTrials.gov': 'CT' }
 
@@ -28,6 +56,58 @@ function firstAuthorSurname(authors?: string): string {
   if (!authors) return 'Unknown'
   const first = authors.split(/[,;]/)[0].trim()
   return first.split(/\s+/)[0] || 'Unknown'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeVerdict(value: unknown): Verdict | null {
+  if (typeof value !== 'string') return null
+  switch (value.trim().toLowerCase().replace(/[^a-z]/g, '')) {
+    case 'include':
+    case 'included':
+      return 'include'
+    case 'maybe':
+    case 'uncertain':
+    case 'unclear':
+      return 'maybe'
+    case 'exclude':
+    case 'excluded':
+      return 'exclude'
+    default:
+      return null
+  }
+}
+
+function parseTriageResponse(text: string, knownPmids: ReadonlySet<string>): Record<string, { verdict: Verdict; reason: string }> {
+  const parsed = parseJsonLoose<unknown>(text)
+  let rows: unknown[] = []
+  if (Array.isArray(parsed)) rows = parsed
+  else if (isRecord(parsed)) {
+    for (const key of ['results', 'triage', 'items']) {
+      if (Array.isArray(parsed[key])) {
+        rows = parsed[key]
+        break
+      }
+    }
+  }
+
+  const map: Record<string, { verdict: Verdict; reason: string }> = {}
+  for (const row of rows) {
+    if (!isRecord(row)) continue
+    const rawPmid = row.pmid
+    const pmid = (typeof rawPmid === 'string' || typeof rawPmid === 'number')
+      ? String(rawPmid).trim().replace(/^pmid\s+/i, '')
+      : ''
+    const verdict = normalizeVerdict(row.verdict)
+    if (!pmid || !knownPmids.has(pmid) || !verdict) continue
+    const reason = typeof row.reason === 'string' && row.reason.trim() ? row.reason.trim() : 'No reason provided.'
+    map[pmid] = { verdict, reason }
+  }
+
+  if (!Object.keys(map).length) throw new Error('The model returned no usable screening decisions.')
+  return map
 }
 
 export default function Radar() {
@@ -196,20 +276,20 @@ export default function Radar() {
       const list = hits.map((h) => `PMID ${h.pmid}: ${h.title} — ${h.journal ?? ''} ${h.year ?? ''}`).join('\n')
       const text = await complete(
         [
-          { role: 'system', content: 'You are a systematic-review screening assistant. Output ONLY valid JSON, no prose.' },
+          { role: 'system', content: 'You are a systematic-review screening assistant. Return only JSON matching the supplied schema.' },
           {
             role: 'user',
-            content: `Systematic review question: "${state.review.question}"\nPICO — population: ${state.review.pico.p}; intervention/exposure: ${state.review.pico.i}; comparator: ${state.review.pico.c}; outcome: ${state.review.pico.o}\n\nFor EACH paper below, judge screening relevance as "include", "maybe" or "exclude" and give a reason of at most 12 words. Return a JSON array: [{"pmid":"12345","verdict":"include|maybe|exclude","reason":"…"}].\n\n${list}`,
+            content: `Systematic review question: "${state.review.question}"\nPICO — population: ${state.review.pico.p}; intervention/exposure: ${state.review.pico.i}; comparator: ${state.review.pico.c}; outcome: ${state.review.pico.o}\n\nFor EACH paper below, judge screening relevance as "include", "maybe" or "exclude" and give a reason of at most 12 words. Return an object with a "results" array: {"results":[{"pmid":"12345","verdict":"include|maybe|exclude","reason":"…"}]}.\n\n${list}`,
           },
         ],
         getModel(),
+        undefined,
+        TRIAGE_RESPONSE_FORMAT,
       )
-      const arr = parseJsonLoose<{ pmid: string; verdict: Verdict; reason: string }[]>(text)
-      const map: Record<string, { verdict: Verdict; reason: string }> = {}
-      for (const r of arr) if (r?.pmid) map[String(r.pmid)] = { verdict: r.verdict, reason: r.reason }
-      setTriage(map)
-    } catch {
-      setError('AI triage failed — the model may have returned an unexpected format. Try again.')
+      setTriage(parseTriageResponse(text, new Set(hits.map((h) => h.pmid))))
+    } catch (e) {
+      const message = e instanceof Error ? e.message : ''
+      setError(message ? `AI triage failed: ${message}` : 'AI triage failed — the model may have returned an unexpected format. Try again.')
     } finally {
       setTriaging(false)
     }

@@ -7,15 +7,18 @@
 
 const KEY_LS = 'williamslab.openai.key'
 const MODEL_LS = 'williamslab.openai.model'
+const DEPRECATED_MODEL = 'gpt-5.1-chat-latest'
 
-export const DEFAULT_MODEL = 'gpt-5.1-chat-latest'
+export const DEFAULT_MODEL = 'gpt-5.6-terra'
 
 export const MODELS: { id: string; label: string }[] = [
-  { id: 'gpt-5.1-chat-latest', label: 'GPT-5.1 · highest quality' },
+  { id: 'gpt-5.6-terra', label: 'GPT-5.6 Terra · balanced' },
+  { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol · highest quality' },
+  { id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna · lower cost' },
+  { id: 'gpt-4.1', label: 'GPT-4.1 · reliable fallback' },
   { id: 'gpt-5-mini', label: 'GPT-5 mini · fast' },
   { id: 'gpt-4o', label: 'GPT-4o · balanced' },
   { id: 'gpt-4o-mini', label: 'GPT-4o mini · cheapest' },
-  { id: 'gpt-4.1', label: 'GPT-4.1' },
 ]
 
 function envKey(): string {
@@ -60,7 +63,12 @@ export function hasKey(): boolean {
 
 export function getModel(): string {
   try {
-    return localStorage.getItem(MODEL_LS) || DEFAULT_MODEL
+    const stored = localStorage.getItem(MODEL_LS)
+    if (stored === DEPRECATED_MODEL) {
+      localStorage.removeItem(MODEL_LS)
+      return DEFAULT_MODEL
+    }
+    return stored || DEFAULT_MODEL
   } catch {
     return DEFAULT_MODEL
   }
@@ -85,10 +93,22 @@ export interface Usage {
   total_tokens: number
 }
 
+export interface JsonSchemaResponseFormat {
+  type: 'json_schema'
+  json_schema: {
+    name: string
+    schema: Record<string, unknown>
+    description?: string
+    strict?: boolean
+  }
+}
+
 // Approximate list pricing, USD per 1M tokens. Used only for a rough on-screen
 // cost estimate — not billing. Update if OpenAI pricing changes.
 export const PRICING: Record<string, { in: number; out: number }> = {
-  'gpt-5.1-chat-latest': { in: 1.25, out: 10 },
+  'gpt-5.6-terra': { in: 2, out: 12 },
+  'gpt-5.6-sol': { in: 4, out: 20 },
+  'gpt-5.6-luna': { in: 0.2, out: 1.2 },
   'gpt-5-mini': { in: 0.25, out: 2 },
   'gpt-4o': { in: 2.5, out: 10 },
   'gpt-4o-mini': { in: 0.15, out: 0.6 },
@@ -117,13 +137,18 @@ interface StreamOpts {
 // Returns the full assembled text. Params are chosen to work across
 // Non-streaming single completion — returns the assistant text. Handy for
 // one-shot structured jobs (relevance triage, hypothesis critique, …).
-export async function complete(messages: ChatMessage[], model?: string, signal?: AbortSignal): Promise<string> {
+export async function complete(messages: ChatMessage[], model?: string, signal?: AbortSignal, responseFormat?: JsonSchemaResponseFormat): Promise<string> {
   const key = getKey()
   if (!key) throw new Error('No OpenAI API key set. Open Settings to add one.')
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: model ?? getModel(), max_completion_tokens: 1800, messages }),
+    body: JSON.stringify({
+      model: model ?? getModel(),
+      max_completion_tokens: 1800,
+      messages,
+      ...(responseFormat ? { response_format: responseFormat } : {}),
+    }),
     signal,
   })
   if (!res.ok) {
@@ -138,7 +163,22 @@ export async function complete(messages: ChatMessage[], model?: string, signal?:
     throw new Error(msg)
   }
   const j = await res.json()
-  return (j?.choices?.[0]?.message?.content as string) ?? ''
+  const choice = j?.choices?.[0]
+  if (choice?.finish_reason === 'length') throw new Error('The model response was truncated before it finished.')
+  if (choice?.finish_reason === 'content_filter') throw new Error('The model response was blocked by the model safety filter.')
+  const message = choice?.message
+  if (message?.refusal) throw new Error(`The model refused the request: ${message.refusal}`)
+  const content = message?.content
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    const text = content.map((part: unknown) => {
+      if (typeof part === 'string') return part
+      if (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string') return part.text
+      return ''
+    }).join('')
+    if (text) return text
+  }
+  throw new Error('OpenAI returned no text content.')
 }
 
 // Parse a JSON value out of a model reply that may be fenced or chatty.
