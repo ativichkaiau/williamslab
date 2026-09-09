@@ -56,6 +56,18 @@ export function useLiveryMotion(routeKey: string) {
     }
   }, [])
 
+  // the page itself acknowledges a route change
+  useEffect(() => {
+    if (reduced()) return
+    const el = document.querySelector<HTMLElement>('.content')
+    if (!el) return
+    // restart the animation: drop the class, force a reflow, re-add
+    el.classList.remove('lv-route')
+    void el.offsetWidth
+    el.classList.add('lv-route')
+    return () => el.classList.remove('lv-route')
+  }, [routeKey])
+
   // sections rise as they come into view — only those that start below the
   // fold, so nothing already on screen flashes on route change
   useEffect(() => {
