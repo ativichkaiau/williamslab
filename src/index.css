@@ -808,20 +808,31 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 @keyframes lv-stripe{from{transform:skewX(-28deg) scaleX(0)}to{transform:skewX(-28deg) scaleX(1)}}
 @keyframes lv-wipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes lv-bar{from{transform:scaleY(.2); opacity:0}to{transform:scaleY(1); opacity:1}}
-@keyframes lv-in{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+@keyframes lv-in{from{opacity:0; transform:translateY(14px)}to{opacity:1; transform:none}}
 @keyframes lv-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes lv-drift{0%,55%,100%{translate:0}25%{translate:7px 0}}
+@keyframes lv-heading{from{opacity:0; transform:translateY(20px)}70%{opacity:1; transform:translateY(-2px)}to{opacity:1; transform:none}}
+@keyframes lv-hatch{to{background-position:16px 0}}
+@keyframes lv-sweep{0%{transform:translateX(-110%); opacity:0}8%{opacity:.9}36%{transform:translateX(410%); opacity:0}100%{transform:translateX(410%); opacity:0}}
 
 /* the three racing stripes streak in, staggered — the page's signature */
-.rule i{transform-origin:0 50%; animation:lv-stripe .42s cubic-bezier(.2,.8,.2,1) both}
-.rule i:nth-child(2){animation-delay:.07s}
-.rule i:nth-child(3){animation-delay:.14s}
+.rule i{transform-origin:0 50%; animation:lv-stripe .65s cubic-bezier(.16,1,.3,1) both, lv-drift 4.8s 1s ease-in-out infinite}
+.rule i:nth-child(2){animation-delay:.1s,1.16s}
+.rule i:nth-child(3){animation-delay:.2s,1.32s}
 
 /* page header settles in behind them */
-.page-head .kicker{animation:lv-in .4s ease both}
-.page-head h1{animation:lv-in .45s .05s ease both}
+.page-head .kicker{animation:lv-in .5s .05s ease both}
+.page-head h1{animation:lv-heading .75s .12s cubic-bezier(.16,1,.3,1) both}
+.page-head::before{content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px; pointer-events:none;
+  background:linear-gradient(90deg,var(--accent,var(--blue)),transparent 85%); transform-origin:left;
+  animation:lv-wipe .95s .15s cubic-bezier(.16,1,.3,1) both}
+.page-head::after,.overview-review::after{background-size:16px 100%; animation:lv-hatch 1.8s linear infinite}
 
 /* the topbar livery bar wipes across once, on load */
 .topbar::before{transform-origin:0 50%; animation:lv-wipe .7s cubic-bezier(.2,.8,.2,1) both}
+.livery-sweep{position:absolute; inset:0 0 auto; height:3px; overflow:hidden; pointer-events:none}
+.livery-sweep::after{content:""; position:absolute; inset:0 auto 0 0; width:32%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.9),transparent); animation:lv-sweep 6s .3s ease-in-out infinite}
 
 /* the active nav marker grows into place */
 .sb-link.active::before{animation:lv-bar .26s cubic-bezier(.2,.8,.2,1) both}
@@ -836,38 +847,37 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 /* ---- scroll: progress telemetry + section reveal ----
    Driven from JS (lib/motion.ts), not CSS scroll timelines: this app's root is
    height-constrained (html,body,#root{height:100%}), so scroll()/view() can't
-   resolve a scrollport here. The reveal fails safe — if .lv-hide is ever
-   dropped by a re-render the section is simply visible. */
+   resolve a scrollport here. Pending sections stay visible, so an unavailable
+   observer never strands content in a hidden or dimmed state. */
 .tb-progress{position:absolute; left:0; right:0; bottom:-1px; height:2px; transform-origin:0 50%;
   transform:scaleX(var(--scroll-progress,0)); pointer-events:none;
   background:linear-gradient(90deg,var(--navy),var(--blue) 55%,var(--red) 82%,var(--yellow))}
-.lv-hide{opacity:.28; transform:translateY(10px)}
-.lv-show{opacity:1; transform:none;
-  transition:opacity .45s cubic-bezier(.2,.8,.2,1), transform .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes lv-section{from{opacity:0; transform:translateY(28px)}to{opacity:1; transform:none}}
+.lv-show{animation:lv-section .75s var(--reveal-delay,0ms) cubic-bezier(.16,1,.3,1) backwards}
+/* Fixed dialogs must never inherit an in-flight surface transform. */
+.lv-show:has(.modal-overlay){animation:none}
 
-/* ---- more static entrances ----
-   Nothing here may target .card or .stat themselves: lib/motion.ts arms those
-   with .lv-hide for the scroll reveal, and an animation with `both` fill
-   outranks a class in the cascade — it would strand every armed section
-   permanently visible. Animate their contents instead, which is independent
-   of whether the parent is armed. */
+/* Child entrances restart with their surface, including sections reached
+   later in a long page. Pending sections keep their normal readable styles. */
+.lv-pending :is(.card-h .sq,.stat b,.stat span,.stat .sub,.pico-cell),
+.stat.lv-pending :is(b,span,.sub){animation:none}
 
 @keyframes lv-pop{from{opacity:0; transform:scale(.4)}to{opacity:1; transform:none}}
-@keyframes lv-rise{from{opacity:0; transform:translateY(10px) scale(.985)}to{opacity:1; transform:none}}
+@keyframes lv-rise{from{opacity:0; transform:translateY(24px) scale(.96)}to{opacity:1; transform:none}}
 @keyframes lv-fade{from{opacity:0}to{opacity:1}}
 
 /* the page-header cascade continues past the h1 */
 .kicker .dot{animation:lv-pop .3s .04s cubic-bezier(.2,.8,.2,1) both}
-.page-head p{animation:lv-in .45s .1s ease both}
+.page-head p{animation:lv-in .65s .24s ease both}
 
 /* every card header's livery tick grows into place */
 .card-h .sq{transform-origin:50% 100%; animation:lv-bar .3s .06s cubic-bezier(.2,.8,.2,1) both}
 
 /* stat readouts light up column by column, like a dash coming alive */
-.stat b{animation:lv-in .42s cubic-bezier(.2,.8,.2,1) both}
-.stat span{animation:lv-in .42s .05s ease both}
+.stat b{animation:lv-heading .72s cubic-bezier(.16,1,.3,1) both}
+.stat span{animation:lv-in .6s .08s ease both}
 .stat span::before{animation:lv-pop .3s .12s cubic-bezier(.2,.8,.2,1) both}
-.stat .sub{animation:lv-fade .45s .12s ease both}
+.stat .sub{animation:lv-fade .65s .18s ease both}
 .grid>.stat:nth-child(2) b{animation-delay:.05s}
 .grid>.stat:nth-child(3) b{animation-delay:.1s}
 .grid>.stat:nth-child(4) b{animation-delay:.15s}
@@ -876,6 +886,11 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 
 /* telemetry sweeps out to its reading */
 .gauge .track i{transform-origin:0 50%; animation:lv-wipe .6s .15s cubic-bezier(.2,.8,.2,1) both}
+.lv-show :is(.stage-track,.axis .bar,.pf-bar,.rp-track) > i{transform-origin:left;
+  animation:lv-wipe 1s calc(var(--reveal-delay,0ms) + 160ms) cubic-bezier(.16,1,.3,1) backwards}
+.stage-track i{position:relative; overflow:hidden}
+.stage-track i::after{content:""; position:absolute; inset:0 auto 0 0; width:32%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.65),transparent); animation:lv-sweep 4.5s 1s ease-in-out infinite}
 
 /* the sidebar boots up: mark first, then the nav groups top to bottom */
 .sb-brand{animation:lv-in .4s ease both}
@@ -887,14 +902,21 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 .sb-sec:nth-child(6){animation-delay:.25s}
 .sb-foot{animation:lv-fade .5s .3s ease both}
 .tb-title{animation:lv-in .4s .06s ease both}
+@keyframes lv-nav{from{opacity:0; translate:-10px 0}to{opacity:1; translate:0}}
+.sb-sec .sb-link{animation:lv-nav .48s cubic-bezier(.16,1,.3,1) backwards}
+.sb-sec .sb-link:nth-of-type(2){animation-delay:.04s}
+.sb-sec .sb-link:nth-of-type(3){animation-delay:.08s}
+.sb-sec .sb-link:nth-of-type(4){animation-delay:.12s}
+.sb-sec .sb-link:nth-of-type(n+5){animation-delay:.16s}
 
 /* the assistant arrives once the page has settled */
-.ai-fab{animation:lv-rise .4s .5s cubic-bezier(.2,.8,.2,1) both}
+.ai-fab{animation:lv-rise .5s .5s cubic-bezier(.16,1,.3,1) backwards}
 
 /* overlays rise in rather than snapping on */
 .modal-overlay{animation:lv-fade .18s ease both}
-.modal{animation:lv-rise .26s cubic-bezier(.2,.8,.2,1) both}
-.ai-panel{animation:lv-rise .28s cubic-bezier(.2,.8,.2,1) both}
+.modal{animation:lv-rise .42s cubic-bezier(.16,1.15,.3,1) both}
+.ai-panel{animation:lv-rise .45s cubic-bezier(.16,1.15,.3,1) both}
+.proj-menu,.kbd-card{transform-origin:top right; animation:lv-rise .32s cubic-bezier(.16,1,.3,1) both}
 
 /* PECO cells deal out left to right */
 .pico-cell{animation:lv-in .4s cubic-bezier(.2,.8,.2,1) both}
@@ -907,6 +929,37 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 .sb-link{transition:background .14s, color .14s}
 .chip-btn{transition:border-color .14s, color .14s, background .14s}
 .input,.textarea,.select{transition:border-color .14s, box-shadow .14s}
+
+/* Interaction motion: surfaces respond, controls lift, and livery ticks slide.
+   Keep large cards untransformed so their text and fixed dialogs stay stable. */
+.card,.stat,.preset{transition:background .24s, border-color .24s, box-shadow .3s}
+.card-h .sq,.sb-link .ic,.stat b,.wtile{transition:translate .28s cubic-bezier(.16,1,.3,1), rotate .28s, color .24s}
+.sb-link{transition:background .2s, color .2s, padding-left .25s cubic-bezier(.16,1,.3,1)}
+.btn,.icon-btn,.chip-btn,.stage-pill,.seg-b,.toggle,.proj-chip,.preset{
+  transition:background .22s, color .22s, border-color .22s, box-shadow .25s, translate .25s cubic-bezier(.16,1,.3,1), scale .15s}
+.btn.primary{background-image:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.2) 48%,transparent 61%);
+  background-size:260% 100%; background-position:100% 0;
+  transition:background-color .22s, background-position .6s, translate .25s, scale .15s}
+.stat{position:relative}
+.stat::after{content:""; position:absolute; bottom:0; left:20px; right:20px; height:2px; pointer-events:none;
+  background:var(--stat-tone,var(--accent,var(--blue))); transform:scaleX(0); transform-origin:left;
+  transition:transform .35s cubic-bezier(.16,1,.3,1)}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .card:hover,.preset:hover{border-color:color-mix(in srgb,var(--accent,var(--blue)) 30%,var(--line)); box-shadow:0 8px 24px rgba(18,32,60,.06)}
+  .card:hover > .card-h .sq{translate:4px 0}
+  .stat:hover{background:color-mix(in srgb,var(--stat-tone,var(--blue)) 4%,var(--card))}
+  .stat:hover::after{transform:scaleX(1)}
+  .stat:hover b{translate:0 -3px}
+  .sb-link:hover{padding-left:16px}
+  .sb-link:hover .ic{rotate:-8deg}
+  .sb-brand:hover .wtile{translate:2px 0; rotate:-5deg}
+  :is(.btn,.icon-btn,.chip-btn,.stage-pill,.seg-b,.toggle,.proj-chip,.preset):hover:not(:disabled){translate:0 -2px}
+  .btn.primary:hover{background-position:0 0}
+}
+@media(prefers-reduced-motion:no-preference){
+  :is(.btn,.icon-btn,.chip-btn,.stage-pill,.seg-b,.toggle,.proj-chip):active:not(:disabled){translate:0 1px; scale:.97}
+  body,.sidebar,.topbar,.content,.workspace-footer{transition:background-color .3s, color .3s, border-color .3s}
+}
 
 /* ---- figures draw themselves ----
    SVG groups take CSS transforms fine; fill-box keeps the origin on the shape's
@@ -930,12 +983,12 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
    Opacity only, never transform: a transformed .content would become the
    containing block for any position:fixed descendant (modals, the assistant
    panel) and pin them to the page instead of the viewport. */
-.content.lv-route{animation:lv-fade .24s ease both}
+.content.lv-route{animation:lv-fade .36s ease both}
 
 /* ---- transient surfaces ---- */
 @keyframes cmdk-drop{from{opacity:0; transform:translateY(-12px) scale(.98)}to{opacity:1; transform:none}}
 .cmdk-overlay{animation:lv-fade .16s ease both}
-.cmdk{animation:cmdk-drop .22s cubic-bezier(.2,.8,.2,1) both}
+.cmdk{animation:cmdk-drop .36s cubic-bezier(.16,1.15,.3,1) both}
 
 /* ---- table rows deal in ----
    Opacity only and capped at ten steps: rows remount on filter/sort, so this
@@ -951,8 +1004,13 @@ tbody tr:nth-child(8){animation-delay:.21s}
 tbody tr:nth-child(9){animation-delay:.24s}
 tbody tr:nth-child(n+10){animation-delay:.27s}
 
+html[data-motion-paused] *,html[data-motion-paused] *::before,html[data-motion-paused] *::after{animation-play-state:paused !important}
+
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important;
     animation-delay:0s !important; transition-duration:.01ms !important; transition-delay:0s !important;
     scroll-behavior:auto !important}
+  .lv-show{animation:none}
+  .livery-sweep,.stage-track i::after{display:none}
+  .rule i{translate:none}
 }

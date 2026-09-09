@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -7,21 +7,42 @@ const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matc
 const viewportH = () => document.documentElement.clientHeight || window.innerHeight || 0
 
 /**
- * Livery motion — the scroll half of the 1993 Williams treatment.
+ * Livery motion — viewport entrances and scroll telemetry.
  *
  * Driven here rather than with CSS scroll timelines: the app's root is
  * height-constrained (html,body,#root{height:100%}), so scroll()/view() can't
  * resolve a scrollport against it.
  *
- * Both effects are no-ops under prefers-reduced-motion, and neither may assume
+ * Effects are no-ops under prefers-reduced-motion, and none may assume
  * the first measurement it takes is usable: a hidden tab delivers no animation
  * frames and can report a zero client height, so both re-sync when the document
  * becomes visible or is resized.
  */
 export function useLiveryMotion(routeKey: string) {
+  const [motionEnabled, setMotionEnabled] = useState(() => !reduced())
+
+  // Respond immediately when the OS preference changes, including while a
+  // section is waiting to enter. Stop decorative loops in background tabs.
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const syncPreference = () => setMotionEnabled(!preference.matches)
+    const syncVisibility = () => {
+      document.documentElement.toggleAttribute('data-motion-paused', document.hidden)
+    }
+    syncPreference()
+    syncVisibility()
+    preference.addEventListener('change', syncPreference)
+    document.addEventListener('visibilitychange', syncVisibility)
+    return () => {
+      preference.removeEventListener('change', syncPreference)
+      document.removeEventListener('visibilitychange', syncVisibility)
+      document.documentElement.removeAttribute('data-motion-paused')
+    }
+  }, [])
+
   // page scroll reads out along the livery bar under the topbar
   useEffect(() => {
-    if (reduced()) return
+    if (!motionEnabled) return
     const de = document.documentElement
     let raf = 0
 
@@ -53,12 +74,13 @@ export function useLiveryMotion(routeKey: string) {
       window.removeEventListener('resize', schedule)
       document.removeEventListener('visibilitychange', schedule)
       if (raf) cancelAnimationFrame(raf)
+      de.style.removeProperty('--scroll-progress')
     }
-  }, [])
+  }, [motionEnabled, routeKey])
 
   // the page itself acknowledges a route change
   useEffect(() => {
-    if (reduced()) return
+    if (!motionEnabled) return
     const el = document.querySelector<HTMLElement>('.content')
     if (!el) return
     // restart the animation: drop the class, force a reflow, re-add
@@ -66,56 +88,80 @@ export function useLiveryMotion(routeKey: string) {
     void el.offsetWidth
     el.classList.add('lv-route')
     return () => el.classList.remove('lv-route')
-  }, [routeKey])
+  }, [routeKey, motionEnabled])
 
-  // sections rise as they come into view — only those that start below the
-  // fold, so nothing already on screen flashes on route change
-  useEffect(() => {
-    if (reduced() || !('IntersectionObserver' in window)) return
+  // Stagger the initial viewport before paint; reveal later sections only when
+  // reached. Pending sections stay readable even if an observer never fires.
+  useLayoutEffect(() => {
+    if (!motionEnabled || !('IntersectionObserver' in window)) return
 
     let io: IntersectionObserver | null = null
-    let failsafe = 0
-    const armed: HTMLElement[] = []
+    let mutations: MutationObserver | null = null
+    const armed = new Set<HTMLElement>()
+    const root = document.querySelector<HTMLElement>('.content')
+    if (!root) return
+    const surfaces = '.card, .overview-stats, .grid:not(.overview-stats) > .stat, .tbl-scroll, .theory-sec, .screen-rec, .finding'
 
-    const reveal = (el: HTMLElement) => {
-      el.classList.remove('lv-hide')
+    const reveal = (el: HTMLElement, delay = 0) => {
+      el.style.setProperty('--reveal-delay', `${delay}ms`)
+      el.classList.remove('lv-pending')
       el.classList.add('lv-show')
+      io?.unobserve(el)
     }
 
     const arm = () => {
-      // A zero/absurd viewport means nothing can ever intersect — arming against
-      // it would dim every section permanently. Wait for a real measurement.
+      // Wait for a usable viewport; pending sections keep their normal styles.
       const vh = viewportH()
-      if (vh < 200) return false
-      const root = document.querySelector('.content')
-      if (!root) return false
+      if (vh < 200 || document.hidden) return false
 
       const obs = new IntersectionObserver(
         (entries) => {
-          for (const e of entries) {
-            if (!e.isIntersecting) continue
-            reveal(e.target as HTMLElement)
-            obs.unobserve(e.target)
-          }
+          entries.filter((e) => e.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+            .forEach((e, i) => reveal(e.target as HTMLElement, Math.min(i * 80, 240)))
         },
-        { rootMargin: '0px 0px -10% 0px' },
+        { rootMargin: '0px 0px -24px 0px' },
       )
       io = obs
 
-      const targets = Array.from(
-        root.querySelectorAll<HTMLElement>('.card, .overview-stats, .grid:not(.overview-stats) > .stat'),
-      ).filter((el) => !el.closest('.overview-stats') || el.classList.contains('overview-stats'))
-
-      for (const el of targets) {
-        if (el.getBoundingClientRect().top <= vh * 0.92) continue // already on screen
-        el.classList.add('lv-hide')
-        obs.observe(el)
-        armed.push(el)
+      const collect = () => {
+        const targets = Array.from(root.querySelectorAll<HTMLElement>(surfaces))
+          .filter((el) => !armed.has(el) && !el.parentElement?.closest(surfaces))
+          .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+        let visibleIndex = 0
+        for (const { el, rect } of targets) {
+          armed.add(el)
+          if (rect.bottom <= 64) continue
+          if (rect.top < viewportH() - 24) {
+            reveal(el, 90 + Math.min(visibleIndex++ * 90, 360))
+          } else {
+            el.classList.add('lv-pending')
+            obs.observe(el)
+          }
+        }
       }
-      // Last-resort failsafe: whatever happens, no section stays dimmed.
-      failsafe = window.setTimeout(() => armed.forEach(reveal), 3000)
+      collect()
+      // New cards from filters or async data get the same entrance without
+      // replaying existing sections when a field's text changes.
+      mutations = new MutationObserver((records) => {
+        if (records.some((r) => Array.from(r.addedNodes).some((n) =>
+          n instanceof HTMLElement && (n.matches(surfaces) || n.querySelector(surfaces)),
+        ))) collect()
+      })
+      mutations.observe(root, { childList: true, subtree: true })
       return true
     }
+
+    const revealFocused = (event: FocusEvent) => {
+      const el = (event.target as HTMLElement).closest<HTMLElement>('.lv-pending,.lv-show')
+      if (!el) return
+      // Settle permanently on interaction, rather than toggling animation:none
+      // with :focus-within and accidentally replaying the entrance on blur.
+      io?.unobserve(el)
+      el.classList.remove('lv-pending', 'lv-show')
+      el.style.removeProperty('--reveal-delay')
+    }
+    root.addEventListener('focusin', revealFocused)
 
     // Arming fails on a tab that is hidden or not yet laid out; retry when the
     // environment reports something we can actually measure against.
@@ -135,8 +181,12 @@ export function useLiveryMotion(routeKey: string) {
     return () => {
       detachRetry()
       io?.disconnect()
-      window.clearTimeout(failsafe)
-      for (const el of armed) el.classList.remove('lv-hide', 'lv-show')
+      mutations?.disconnect()
+      root.removeEventListener('focusin', revealFocused)
+      for (const el of armed) {
+        el.classList.remove('lv-pending', 'lv-show')
+        el.style.removeProperty('--reveal-delay')
+      }
     }
-  }, [routeKey])
+  }, [routeKey, motionEnabled])
 }
