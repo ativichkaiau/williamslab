@@ -45,12 +45,12 @@ export function ForestPlot({ result, index, measure }: { result: MetaResult; ind
       <text x={8} y={16} fontSize="10.5" fontWeight={700} fill="var(--muted)" style={mono}>STUDY</text>
       <text x={x1 + 8} y={16} fontSize="10.5" fontWeight={700} fill="var(--muted)" style={mono}>{measure} [95% CI]</text>
       <text x={W - 6} y={16} fontSize="10.5" fontWeight={700} fill="var(--muted)" textAnchor="end" style={mono}>WT%</text>
-      <line x1={X(refValue)} y1={top} x2={X(refValue)} y2={axisY} stroke="var(--muted)" strokeWidth={1} strokeDasharray="4 4" />
+      <line className="fp-ref" x1={X(refValue)} y1={top} x2={X(refValue)} y2={axisY} stroke="var(--muted)" strokeWidth={1} strokeDasharray="4 4" />
       {rows.map((r, i) => {
         const y = top + i * rowH + rowH / 2
         const side = clamp(4 + Math.sqrt(r.weight) * 2.2, 5, 17)
         return (
-          <g key={r.id}>
+          <g key={r.id} className="fp-row" style={{ animationDelay: `${Math.min(i, 14) * 0.045}s` }}>
             <text x={8} y={y + 4} fontSize="12" fill="var(--ink)" style={sans}>{r.label}</text>
             <line x1={X(r.low)} y1={y} x2={X(r.high)} y2={y} stroke="var(--blue)" strokeWidth={1.6} />
             <line x1={X(r.low)} y1={y - 4} x2={X(r.low)} y2={y + 4} stroke="var(--blue)" strokeWidth={1.6} />
@@ -63,8 +63,9 @@ export function ForestPlot({ result, index, measure }: { result: MetaResult; ind
       })}
       {(() => {
         const y = axisY - 2
+        const poolDelay = `${0.12 + Math.min(rows.length, 15) * 0.045}s`
         return (
-          <g>
+          <g className="fp-pool" style={{ animationDelay: poolDelay }}>
             {showPI && (
               <g>
                 <line x1={X(predLow)} y1={y} x2={X(predHigh)} y2={y} stroke="var(--red)" strokeWidth={1.4} strokeDasharray="3 3" opacity={0.75} />
@@ -72,16 +73,16 @@ export function ForestPlot({ result, index, measure }: { result: MetaResult; ind
                 <line x1={X(predHigh)} y1={y - 5} x2={X(predHigh)} y2={y + 5} stroke="var(--red)" strokeWidth={1.4} opacity={0.75} />
               </g>
             )}
-            <polygon points={`${X(pooledLow)},${y} ${X(pooledEst)},${y - 8} ${X(pooledHigh)},${y} ${X(pooledEst)},${y + 8}`} fill="var(--red)" stroke="var(--red)" />
+            <polygon className="fp-diamond" points={`${X(pooledLow)},${y} ${X(pooledEst)},${y - 8} ${X(pooledHigh)},${y} ${X(pooledEst)},${y + 8}`} fill="var(--red)" stroke="var(--red)" />
             <text x={8} y={y + 4} fontSize="12" fontWeight={800} fill="var(--red)" style={sans}>Pooled ({result.model})</text>
             <text x={x1 + 8} y={y + 4} fontSize="11" fontWeight={800} fill="var(--red)" style={mono}>{fmt(pooledEst)} [{fmt(pooledLow)}, {fmt(pooledHigh)}]</text>
             {showPI && <text x={8} y={axisY + 30} fontSize="9.5" fill="var(--red)" opacity={0.85} style={mono}>95% PI [{fmt(predLow)}, {fmt(predHigh)}]</text>}
           </g>
         )
       })()}
-      <line x1={x0} y1={axisY + 12} x2={x1} y2={axisY + 12} stroke="var(--line)" strokeWidth={1.5} />
+      <line className="fp-axis" x1={x0} y1={axisY + 12} x2={x1} y2={axisY + 12} stroke="var(--line)" strokeWidth={1.5} />
       {ticks.map((t) => (
-        <g key={t}>
+        <g key={t} className="fp-axis">
           <line x1={X(t)} y1={axisY + 12} x2={X(t)} y2={axisY + 17} stroke="var(--muted)" strokeWidth={1} />
           <text x={X(t)} y={axisY + 30} textAnchor="middle" fontSize="9.5" fill="var(--muted)" style={mono}>{t}</text>
         </g>
@@ -202,15 +203,18 @@ export function RobPlot({ studies, domains }: { studies: Study[]; domains: strin
 // ---------------- PRISMA 2020 flow ----------------
 export function PrismaFlow({ prisma }: { prisma: Review['prisma'] }) {
   const p = prisma
+  // boxes and arrows animate in call order, which is the order the flow reads
+  let step = 0
+  const stagger = () => ({ animationDelay: `${step++ * 0.07}s` })
   const box = (x: number, y: number, w: number, h: number, lines: string[], accent?: boolean) => (
-    <g>
+    <g className="pf-step" style={stagger()}>
       <rect x={x} y={y} width={w} height={h} rx={8} fill={accent ? 'var(--good)' : 'var(--card)'} stroke={accent ? 'var(--green)' : 'var(--line)'} strokeWidth={accent ? 1.8 : 1.3} />
       {lines.map((l, i) => (
         <text key={i} x={x + 12} y={y + 20 + i * 15} fontSize={i === 0 ? '11.5' : '10.5'} fontWeight={i === 0 ? 700 : 400} fill={i === 0 ? 'var(--ink)' : 'var(--ink-2)'} style={i === 0 ? sans : mono}>{l}</text>
       ))}
     </g>
   )
-  const arrow = (x1: number, y1: number, x2: number, y2: number) => <path d={`M${x1},${y1} L${x2},${y2}`} fill="none" stroke="var(--muted)" strokeWidth={1.6} markerEnd="url(#pa)" />
+  const arrow = (x1: number, y1: number, x2: number, y2: number) => <path className="pf-step" style={stagger()} d={`M${x1},${y1} L${x2},${y2}`} fill="none" stroke="var(--muted)" strokeWidth={1.6} markerEnd="url(#pa)" />
   const mainX = 40, mainW = 300, sideX = 400, sideW = 300
   return (
     <svg viewBox="0 0 720 560" width="100%" style={sans}>

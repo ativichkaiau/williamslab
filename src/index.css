@@ -172,7 +172,8 @@ button.proj-chip:hover{border-color:var(--accent)}
   .sidebar.open{transform:translateX(0)}
   .sb-brand{padding-top:max(18px, env(safe-area-inset-top))}
   .sb-close{display:block}
-  .sb-drawer-backdrop{display:block; position:fixed; inset:0; z-index:69; background:rgba(8,14,40,.42); backdrop-filter:blur(2px)}
+  .sb-drawer-backdrop{display:block; position:fixed; inset:0; z-index:69; background:rgba(8,14,40,.42); backdrop-filter:blur(2px);
+    animation:lv-fade .22s ease both}
   .topbar{padding-left:max(12px, env(safe-area-inset-left)); padding-right:max(12px, env(safe-area-inset-right)); gap:10px}
   .content{padding:18px 16px 96px; padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right))}
   .workspace-footer{margin:0 16px; padding-bottom:90px}
@@ -906,6 +907,49 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 .sb-link{transition:background .14s, color .14s}
 .chip-btn{transition:border-color .14s, color .14s, background .14s}
 .input,.textarea,.select{transition:border-color .14s, box-shadow .14s}
+
+/* ---- figures draw themselves ----
+   SVG groups take CSS transforms fine; fill-box keeps the origin on the shape's
+   own box rather than the whole viewBox, so the diamond scales about itself. */
+
+@keyframes fp-land{from{opacity:0; transform:translateX(-10px)}to{opacity:1; transform:none}}
+@keyframes fp-pop{from{opacity:0; transform:scale(.5)}to{opacity:1; transform:none}}
+
+/* forest plot: reference line, studies landing top-down, pooled diamond last */
+.fp-ref{animation:lv-fade .3s ease both}
+.fp-row{animation:fp-land .34s cubic-bezier(.2,.8,.2,1) both}
+.fp-pool{animation:lv-fade .4s ease both}
+.fp-diamond{transform-box:fill-box; transform-origin:center;
+  animation:fp-pop .42s cubic-bezier(.2,.8,.2,1) both; animation-delay:inherit}
+.fp-axis{animation:lv-fade .35s .1s ease both}
+
+/* PRISMA: the flow assembles in the order it reads */
+.pf-step{animation:lv-in .34s cubic-bezier(.2,.8,.2,1) both}
+
+/* ---- route change ----
+   Opacity only, never transform: a transformed .content would become the
+   containing block for any position:fixed descendant (modals, the assistant
+   panel) and pin them to the page instead of the viewport. */
+.content.lv-route{animation:lv-fade .24s ease both}
+
+/* ---- transient surfaces ---- */
+@keyframes cmdk-drop{from{opacity:0; transform:translateY(-12px) scale(.98)}to{opacity:1; transform:none}}
+.cmdk-overlay{animation:lv-fade .16s ease both}
+.cmdk{animation:cmdk-drop .22s cubic-bezier(.2,.8,.2,1) both}
+
+/* ---- table rows deal in ----
+   Opacity only and capped at ten steps: rows remount on filter/sort, so this
+   replays on every keystroke in a search box and must stay cheap and short. */
+tbody tr{animation:lv-fade .3s ease both; transition:background .14s}
+tbody tr:nth-child(2){animation-delay:.03s}
+tbody tr:nth-child(3){animation-delay:.06s}
+tbody tr:nth-child(4){animation-delay:.09s}
+tbody tr:nth-child(5){animation-delay:.12s}
+tbody tr:nth-child(6){animation-delay:.15s}
+tbody tr:nth-child(7){animation-delay:.18s}
+tbody tr:nth-child(8){animation-delay:.21s}
+tbody tr:nth-child(9){animation-delay:.24s}
+tbody tr:nth-child(n+10){animation-delay:.27s}
 
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important;
