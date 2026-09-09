@@ -864,6 +864,11 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 
 @keyframes lv-pop{from{opacity:0; transform:scale(.4)}to{opacity:1; transform:none}}
 @keyframes lv-rise{from{opacity:0; transform:translateY(24px) scale(.96)}to{opacity:1; transform:none}}
+/* Same move, but never invisible at rest. A hidden or occluded document pauses
+   animations, and a paused animation holds its from-state — with opacity 0 that
+   turns a dialog into a grey screen with nothing on it. Surfaces you have to
+   read and click use this instead, so the worst case is dim, not gone. */
+@keyframes lv-rise-safe{from{opacity:.55; transform:translateY(24px) scale(.96)}to{opacity:1; transform:none}}
 @keyframes lv-fade{from{opacity:0}to{opacity:1}}
 
 /* the page-header cascade continues past the h1 */
@@ -914,9 +919,9 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 
 /* overlays rise in rather than snapping on */
 .modal-overlay{animation:lv-fade .18s ease both}
-.modal{animation:lv-rise .42s cubic-bezier(.16,1.15,.3,1) both}
-.ai-panel{animation:lv-rise .45s cubic-bezier(.16,1.15,.3,1) both}
-.proj-menu,.kbd-card{transform-origin:top right; animation:lv-rise .32s cubic-bezier(.16,1,.3,1) both}
+.modal{animation:lv-rise-safe .42s cubic-bezier(.16,1.15,.3,1) both}
+.ai-panel{animation:lv-rise-safe .45s cubic-bezier(.16,1.15,.3,1) both}
+.proj-menu,.kbd-card{transform-origin:top right; animation:lv-rise-safe .32s cubic-bezier(.16,1,.3,1) both}
 
 /* PECO cells deal out left to right */
 .pico-cell{animation:lv-in .4s cubic-bezier(.2,.8,.2,1) both}
@@ -982,11 +987,18 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 /* ---- route change ----
    Opacity only, never transform: a transformed .content would become the
    containing block for any position:fixed descendant (modals, the assistant
-   panel) and pin them to the page instead of the viewport. */
-.content.lv-route{animation:lv-fade .36s ease both}
+   panel) and pin them to the page instead of the viewport.
+
+   And never from zero. A paused animation holds its from-state, and a hidden or
+   occluded document pauses animations — so fading .content up from 0 leaves the
+   entire page invisible for as long as it stays paused. This is the whole
+   page's container, so its worst case has to stay legible: it starts at .45,
+   making the failure mode a slightly dim page rather than a blank one. */
+@keyframes lv-route-in{from{opacity:.45}to{opacity:1}}
+.content.lv-route{animation:lv-route-in .36s ease both}
 
 /* ---- transient surfaces ---- */
-@keyframes cmdk-drop{from{opacity:0; transform:translateY(-12px) scale(.98)}to{opacity:1; transform:none}}
+@keyframes cmdk-drop{from{opacity:.55; transform:translateY(-12px) scale(.98)}to{opacity:1; transform:none}}
 .cmdk-overlay{animation:lv-fade .16s ease both}
 .cmdk{animation:cmdk-drop .36s cubic-bezier(.16,1.15,.3,1) both}
 

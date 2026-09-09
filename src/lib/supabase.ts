@@ -112,11 +112,18 @@ async function loadClient(): Promise<SupabaseClient | null> {
   return clientPromise
 }
 
+// Where Supabase sends the user back after an email link. Supabase only honours
+// this when it matches Authentication → URL Configuration → Redirect URLs; if it
+// doesn't, the link silently falls back to the project's Site URL, which ships
+// defaulted to http://localhost:3000 — the deployed site then bounces to
+// localhost. Both this origin and the deployed one must be allowlisted there.
+export const authRedirectTo = () => location.origin + location.pathname
+
 // ---- auth (passwordless magic link / OTP) ----
 export async function signInEmail(email: string): Promise<void> {
   const c = await loadClient()
   if (!c) throw new Error('Cloud not configured.')
-  const { error } = await c.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: location.origin + location.pathname } })
+  const { error } = await c.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: authRedirectTo() } })
   if (error) throw error
 }
 // Verify the 6-digit code from the email — immune to link prefetching / expiry.
@@ -137,7 +144,7 @@ export async function signInPassword(email: string, password: string): Promise<v
 export async function signUpPassword(email: string, password: string): Promise<{ needsConfirm: boolean }> {
   const c = await loadClient()
   if (!c) throw new Error('Cloud not configured.')
-  const { data, error } = await c.auth.signUp({ email: email.trim(), password })
+  const { data, error } = await c.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: authRedirectTo() } })
   if (error) throw error
   return { needsConfirm: !data.session } // no immediate session ⇒ email confirmation is on
 }

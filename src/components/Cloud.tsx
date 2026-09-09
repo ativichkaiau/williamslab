@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import {
   isCloudConfigured, cloudConfigSource, setCloudConfig,
-  signInEmail, verifyEmailCode, signInPassword, signUpPassword, signOut, onAuth,
+  signInEmail, verifyEmailCode, signInPassword, signUpPassword, signOut, onAuth, authRedirectTo,
   saveCloudState, restoreCloudState, cloudStateInfo, shareProject,
 } from '../lib/supabase'
 
@@ -144,6 +144,7 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
           ) : !email ? (
             <>
               <p className="small" style={{ marginBottom: 8 }}>✓ Connected <span className="muted">({source === 'env' ? 'from environment' : 'this device'})</span>. Sign in to sync across devices.</p>
+              <p className="small muted" style={{ marginBottom: 10 }}>Email links return to <span className="mono" style={{ wordBreak: 'break-all' }}>{authRedirectTo()}</span>. Supabase ignores that unless it is listed in <b>Authentication → URL Configuration</b> — add it under <b>Redirect URLs</b> and set <b>Site URL</b> to your deployed address, or links bounce to <span className="mono">localhost:3000</span>.</p>
               <label className="fld"><span className="fld-l">Email</span><input className="input" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="you@example.com" /></label>
               <div className="seg" style={{ marginBottom: 10 }}>
                 <button className={`seg-b${method === 'password' ? ' on' : ''}`} onClick={() => setMethod('password')}>Password</button>
