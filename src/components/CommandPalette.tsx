@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../lib/store'
-import { THEORY } from '../data/brsTheory'
+import { theoryChunks } from '../lib/theoryRag'
 
 interface Cmd {
   id: string
@@ -30,7 +30,7 @@ const PAGES: { to: string; label: string; icon: string }[] = [
   { to: '/power', label: 'Statistical Power', icon: '∑' },
   { to: '/suspension', label: 'Rigor Monitor', icon: '⚠' },
   { to: '/graph', label: 'Knowledge Graph', icon: '⬡' },
-  { to: '/theory', label: 'BrS Theory', icon: '§' },
+  { to: '/theory', label: 'Theory', icon: '§' },
   { to: '/review', label: 'Knowledge Review', icon: '✦' },
 ]
 
@@ -86,7 +86,7 @@ export default function CommandPalette({ open, onClose, onToggleTheme, onOpenCop
     state.hypotheses.forEach((h) => c.push({ id: `hy-${h.id}`, group: 'Hypotheses', label: h.label, sub: h.status, icon: '◆', run: () => go('/hypotheses') }))
     state.assays.forEach((a) => c.push({ id: `as-${a.id}`, group: 'Assays', label: a.method, sub: a.cellType, icon: '▣', run: () => go('/assays') }))
     ;(state.review.screening ?? []).forEach((rec) => c.push({ id: `sc-${rec.id}`, group: 'Screening', label: rec.title, sub: rec.pmid ? `PMID ${rec.pmid}` : undefined, icon: '☑', run: () => go('/screening') }))
-    THEORY.forEach((sec) => c.push({ id: `th-${sec.id}`, group: 'BrS Theory', label: sec.title, sub: sec.group, icon: '§', run: () => go('/theory', sec.id) }))
+    theoryChunks(state).forEach((sec) => c.push({ id: `th-${sec.id}`, group: 'Theory', label: sec.title, sub: sec.group, icon: '§', run: () => go('/theory', sec.id) }))
     return c
   }, [state, projects, canUndo, canRedo]) // eslint-disable-line react-hooks/exhaustive-deps
 

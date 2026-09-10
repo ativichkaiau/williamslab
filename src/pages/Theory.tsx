@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Kicker, Rule } from '../components/ui'
 import { THEORY } from '../data/brsTheory'
@@ -6,6 +6,11 @@ import { REFS, citationUrl } from '../data/brsRefs'
 import { QUIZ } from '../data/brsQuiz'
 import { useReadSections } from '../lib/theoryProgress'
 import { searchPubmed, type PubmedHit } from '../lib/pubmed'
+import { useStore } from '../lib/store'
+import { generateTheory, hasCuratedTheory } from '../lib/projectTheory'
+import { hasKey, getModel } from '../lib/openai'
+import { Markdown } from '../components/Markdown'
+import { ProjectTabs } from '../components/ProjectTabs'
 
 // --- per-section citations + live "latest on PubMed" ---
 function SectionCitations({ id }: { id: string }) {
@@ -135,16 +140,113 @@ function QuizPanel({ onExit, onReview }: { onExit: () => void; onReview: (sectio
 }
 
 export default function Theory() {
-  const [active, setActive] = useState(THEORY[0].id)
+  const { state } = useStore()
+  return <ProjectTheoryPage key={state.project.id} />
+}
+
+function ProjectTheoryPage() {
+  const { state, saveTheory } = useStore()
+  const [focus, setFocus] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
+  const curated = hasCuratedTheory(state.project)
+  const draft = state.theory
+  const sections = useMemo(() => curated ? THEORY : (draft?.sections ?? []).map((s) => ({ ...s, body: <Markdown text={s.body} /> })), [curated, draft])
+
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  async function generate() {
+    if (abortRef.current) return
+    if (!hasKey()) {
+      setError('Add your OpenAI key in Knowledge Review → Settings to generate theory.')
+      return
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
+    setGenerating(true)
+    setError('')
+    try {
+      const theory = await generateTheory(state, focus, controller.signal)
+      if (!controller.signal.aborted) saveTheory(state.project.id, theory)
+    } catch (e) {
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Theory generation failed. Please try again.')
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setGenerating(false)
+      }
+    }
+  }
+
+  return (
+    <>
+      <div className="page-head">
+        <Rule />
+        <Kicker>PROJECT KNOWLEDGE · {state.project.code}</Kicker>
+        <h1>Theory</h1>
+        <p>{state.project.name}</p>
+      </div>
+      <ProjectTabs />
+      <div className="theory-intro card lg rail">
+        <div className="project-caption"><b>{state.project.code}</b><span className="pill">{curated ? 'Curated reference' : draft ? 'AI draft' : 'Ready to write'}</span></div>
+        <h2>{curated ? 'Brugada Syndrome' : draft?.title || 'Build the foundation for this project'}</h2>
+        <p>{curated
+          ? 'The curated Brugada reference for this project: foundations, mechanisms, clinical features, and the epigenetic research frontier. Explore the sections, sources, and self-check quiz.'
+          : draft?.summary || 'AI will write a theory chapter from this project’s topic, review question, PICO, hypotheses, and saved reference titles. The chapter and reading progress are saved with this project.'}</p>
+        <div className="wrap-gap">
+          <Link className="btn ghost sm" to="/review">Ask about this project →</Link>
+          <Link className="btn ghost sm" to="/pit-wall">Dashboard →</Link>
+          <Link className="btn ghost sm" to="/graph">Knowledge graph →</Link>
+        </div>
+      </div>
+
+      {!curated && (
+        <div className="card theory-generator" aria-busy={generating}>
+          <div className="card-h"><span className="sq" />{draft ? 'REFINE THE THEORY' : 'WRITE WITH AI'}</div>
+          {!draft && <p className="small">{state.review.question || state.project.centralHypothesis || 'Add a review question in Protocol for a more focused chapter, or start from the project title.'}</p>}
+          <label className="fld">
+            <span className="fld-l">Focus <span className="muted">· optional</span></span>
+            <textarea className="textarea" rows={2} value={focus} onChange={(e) => setFocus(e.target.value)} disabled={generating} placeholder="e.g. Explain the mechanisms, competing theories, and gaps behind our research question." />
+          </label>
+          <div className="wrap-gap">
+            <button className="btn primary sm" onClick={generate} disabled={generating}>{generating ? 'Writing theory…' : draft ? 'Regenerate theory' : 'Generate theory'}</button>
+            {generating && <button className="btn ghost sm" onClick={() => abortRef.current?.abort()}>Cancel</button>}
+            <span className="small muted">{getModel()}{draft ? ' · replaces the saved draft; Undo restores it' : ''}</span>
+            {!hasKey() && <Link className="small" to="/review?settings=1">Add API key →</Link>}
+          </div>
+          {generating && <p className="small" role="status">Writing sections for {state.project.code}. Leaving this page or switching projects cancels generation.</p>}
+          {error && <p className="theory-error" role="alert">{error}</p>}
+          {draft && <p className="small muted">Saved {new Date(draft.generatedAt).toLocaleString()} · {draft.model}. AI draft — verify claims against primary sources.</p>}
+        </div>
+      )}
+
+      {sections.length > 0 && <TheoryReader key={`${state.project.id}-${draft?.generatedAt ?? 'curated'}`} sections={sections} curated={curated} />}
+      {!curated && draft && draft.sources.length > 0 && (
+        <div className="card theory-sources">
+          <div className="card-h">PROJECT REFERENCES SUPPLIED TO AI</div>
+          <p className="small">Titles and identifiers were supplied as context. The model has not read the full papers.</p>
+          <ul className="cite-list">{draft.sources.map((s) => {
+            const url = s.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(s.pmid)}/` : s.doi ? `https://doi.org/${encodeURIComponent(s.doi)}` : null
+            return <li key={s.id}>{url ? <a href={url} target="_blank" rel="noreferrer">{s.title} ↗</a> : s.title}{s.year ? ` · ${s.year}` : ''}</li>
+          })}</ul>
+        </div>
+      )}
+    </>
+  )
+}
+
+function TheoryReader({ sections, curated }: { sections: { id: string; title: string; group: string; body: ReactNode }[]; curated: boolean }) {
+  const [active, setActive] = useState(sections[0]?.id ?? '')
   const [q, setQ] = useState('')
   const [quiz, setQuiz] = useState(false)
   const [index, setIndex] = useState<Record<string, string>>({})
   const { read, toggle, clear } = useReadSections()
 
   const query = q.trim().toLowerCase()
-  const matches = (s: (typeof THEORY)[number]) =>
+  const matches = (s: (typeof sections)[number]) =>
     !query || (index[s.id] ?? `${s.title} ${s.group}`.toLowerCase()).includes(query)
-  const visible = THEORY.filter(matches)
+  const visible = sections.filter(matches)
 
   // TOC groups, reflecting the current (possibly filtered) visible set
   const order: string[] = []
@@ -158,18 +260,18 @@ export default function Theory() {
   })
   const groups = order.map((g) => ({ group: g, items: gmap.get(g)! }))
 
-  const readCount = THEORY.filter((s) => read.has(s.id)).length
-  const readPct = Math.round((readCount / THEORY.length) * 100)
+  const readCount = sections.filter((s) => read.has(s.id)).length
+  const readPct = Math.round((readCount / sections.length) * 100)
 
   // build a full-text index over rendered bodies once, so search covers prose
   useEffect(() => {
     const idx: Record<string, string> = {}
-    THEORY.forEach((s) => {
+    sections.forEach((s) => {
       const el = document.getElementById(s.id)
       idx[s.id] = `${s.title} ${s.group} ${el?.textContent ?? ''}`.toLowerCase()
     })
     setIndex(idx)
-  }, [])
+  }, [sections])
 
   // scroll-spy — re-observe whenever the rendered set changes
   useEffect(() => {
@@ -184,36 +286,21 @@ export default function Theory() {
     })
     return () => obs.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, quiz])
+  }, [query, quiz, index, sections])
 
   const go = (id: string) => document.getElementById(id)?.scrollIntoView()
 
   return (
     <>
-      <div className="page-head">
-        <Rule />
-        <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <Kicker>BRUGADA SYNDROME · COMPLETE REFERENCE</Kicker>
-            <h1 style={{ marginTop: 12 }}>BrS Theory</h1>
-            <p>An exhaustive, curated reference on Brugada Syndrome — history, epidemiology, genetics, cellular electrophysiology, mechanisms, the full clinical picture, and the epigenetic frontier your project targets. Each section is grounded in PubMed sources you can refresh live. For a conversational review, use the <Link to="/review">Knowledge Review</Link> or the ✦ copilot.</p>
-          </div>
-          <div className="row-actions" style={{ flex: 'none' }}>
-            <Link className="icon-btn" to="/review">Ask the Review →</Link>
-            <Link className="icon-btn" to="/graph">Graph →</Link>
-          </div>
-        </div>
-      </div>
-
       {!quiz && (
         <div className="theory-controls">
-          <input className="input" placeholder="Search the theory…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input" aria-label="Search theory" placeholder="Search the theory…" value={q} onChange={(e) => setQ(e.target.value)} />
           {query && <span className="small mono muted">{visible.length} section{visible.length === 1 ? '' : 's'}</span>}
-          <div className="read-progress" title={`${readCount} of ${THEORY.length} sections marked read`}>
+          <div className="read-progress" title={`${readCount} of ${sections.length} sections marked read`}>
             <div className="rp-track"><i style={{ width: `${readPct}%` }} /></div>
-            <span className="small mono">{readCount}/{THEORY.length} read</span>
+            <span className="small mono">{readCount}/{sections.length} read</span>
           </div>
-          <button className="btn primary sm" onClick={() => setQuiz(true)}>◎ Quiz mode</button>
+          {curated && <button className="btn primary sm" onClick={() => setQuiz(true)}>◎ Quiz mode</button>}
           {readCount > 0 && <button className="btn ghost sm" onClick={clear}>Reset</button>}
         </div>
       )}
@@ -250,7 +337,7 @@ export default function Theory() {
 
           <div className="theory-body">
             {visible.map((s) => {
-              const n = THEORY.findIndex((t) => t.id === s.id) + 1
+              const n = sections.findIndex((t) => t.id === s.id) + 1
               return (
                 <section key={s.id} id={s.id} className="theory-sec">
                   <div className="sec-head">
@@ -260,7 +347,7 @@ export default function Theory() {
                     </button>
                   </div>
                   <div className="prose">{s.body}</div>
-                  <SectionCitations id={s.id} />
+                  {curated && <SectionCitations id={s.id} />}
                 </section>
               )
             })}

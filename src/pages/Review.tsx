@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { Modal, Field } from '../components/Modal'
 import { Markdown } from '../components/Markdown'
 import { streamChat, hasKey, getKey, setKey, getModel, setModel, keySource, estimateCost, fmtCost, MODELS, type ChatMessage } from '../lib/openai'
-import { systemPrompt, PRESETS } from '../lib/brsReview'
+import { systemPrompt, reviewPresets } from '../lib/brsReview'
 import { retrieve, groundingBlock } from '../lib/theoryRag'
 import { listSessions, saveSession, removeSession, sessionTitle, transcriptMarkdown, onePagerHtml, download, type ReviewMsg, type SavedSession } from '../lib/reviewSessions'
 
@@ -12,11 +13,18 @@ const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_
 
 export default function Review() {
   const { state } = useStore()
+  return <ProjectReview key={state.project.id} />
+}
+
+function ProjectReview() {
+  const { state } = useStore()
+  const [params] = useSearchParams()
+  const presets = reviewPresets(state)
   const [messages, setMessages] = useState<ReviewMsg[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [settings, setSettings] = useState(false)
+  const [settings, setSettings] = useState(() => params.get('settings') === '1')
   const [sessionsOpen, setSessionsOpen] = useState(false)
   const [sessions, setSessions] = useState<SavedSession[]>([])
   const [savedNote, setSavedNote] = useState('')
@@ -24,6 +32,7 @@ export default function Review() {
   const [model, setModelState] = useState(getModel())
   const abortRef = useRef<AbortController | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => () => abortRef.current?.abort(), [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -43,10 +52,10 @@ export default function Review() {
     setError(null)
     setSavedNote('')
     setInput('')
-    // RAG: retrieve grounding excerpts from the BrS Theory reference
-    const hits = retrieve(q, 3)
+    // Retrieve only the active project's theory.
+    const hits = retrieve(q, state, 3)
     const sources = hits.map((h) => h.title)
-    const grounding = groundingBlock(hits)
+    const grounding = groundingBlock(hits, state)
     const history = messages
     const callMsgs: ChatMessage[] = [
       systemPrompt(state),
@@ -107,11 +116,11 @@ export default function Review() {
 
   function doSave() {
     if (!messages.length) return
-    saveSession({ id: newId(), title: sessionTitle(messages), ts: Date.now(), model, messages })
+    saveSession({ id: newId(), projectId: state.project.id, title: sessionTitle(messages), ts: Date.now(), model, messages })
     setSavedNote('Session saved.')
   }
   function openSessions() {
-    setSessions(listSessions())
+    setSessions(listSessions(state.project.id))
     setSessionsOpen(true)
   }
   function loadSession(s: SavedSession) {
@@ -120,7 +129,7 @@ export default function Review() {
   }
   function deleteSession(id: string) {
     removeSession(id)
-    setSessions(listSessions())
+    setSessions(listSessions(state.project.id))
   }
   function exportMd() {
     download(`knowledge-review-${Date.now()}.md`, 'text/markdown', transcriptMarkdown(messages, { project: state.project.name, model, ts: Date.now() }))
@@ -138,9 +147,9 @@ export default function Review() {
         <Rule />
         <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <Kicker>KNOWLEDGE REVIEW · BRUGADA SYNDROME</Kicker>
+            <Kicker>KNOWLEDGE REVIEW · {state.project.code}</Kicker>
             <h1 style={{ marginTop: 12 }}>Knowledge Review</h1>
-            <p>A fast, high-yield review of Brugada Syndrome, grounded in your BrS Theory reference and tied to your project. Answers cite the sections they draw from and stream live.</p>
+            <p>Explore {state.project.name}. Answers use this project's Theory when available, cite the sections they draw from, and stream live.</p>
           </div>
           <div className="row-actions" style={{ flex: 'none', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <span className="pill" title="Model in use"><b>{model}</b></span>
@@ -167,7 +176,7 @@ export default function Review() {
         <div className="card lg">
           <div className="card-h"><span className="sq" style={{ background: 'var(--navy)' }} />START A REVIEW</div>
           <div className="grid g4" style={{ gap: 12 }}>
-            {PRESETS.map((p) => (
+            {presets.map((p) => (
               <button key={p.id} className="preset" onClick={() => send(p.prompt)} disabled={streaming}>
                 <b>{p.label}</b>
                 <span>{p.blurb}</span>
@@ -184,7 +193,7 @@ export default function Review() {
                   {m.content ? <Markdown text={m.content} /> : <span className="typing">thinking<span>.</span><span>.</span><span>.</span></span>}
                   {(m.sources?.length || m.usage) && (
                     <div className="msg-meta">
-                      {m.sources?.map((s) => <span key={s} className="src-chip" title="Grounded in this BrS Theory section">§ {s}</span>)}
+                      {m.sources?.map((s) => <span key={s} className="src-chip" title="From this project's Theory section">§ {s}</span>)}
                       {m.usage && <span className="tok-meta" title="Estimated — approximate list pricing">▲ {m.usage.total_tokens.toLocaleString()} tok · ~{fmtCost(estimateCost(model, m.usage))}</span>}
                     </div>
                   )}
@@ -202,7 +211,7 @@ export default function Review() {
       <div className="composer">
         {messages.length > 0 && (
           <div className="preset-bar">
-            {PRESETS.map((p) => (
+            {presets.map((p) => (
               <button key={p.id} className="chip-btn" onClick={() => send(p.prompt)} disabled={streaming}>{p.label}</button>
             ))}
           </div>
@@ -219,7 +228,7 @@ export default function Review() {
                 send(input)
               }
             }}
-            placeholder="Ask a Brugada question, or pick a topic above…  (Enter to send, Shift+Enter for a new line)"
+            placeholder="Ask about this project's theory, or pick a topic above… (Enter to send)"
           />
           {streaming ? (
             <button className="btn ghost" onClick={stop}>Stop</button>

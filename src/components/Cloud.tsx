@@ -3,21 +3,26 @@ import { useStore } from '../lib/store'
 import {
   isCloudConfigured, cloudConfigSource, setCloudConfig,
   signInEmail, verifyEmailCode, signInPassword, signUpPassword, signOut, onAuth, authRedirectTo,
-  saveCloudState, restoreCloudState, cloudStateInfo, shareProject,
+  createWorkspaceSync, shareProject,
 } from '../lib/supabase'
+import { watchWorkspaceSync, type Resolution, type SyncStatus } from '../lib/cloudSync'
+import { download } from '../lib/reviewSessions'
 
 const AUTOSYNC_LS = 'williamslab.cloud.autosync'
 
-export default function Cloud({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function Cloud({ open, onClose, onSyncStatus }: { open: boolean; onClose: () => void; onSyncStatus?: (status: SyncStatus) => void }) {
   const { state } = useStore()
   const [email, setEmail] = useState<string | null>(null) // signed-in email
+  const [userId, setUserId] = useState<string | null>(null)
   const [configured, setConfigured] = useState(isCloudConfigured())
   const [source, setSource] = useState(cloudConfigSource())
-  const [cloudInfo, setCloudInfo] = useState<{ exists: boolean; updatedAt?: string }>({ exists: false })
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ phase: 'paused', message: 'Sign in to sync this workspace.' })
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [shareLink, setShareLink] = useState<string | null>(null)
   const [autoSync, setAutoSync] = useState(() => localStorage.getItem(AUTOSYNC_LS) !== 'off')
+  const syncRef = useRef<Awaited<ReturnType<typeof createWorkspaceSync>> | null>(null)
+  const [syncVersion, setSyncVersion] = useState(0)
 
   // config form
   const [url, setUrl] = useState('')
@@ -32,26 +37,33 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
   // track auth state
   useEffect(() => {
     if (!configured) return
-    const off = onAuth((e) => setEmail(e))
+    const off = onAuth((e, id) => { setEmail(e); setUserId(id) })
     return off
   }, [configured])
 
-  // refresh cloud-copy info when signed in / panel opens
+  // Keep synchronization alive while the panel is closed, and stop old requests
+  // when the account, configuration, or automatic-sync preference changes.
   useEffect(() => {
-    if (email) cloudStateInfo().then(setCloudInfo).catch(() => {})
-  }, [email, open])
-
-  // debounced auto-push on local changes
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    function onSave() {
-      if (!email || !autoSync) return
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => { saveCloudState().then(() => cloudStateInfo().then(setCloudInfo)).catch(() => {}) }, 2500)
+    let cancelled = false
+    let stopWatching: (() => void) | undefined
+    let service: Awaited<ReturnType<typeof createWorkspaceSync>> | undefined
+    const report = (status: SyncStatus) => {
+      if (!cancelled) { setSyncStatus(status); onSyncStatus?.(status) }
     }
-    window.addEventListener('williamslab:save', onSave)
-    return () => { window.removeEventListener('williamslab:save', onSave); if (timer.current) clearTimeout(timer.current) }
-  }, [email, autoSync])
+    syncRef.current = null
+    report({ phase: 'paused', message: email ? 'Automatic sync is off. Use Sync now to exchange changes.' : 'Sign in to sync this workspace.' })
+    if (configured && email && userId) {
+      if (autoSync) report({ phase: 'checking', message: 'Connecting to your cloud workspace…' })
+      createWorkspaceSync(userId, report).then((created) => {
+        service = created
+        if (cancelled) { service.sync.stop(); return }
+        syncRef.current = service
+        if (autoSync) stopWatching = watchWorkspaceSync(service.sync)
+        else setSyncStatus((status) => ({ ...status }))
+      }).catch((e) => report({ phase: 'error', message: e instanceof Error ? e.message : 'Could not connect to cloud sync.' }))
+    }
+    return () => { cancelled = true; stopWatching?.(); service?.sync.stop() }
+  }, [email, userId, configured, autoSync, onSyncStatus, syncVersion])
 
   function saveConfig() {
     const err = setCloudConfig(url, key)
@@ -64,7 +76,8 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
   function disconnect() {
     if (!confirm('Disconnect this device from the cloud? Your local data stays; sign-in and sync stop.')) return
     setCloudConfig('', '')
-    setConfigured(false); setSource('none'); setEmail(null); setCloudInfo({ exists: false })
+    syncRef.current?.sync.stop()
+    setConfigured(false); setSource('none'); setEmail(null)
   }
   async function sendLink() {
     if (!loginEmail.trim()) return
@@ -97,20 +110,13 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Sign-up failed.' }) }
     finally { setBusy(null) }
   }
-  async function doSave() {
-    setBusy('save'); setMsg(null)
-    try { await saveCloudState(); setCloudInfo(await cloudStateInfo()); setMsg({ ok: true, text: 'Saved this workspace to the cloud.' }) }
-    catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Save failed.' }) }
-    finally { setBusy(null) }
+  async function doSync(resolution?: Resolution) {
+    setMsg(null)
+    await syncRef.current?.sync.sync(resolution)
   }
-  async function doRestore() {
-    if (!confirm('Replace this device’s data with the cloud copy? Unsaved local changes will be overwritten.')) return
-    setBusy('restore'); setMsg(null)
-    try {
-      const ok = await restoreCloudState()
-      if (ok) { setMsg({ ok: true, text: 'Restored — reloading…' }); setTimeout(() => location.reload(), 700) }
-      else setMsg({ ok: false, text: 'No cloud copy to restore yet.' })
-    } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Restore failed.' }); setBusy(null) }
+  function downloadBackup() {
+    const backup = syncRef.current?.latestBackup()
+    if (backup) download(`williamslab-device-backup-${Date.now()}.json`, 'application/json', backup)
   }
   async function doShare() {
     setBusy('share'); setMsg(null); setShareLink(null)
@@ -120,7 +126,11 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Share failed.' }) }
     finally { setBusy(null) }
   }
-  async function doSignOut() { await signOut(); setEmail(null); setShareLink(null); setMsg(null) }
+  async function doSignOut() {
+    syncRef.current?.sync.stop()
+    try { await signOut(); setEmail(null); setShareLink(null); setMsg(null) }
+    catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : 'Sign-out failed.' }); setSyncVersion((v) => v + 1) }
+  }
   function toggleAuto() {
     setAutoSync((v) => { const n = !v; localStorage.setItem(AUTOSYNC_LS, n ? 'on' : 'off'); return n })
   }
@@ -182,14 +192,23 @@ export default function Cloud({ open, onClose }: { open: boolean; onClose: () =>
           ) : (
             <>
               <div className="kv"><span className="k">Signed in</span><span className="val"><b>{email}</b></span></div>
-              <div className="kv"><span className="k">Cloud copy</span><span className="val">{cloudInfo.exists ? `saved ${cloudInfo.updatedAt ? new Date(cloudInfo.updatedAt).toLocaleString() : ''}` : <span className="muted">none yet</span>}</span></div>
-              <div className="kv"><span className="k">Auto-sync</span><span className="val"><label style={{ cursor: 'pointer' }}><input type="checkbox" checked={autoSync} onChange={toggleAuto} /> save changes automatically</label></span></div>
+              <div className="kv"><span className="k">Sync status</span><span className="val" role="status" style={{ color: syncStatus.phase === 'synced' ? 'var(--green)' : ['error', 'conflict', 'offline'].includes(syncStatus.phase) ? 'var(--red)' : 'var(--muted)' }}>{syncStatus.message}</span></div>
+              {syncStatus.checkedAt && <div className="kv"><span className="k">Last checked</span><span className="val">{new Date(syncStatus.checkedAt).toLocaleString()}</span></div>}
+              <div className="kv"><span className="k">Auto-sync</span><span className="val"><label style={{ cursor: 'pointer' }}><input type="checkbox" checked={autoSync} onChange={toggleAuto} /> exchange changes across devices</label></span></div>
+              <p className="small muted">{autoSync ? 'Updates download when you open or return to the app, and every 15 seconds while it is visible.' : 'Automatic uploads and downloads are paused. Use Sync now to exchange changes.'} Use the same account and Supabase project on each device.</p>
               <div className="divider" />
               <div className="wrap-gap" style={{ marginBottom: 10 }}>
-                <button className="btn primary sm" onClick={doSave} disabled={!!busy}>{busy === 'save' ? 'Saving…' : '⤒ Save to cloud'}</button>
-                <button className="btn ghost sm" onClick={doRestore} disabled={!!busy || !cloudInfo.exists}>{busy === 'restore' ? 'Restoring…' : '⤓ Restore'}</button>
+                <button className="btn primary sm" onClick={() => doSync()} disabled={!!busy || syncStatus.phase === 'checking' || !syncRef.current}>{syncStatus.phase === 'checking' ? 'Syncing…' : '↕ Sync now'}</button>
                 <button className="btn ghost sm" onClick={doShare} disabled={!!busy}>{busy === 'share' ? 'Sharing…' : '🔗 Share this project'}</button>
               </div>
+              {syncStatus.phase === 'conflict' && <div className="card" style={{ padding: 12, marginBottom: 12 }}>
+                <p className="small" style={{ marginBottom: 10 }}>Choose a version for the conflicting items. A local backup is saved before applying the choice.</p>
+                <div className="wrap-gap">
+                  {syncStatus.updatedAt && <button className="btn primary sm" onClick={() => doSync('cloud')}>Use cloud changes</button>}
+                  <button className="btn ghost sm" onClick={() => doSync('local')}>Use this device’s changes</button>
+                </div>
+              </div>}
+              {syncRef.current?.latestBackup() && <button className="btn ghost sm" onClick={downloadBackup} style={{ marginBottom: 10 }}>Download previous device copy</button>}
               {shareLink && (
                 <div className="kv"><span className="k">Share link</span><span className="val" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input className="input mono" style={{ fontSize: 11 }} readOnly value={shareLink} onFocus={(e) => e.target.select()} />

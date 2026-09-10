@@ -1,16 +1,20 @@
 import type { ProjectState } from '../types'
 import type { ChatMessage } from './openai'
+import { hasCuratedTheory } from './projectTheory'
 
-// Context-aware system prompt: a crisp, high-yield Brugada Syndrome
+// Context-aware system prompt: a crisp, high-yield project
 // reviewer that ties knowledge back to the user's own research.
 export function systemPrompt(state: ProjectState): ChatMessage {
   const hyps = state.hypotheses.map((h) => `- ${h.label}: ${h.statement}`).join('\n')
   return {
     role: 'system',
-    content: `You are a sharp cardiology / cardiac-electrophysiology tutor running a fast, high-yield knowledge review on Brugada Syndrome for a physician-researcher.
+    content: `You are a research tutor running a clear, high-yield knowledge review on the active project's subject. Do not assume any other project's disease or specialty.
 
 Their active research project is "${state.project.name}". Central hypothesis:
 "${state.project.centralHypothesis}"
+Domain: ${state.project.domain}
+Review question: ${state.review.question || 'Not defined'}
+PICO: ${JSON.stringify(state.review.pico)}
 
 Working hypotheses on their board:
 ${hyps}
@@ -18,8 +22,8 @@ ${hyps}
 Rules of engagement:
 - Be crisp and high-yield. Lead with the answer. Prefer tight bullet points and short bolded key terms over long prose.
 - Use markdown: ## for section headings, **bold** for the terms worth memorising, and - bullets. Keep paragraphs to 1–2 sentences.
-- Be mechanistically precise (SCN5A/Nav1.5, I_Na, RVOT conduction, depolarization vs repolarization hypotheses, type-1 coved ST, sodium-channel-blocker challenge, VF/SCD risk, quinidine, ICD).
-- Whenever relevant, connect the topic back to their epigenetics angle (DNA methylation, histone marks, ncRNAs regulating sodium-channel loci) and to their listed hypotheses.
+- Explain the mechanisms and theoretical framework relevant to this project's topic precisely.
+- Connect the topic to the stated research question, listed hypotheses, and PICO. Do not invent missing project details.
 - Flag common exam traps and points of genuine controversy.
 - Be accurate and current; if something is uncertain or debated, say so. Do not invent citations or specific statistics you are unsure of.
 - This is for education and research framing, not individual patient care.`,
@@ -31,6 +35,18 @@ export interface ReviewPreset {
   label: string
   blurb: string
   prompt: string
+}
+
+export function reviewPresets(state: ProjectState): ReviewPreset[] {
+  if (hasCuratedTheory(state.project)) return PRESETS
+  return [
+    { id: 'overview', label: 'Topic overview', blurb: 'The foundations of this project', prompt: 'Explain the background and key concepts behind my active research project.' },
+    { id: 'mechanisms', label: 'Mechanisms & theory', blurb: 'How the pieces fit together', prompt: 'Explain the mechanisms and competing theories behind my project. Separate established evidence from hypotheses.' },
+    { id: 'evidence', label: 'Evidence & gaps', blurb: 'What still needs answering', prompt: 'Identify the evidence needed to answer my review question and the main gaps. Do not invent findings from papers you have not read.' },
+    { id: 'methods', label: 'Research design', blurb: 'Connect theory to methods', prompt: 'Connect my project theory to its PICO, study design, endpoints, and potential confounders.' },
+    { id: 'critique', label: 'Challenge the hypothesis', blurb: 'Alternative explanations', prompt: 'Critique my central hypothesis and identify alternative explanations and tests that could falsify it.' },
+    { id: 'quiz', label: 'Quiz me', blurb: 'Check your understanding', prompt: 'Give me six questions with answers about the theory of my active project, including its assumptions and research methods.' },
+  ]
 }
 
 export const PRESETS: ReviewPreset[] = [

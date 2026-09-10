@@ -148,6 +148,23 @@ export interface Project {
   preRegistered: boolean
   primaryEndpoint?: string
   stage?: string // current lifecycle step (see STAGES)
+  theoryReference?: 'brugada' // curated reference attached to the original project
+}
+
+export interface TheorySection {
+  id: string
+  title: string
+  group: string
+  body: string // Markdown; generated content is never rendered as raw HTML
+}
+
+export interface ProjectTheory {
+  title: string
+  summary: string
+  sections: TheorySection[]
+  generatedAt: number
+  model: string
+  sources: Pick<Paper, 'id' | 'title' | 'pmid' | 'doi' | 'authors' | 'year' | 'journal'>[]
 }
 
 export interface ActivityEntry {
@@ -269,6 +286,8 @@ export interface Review {
 
 export interface ProjectState {
   project: Project
+  theory?: ProjectTheory
+  theoryRead?: string[]
   nodes: GraphNode[]
   edges: GraphEdge[]
   hypotheses: Hypothesis[]

@@ -29,7 +29,7 @@ export function computeInstabilities(s: ProjectState): Instability[] {
         targetLabel: h.label,
         signal: noFalsify ? 'No falsification criterion.' : 'No predicted direction.',
         comment: noFalsify
-          ? `${h.label} states a mechanism but no criterion that would disprove it. As written it can be illustrated but not tested — any result can be read as consistent with it. Define the specific observation (e.g. "no inverse miRNA–Nav1.5 correlation at FDR < 0.05 in n ≥ 12") that would force you to abandon it.`
+          ? `${h.label} states a mechanism but no criterion that would disprove it. As written it can be illustrated but not tested — any result can be read as consistent with it. Define the specific observation, effect threshold, and uncertainty that would force you to revise it.`
           : `${h.label} has no pre-specified direction or effect size, so it cannot be confirmed or refuted quantitatively. State whether the effect is positive or negative and how large you expect it to be.`,
         repair: 'Rewrite as if/then with a direction, an effect size, and the observation that would kill it.',
         status: 'open',
@@ -70,8 +70,8 @@ export function computeInstabilities(s: ProjectState): Instability[] {
         target: a.id,
         targetLabel: a.method,
         signal: 'No control / input arm.',
-        comment: `${a.method} (${a.measures}) has no comparator or input declared. Without a matched control — and, for this assay class, an input/IgG/spike-in — any signal cannot be separated from batch, technical or baseline variation, so a differential result is uninterpretable. This is a first-pass reason reviewers reject a comparison.`,
-        repair: 'Add a matched or isogenic control plus the assay-level input (IgG, vehicle, spike-in).',
+        comment: `${a.method} (${a.measures}) has no comparator or control declared. Specify controls appropriate to this method so the measured signal can be distinguished from technical or baseline variation.`,
+        repair: 'Specify the comparison group and technical controls appropriate to this assay.',
         status: 'open',
       })
     }
@@ -111,7 +111,7 @@ export function computeInstabilities(s: ProjectState): Instability[] {
         targetLabel: a.method,
         signal: `~${Math.round(rep.power * 100)}% power at n=${a.sampleN}.`,
         comment: `At n=${a.sampleN} (${rep.nPerGroup}/group) and an expected effect of d=${rep.d}, ${a.method} reaches only ~${Math.round(rep.power * 100)}% power against a per-test α of ${fmtAlpha(rep.alpha)}${gw}. Reaching 80% would need ≥${rep.requiredNPerGroup}/group (${rep.requiredTotalN} total). As specified, this arm can generate hypotheses but cannot support a confirmatory claim, and a null result would be uninformative.`,
-        repair: `Make a targeted locus the primary endpoint (treat this as discovery), raise the detectable effect, or scale to ≥${rep.requiredTotalN} total.`,
+        repair: `Specify a focused primary endpoint, revisit the detectable effect, or scale to ≥${rep.requiredTotalN} total.`,
         status: 'open',
       })
     }
@@ -143,8 +143,8 @@ export function computeInstabilities(s: ProjectState): Instability[] {
       target: s.project.id,
       targetLabel: s.project.code,
       signal: !s.project.primaryEndpoint ? 'No primary endpoint set.' : 'Not pre-registered.',
-      comment: `The project has ${!s.project.primaryEndpoint ? 'no pre-specified primary endpoint' : 'no pre-registered analysis plan'}. With genome-wide data and several candidate loci, undeclared analytic flexibility is a garden-of-forking-paths problem — it inflates false positives and undermines any p-value you report. Na⁺-channel-blocker medication is a live confounder of methylation that must be modelled, not discovered post hoc.`,
-      repair: 'Pre-register: fix the primary/secondary endpoints, the covariate set (incl. medication), and the FDR plan before unblinding.',
+      comment: `The project has ${!s.project.primaryEndpoint ? 'no pre-specified primary endpoint' : 'no pre-registered analysis plan'}. Define the outcome, relevant covariates, and handling of multiple comparisons before examining results to limit selective analysis.`,
+      repair: 'Pre-register the primary and secondary endpoints, covariates, and analysis plan.',
       status: 'open',
     })
   }
@@ -166,7 +166,7 @@ export function computeInstabilities(s: ProjectState): Instability[] {
         target: `phase-${phase}`,
         targetLabel: `Phase ${phase}`,
         signal: `${methods.length} high-effort assays in phase ${phase}.`,
-        comment: `Phase ${phase} stacks ${methods.length} high-effort assays (${methods.join(', ')}). Run in parallel by one team inside a single phase, the timeline, sample volume and hands-on bandwidth are unrealistic and quality will slip. Heavy chromatin and functional assays in particular each need dedicated optimisation.`,
+        comment: `Phase ${phase} stacks ${methods.length} high-effort assays (${methods.join(', ')}). Check whether the team, timeline, sample volume, and available equipment can support running them in parallel. Each method needs dedicated optimisation.`,
         repair: 'Sequence the heavy assays across phases, or bring in a core facility / collaborator for one of them.',
         status: 'open',
       })
@@ -174,10 +174,12 @@ export function computeInstabilities(s: ProjectState): Instability[] {
   }
 
   // 9 · manuscript-story weakness
-  const hasCausalToPhenotype = s.edges.some(
-    (e) => (e.dst === 'phe_type1' || e.dst === 'phe_arr') && (e.evidence === 'causal' || e.evidence === 'established') && e.rel !== 'unmasks',
+  const phenotypeIds = new Set(s.nodes.filter((n) => n.type === 'ClinicalPhenotype').map((n) => n.id))
+  const phenotypeEdges = s.edges.filter((e) => phenotypeIds.has(e.dst) && e.rel !== 'unmasks')
+  const hasCausalToPhenotype = phenotypeEdges.some(
+    (e) => e.evidence === 'causal' || e.evidence === 'established',
   )
-  if (!hasCausalToPhenotype) {
+  if (phenotypeEdges.length > 0 && !hasCausalToPhenotype) {
     out.push({
       id: 'inst_story_project',
       type: 'manuscript_story_weakness',
@@ -185,8 +187,8 @@ export function computeInstabilities(s: ProjectState): Instability[] {
       target: s.project.id,
       targetLabel: 'central hypothesis',
       signal: 'Association-only into the phenotype.',
-      comment: `Every edge running into the clinical phenotype is association-grade — nothing yet shows that changing methylation causally changes I_Na, conduction or the ECG. The manuscript would read as "epigenetic marks correlate with Brugada," which reviewers will call descriptive and decline for a high-impact venue. One causal experiment converts the whole story.`,
-      repair: 'Add an iPSC-CM demethylation / rescue experiment with MEA conduction read-out, and frame clinical utility via the biomarker.',
+      comment: `The recorded links to ${[...new Set(phenotypeEdges.map((e) => nodeLabel(e.dst)))].join(', ')} have no causal or established evidence. Frame the findings as associations unless the study design and evidence support a causal claim.`,
+      repair: 'Qualify causal language or add evidence from a design that can test the proposed mechanism.',
       status: 'open',
     })
   }

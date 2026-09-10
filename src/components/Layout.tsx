@@ -7,6 +7,7 @@ import CommandPalette from './CommandPalette'
 import Cloud from './Cloud'
 import { Rule } from './ui'
 import { useLiveryMotion } from '../lib/motion'
+import type { SyncStatus } from '../lib/cloudSync'
 
 // g-chord destinations (press "g" then the key)
 const GNAV: Record<string, string> = { o: '/', d: '/pit-wall', r: '/review', t: '/theory', k: '/graph', m: '/meta', s: '/studies', h: '/hypotheses', p: '/prisma' }
@@ -60,7 +61,7 @@ const NAV = [
     group: 'KNOWLEDGE',
     items: [
       { to: '/graph', label: 'Knowledge Graph', icon: '⬡', color: '#4f46e5' },
-      { to: '/theory', label: 'BrS Theory', icon: '§', color: '#db2777' },
+      { to: '/theory', label: 'Theory', icon: '§', color: '#db2777' },
       { to: '/review', label: 'Knowledge Review', icon: '✦', color: '#1746d1' },
     ],
   },
@@ -92,7 +93,7 @@ const TITLES: Record<string, string> = {
   '/aims': 'Specific Aims',
   '/suspension': 'Rigor Monitor',
   '/graph': 'Knowledge Graph',
-  '/theory': 'BrS Theory',
+  '/theory': 'Theory',
   '/review': 'Knowledge Review',
 }
 
@@ -108,6 +109,7 @@ export default function Layout() {
   const [projMenu, setProjMenu] = useState(false)
   const [help, setHelp] = useState(false)
   const [cloudOpen, setCloudOpen] = useState(false)
+  const [cloudStatus, setCloudStatus] = useState<SyncStatus | null>(null)
   const [navOpen, setNavOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
@@ -263,7 +265,7 @@ export default function Layout() {
               <button className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)">↶</button>
               <button className="icon-btn" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)">↷</button>
             </span>
-            <button className="icon-btn" onClick={() => setCloudOpen(true)} title="Cloud sync &amp; sharing">☁</button>
+            <button className="icon-btn cloud-trigger" onClick={() => setCloudOpen(true)} title="Cloud sync &amp; sharing" aria-label={`Cloud sync: ${cloudStatus?.message || 'Open settings'}`}>☁{cloudStatus && cloudStatus.phase !== 'paused' && <i className={`cloud-dot ${cloudStatus.phase}`} aria-hidden="true" />}</button>
             <button className="icon-btn kbd-btn" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)">⌘</button>
             <div className="proj-switch">
               <button className="proj-chip" onClick={() => setProjMenu((v) => !v)} title={state.project.name}>{state.project.code} ▾</button>
@@ -303,14 +305,14 @@ export default function Layout() {
           <span className="footer-signature"><Rule /> Machine 03</span>
         </footer>
       </div>
-      <AssistantDock />
+      <AssistantDock key={activeId} />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onToggleTheme={() => setTheme(theme === 'day' ? 'night' : 'day')}
         onOpenCopilot={() => window.dispatchEvent(new CustomEvent('wl-open-copilot'))}
       />
-      <Cloud open={cloudOpen} onClose={() => setCloudOpen(false)} />
+      <Cloud open={cloudOpen} onClose={() => setCloudOpen(false)} onSyncStatus={setCloudStatus} />
 
       {help && (
         <div className="kbd-overlay" onClick={() => setHelp(false)}>

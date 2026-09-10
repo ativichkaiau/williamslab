@@ -10,6 +10,7 @@ export interface ReviewMsg {
 
 export interface SavedSession {
   id: string
+  projectId?: string
   title: string
   ts: number
   model: string
@@ -18,11 +19,11 @@ export interface SavedSession {
 
 const KEY = 'williamslab.review.sessions'
 
-export function listSessions(): SavedSession[] {
+export function listSessions(projectId?: string): SavedSession[] {
   try {
     const raw = localStorage.getItem(KEY)
     const arr = raw ? (JSON.parse(raw) as SavedSession[]) : []
-    return arr.sort((a, b) => b.ts - a.ts)
+    return arr.filter((s) => !projectId || (s.projectId ?? 'brs-epi') === projectId).sort((a, b) => b.ts - a.ts)
   } catch {
     return []
   }

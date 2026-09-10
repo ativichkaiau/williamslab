@@ -3,7 +3,8 @@
 // through three phases; the endpoint is flexible (a Research Question, a
 // Reflection, or a supported drop-out). Program-level data, its own
 // localStorage key (independent of the per-project research store).
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { WORKSPACE_RESTORED, reportWorkspaceSave } from './cloudSync'
 
 export type PhaseStatus = 'not-started' | 'active' | 'done'
 export type GroupOutcome = 'in-progress' | 'research-question' | 'reflection' | 'dropped'
@@ -126,20 +127,25 @@ function load(): LitLinkState {
 // Program-level store hook (independent of the research project store).
 export function useLitLink() {
   const [state, setStateInner] = useState<LitLinkState>(load)
+  const current = useRef(state)
+  useEffect(() => {
+    const reload = () => { current.current = load(); setStateInner(current.current) }
+    const storage = (e: StorageEvent) => { if (e.key === STORAGE_KEY) reload() }
+    window.addEventListener(WORKSPACE_RESTORED, reload)
+    window.addEventListener('storage', storage)
+    return () => { window.removeEventListener(WORKSPACE_RESTORED, reload); window.removeEventListener('storage', storage) }
+  }, [])
   // persist synchronously on every mutation — a plain useEffect would be
   // skipped if the page unmounts in the same tick (e.g. "promote" navigates
   // away to the new review project), dropping the write.
   const setState = useCallback((updater: LitLinkState | ((s: LitLinkState) => LitLinkState)) => {
-    setStateInner((prev) => {
-      const next = typeof updater === 'function' ? (updater as (s: LitLinkState) => LitLinkState)(prev) : updater
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-        window.dispatchEvent(new Event('williamslab:save')) // cloud auto-sync hook
-      } catch {
-        /* ignore quota */
-      }
-      return next
-    })
+    const next = typeof updater === 'function' ? updater(current.current) : updater
+    current.current = next
+    setStateInner(next)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      reportWorkspaceSave(STORAGE_KEY, true)
+    } catch { reportWorkspaceSave(STORAGE_KEY, false) }
   }, [])
 
   const patchGroup = useCallback((id: string, patch: Partial<LitGroup>) => {

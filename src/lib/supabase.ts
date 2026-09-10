@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { WorkspaceSync, WORKSPACE_RESTORED, assertWorkspaceSaved, canonical, validateBundle, type Bundle, type Fingerprints, type SyncStatus } from './cloudSync'
 
 // ============================================================
 // Supabase cloud client — optional & bring-your-own. Configured via env
@@ -149,7 +150,8 @@ export async function signUpPassword(email: string, password: string): Promise<{
   return { needsConfirm: !data.session } // no immediate session ⇒ email confirmation is on
 }
 export async function signOut(): Promise<void> {
-  await (await loadClient())?.auth.signOut()
+  const result = await (await loadClient())?.auth.signOut()
+  if (result?.error) throw result.error
 }
 export async function currentEmail(): Promise<string | null> {
   const c = await loadClient()
@@ -157,73 +159,109 @@ export async function currentEmail(): Promise<string | null> {
   const { data } = await c.auth.getUser()
   return data.user?.email ?? null
 }
-export function onAuth(cb: (email: string | null) => void): () => void {
+export function onAuth(cb: (email: string | null, userId: string | null) => void): () => void {
   let unsub = () => {}
   let cancelled = false
   loadClient().then((c) => {
     if (cancelled) return
-    if (!c) { cb(null); return }
-    const { data } = c.auth.onAuthStateChange((_evt, session) => cb(session?.user?.email ?? null))
+    if (!c) { cb(null, null); return }
+    const { data } = c.auth.onAuthStateChange((_evt, session) => cb(session?.user?.email ?? null, session?.user?.id ?? null))
     unsub = () => data.subscription.unsubscribe()
   })
   return () => { cancelled = true; unsub() }
 }
 
 // ---- the workspace bundle (app store + litlink store) ----
-export interface Bundle {
-  v: number
-  app: unknown | null
-  litlink: unknown | null
-}
 function readLocalBundle(): Bundle {
+  assertWorkspaceSaved()
   const parse = (k: string) => {
-    try {
-      const raw = localStorage.getItem(k)
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
+    const raw = localStorage.getItem(k)
+    return raw ? JSON.parse(raw) : null
   }
-  return { v: 1, app: parse(APP_KEY), litlink: parse(LITLINK_KEY) }
+  return validateBundle({ v: 1, app: parse(APP_KEY), litlink: parse(LITLINK_KEY) })
 }
 function writeLocalBundle(b: Bundle) {
+  const previous = [localStorage.getItem(APP_KEY), localStorage.getItem(LITLINK_KEY)]
   try {
-    if (b.app) localStorage.setItem(APP_KEY, JSON.stringify(b.app))
+    localStorage.setItem(APP_KEY, JSON.stringify(b.app))
     if (b.litlink) localStorage.setItem(LITLINK_KEY, JSON.stringify(b.litlink))
     else localStorage.removeItem(LITLINK_KEY)
   } catch {
-    /* ignore quota */
+    // Avoid a partially applied workspace when Safari storage is full.
+    ;[APP_KEY, LITLINK_KEY].forEach((key, i) => {
+      if (previous[i] === null) localStorage.removeItem(key)
+      else localStorage.setItem(key, previous[i]!)
+    })
+    throw new Error('This device could not store the cloud workspace. Free browser storage and try again; sync has not been marked complete.')
   }
+  window.dispatchEvent(new Event(WORKSPACE_RESTORED))
 }
 
-// ---- whole-workspace sync (one JSON blob per user) ----
-export async function saveCloudState(): Promise<void> {
+const OWNER_KEY = 'williamslab.cloud.workspace-owner'
+
+// Bind every request and checkpoint to one account and Supabase origin. An old
+// request is aborted when Cloud unmounts, pauses, signs out, or changes account.
+export async function createWorkspaceSync(userId: string, notify: (status: SyncStatus) => void): Promise<{ sync: WorkspaceSync; latestBackup: () => string | null }> {
+  const cloudConfig = config()
   const c = await loadClient()
-  if (!c) return
-  const user = (await c.auth.getUser()).data.user
-  if (!user) return
-  const { error } = await c.from('user_states').upsert({ user_id: user.id, state: readLocalBundle(), updated_at: new Date().toISOString() })
-  if (error) throw error
-}
-export async function cloudStateInfo(): Promise<{ exists: boolean; updatedAt?: string }> {
-  const c = await loadClient()
-  if (!c) return { exists: false }
-  const user = (await c.auth.getUser()).data.user
-  if (!user) return { exists: false }
-  const { data } = await c.from('user_states').select('updated_at').eq('user_id', user.id).maybeSingle()
-  return { exists: !!data, updatedAt: data?.updated_at as string | undefined }
-}
-// Pull the cloud workspace into local storage. Returns false if nothing to pull.
-export async function restoreCloudState(): Promise<boolean> {
-  const c = await loadClient()
-  if (!c) return false
-  const user = (await c.auth.getUser()).data.user
-  if (!user) return false
-  const { data } = await c.from('user_states').select('state').eq('user_id', user.id).maybeSingle()
-  const bundle = data?.state as Bundle | undefined
-  if (!bundle || !bundle.app) return false
-  writeLocalBundle(bundle)
-  return true
+  if (!c || !cloudConfig) throw new Error('Cloud is not configured.')
+  if (!userId) throw new Error('Sign in before syncing this workspace.')
+  const account = `${cloudConfig.url}:${userId}`
+  const checkpointKey = `williamslab.cloud.checkpoint:${account}`
+  const backupPrefix = `williamslab.cloud.backup:${account}:`
+  const latestBackup = () => {
+    const keys = Object.keys(localStorage).filter((key) => key.startsWith(backupPrefix)).sort()
+    return keys.length ? localStorage.getItem(keys[keys.length - 1]) : null
+  }
+  const sync = new WorkspaceSync({
+    readLocal: readLocalBundle,
+    applyLocal: writeLocalBundle,
+    belongsToAnotherAccount: () => {
+      const owner = localStorage.getItem(OWNER_KEY)
+      return !!owner && owner !== account
+    },
+    readCheckpoint: () => {
+      const raw = localStorage.getItem(checkpointKey)
+      if (!raw) return null
+      try {
+        const parsed: unknown = JSON.parse(raw)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Object.values(parsed).every((x) => typeof x === 'string')) throw new Error()
+        return parsed as Fingerprints
+      } catch { throw new Error('The saved sync checkpoint is damaged. Export this device’s data before reconnecting cloud sync.') }
+    },
+    checkpoint: (value) => {
+      localStorage.setItem(checkpointKey, JSON.stringify(value))
+      localStorage.setItem(OWNER_KEY, account)
+    },
+    backup: (bundle) => {
+      const content = JSON.stringify(bundle)
+      const last = latestBackup()
+      if (last && canonical(JSON.parse(last)) === canonical(bundle)) return
+      try { localStorage.setItem(`${backupPrefix}${Date.now()}`, content) }
+      catch { throw new Error('There is not enough browser storage to back up this device before downloading the cloud copy. Export local projects and free storage, then try again.') }
+    },
+    readRemote: async (signal) => {
+      const { data, error } = await c.from('user_states').select('state,updated_at').eq('user_id', userId).abortSignal(signal).maybeSingle()
+      if (error) throw new Error(error.message)
+      if (!data) return null
+      if (typeof data.updated_at !== 'string' || !Number.isFinite(Date.parse(data.updated_at))) throw new Error('The cloud copy has no valid revision. The device copy has been kept.')
+      return { bundle: validateBundle(data.state), updatedAt: data.updated_at }
+    },
+    writeRemote: async (bundle, expected, signal) => {
+      // Compare-and-set uses the existing schema: stale writes affect zero rows.
+      // Advance the revision even if this device's clock is behind the server.
+      const updated_at = new Date(Math.max(Date.now(), expected ? Date.parse(expected) + 1 : 0)).toISOString()
+      const query = expected
+        ? c.from('user_states').update({ state: bundle, updated_at }).eq('user_id', userId).eq('updated_at', expected)
+        : c.from('user_states').insert({ user_id: userId, state: bundle, updated_at })
+      const { data, error } = await query.select('updated_at').abortSignal(signal).maybeSingle()
+      if (error?.code === '23505') return null // Another device created the first copy.
+      if (error) throw new Error(error.message)
+      if (!data) return null
+      return { bundle, updatedAt: data.updated_at as string }
+    },
+  }, notify)
+  return { sync, latestBackup }
 }
 
 // ---- share links (public read-only project snapshots) ----

@@ -11,6 +11,7 @@ import type { ProjectState } from '../types'
 export const seed: ProjectState = {
   project: {
     id: 'brs-epi',
+    theoryReference: 'brugada',
     name: 'Epigenetic and Non-coding Regulatory Mechanisms of SCN5A in Brugada Syndrome',
     code: 'BrS-EPI',
     domain: 'Cardiovascular genetics · epigenetics · systematic review (Phase 1)',

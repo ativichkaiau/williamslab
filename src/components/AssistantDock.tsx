@@ -19,7 +19,7 @@ const PAGE: Record<string, string> = {
   '/power': 'Statistical Power',
   '/suspension': 'Rigor Monitor',
   '/graph': 'Knowledge Graph',
-  '/theory': 'BrS Theory',
+  '/theory': 'Theory',
   '/review': 'Knowledge Review',
 }
 
@@ -63,6 +63,7 @@ export default function AssistantDock() {
   const [tools, setTools] = useState(true)
   const abortRef = useRef<AbortController | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => () => abortRef.current?.abort(), [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
@@ -79,9 +80,11 @@ export default function AssistantDock() {
     const hyps = state.hypotheses.map((h) => `- ${h.label}`).join('\n')
     return {
       role: 'system',
-      content: `You are the WilliamsLab research copilot, embedded in a Brugada Syndrome research operating system. The user is currently on the "${page}" page.
+      content: `You are the WilliamsLab research copilot. Stay within the active project's topic and context. The user is currently on the "${page}" page.
 
 Project: "${state.project.name}" (stage: ${state.project.stage ?? 'n/a'}).
+Domain: ${state.project.domain}
+Review question: ${state.review.question || 'Not defined'}
 Central hypothesis: "${state.project.centralHypothesis}"
 Working hypotheses:
 ${hyps}
@@ -89,7 +92,7 @@ Review: ${state.review.studies.filter((s) => s.include).length} included studies
 
 You can act on the project with tools: add_study, add_hypothesis, set_stage, import_studies_to_graph, search_pubmed. When the user asks you to do one of these, call the tool and then confirm briefly what you did. Do not fabricate study numbers — only add a study with counts the user gave you.
 
-Be concise and practical. Use markdown (## headings, **bold**, - bullets). Help with Brugada / cardiac-EP science, epigenetics, study design, statistics, and using this app. This is for research and education, not clinical care.`,
+Be concise and practical. Use markdown (## headings, **bold**, - bullets). Help with the project's subject, theory, study design, statistics, and using this app. Do not assume the project is about a particular disease. This is for research and education, not clinical care.`,
     }
   }
 
@@ -135,9 +138,9 @@ Be concise and practical. Use markdown (## headings, **bold**, - bullets). Help 
       return
     }
     setInput('')
-    const hits = retrieve(q, 2)
+    const hits = retrieve(q, state, 2)
     const sources = hits.map((h) => h.title)
-    const grounding = groundingBlock(hits)
+    const grounding = groundingBlock(hits, state)
     const history = messages
     const callMsgs: ChatMessage[] = [
       system(),
@@ -151,7 +154,7 @@ Be concise and practical. Use markdown (## headings, **bold**, - bullets). Help 
     abortRef.current = ctrl
     try {
       if (tools) {
-        const { text: out, actions } = await chatWithTools({ messages: callMsgs, model: getModel(), tools: TOOLS, execute, signal: ctrl.signal })
+        const { text: out, actions } = await chatWithTools({ messages: callMsgs, model: getModel(), tools: TOOLS, execute: (name, args) => { ctrl.signal.throwIfAborted(); return execute(name, args) }, signal: ctrl.signal })
         const actionsMd = actions.length ? '\n\n' + actions.map((x) => `\`✓ ${x.name}\` — ${x.result.split('\n')[0]}`).join('\n') : ''
         setMessages((prev) => {
           const copy = prev.slice()
@@ -188,8 +191,8 @@ Be concise and practical. Use markdown (## headings, **bold**, - bullets). Help 
 
   const suggestions = [
     `Summarize the ${page} page`,
-    'Search PubMed for SCN5A methylation in Brugada',
-    'Add a hypothesis: enhancer hypermethylation lowers Naᵥ1.5',
+    `Search PubMed for ${state.review.question || state.project.name}`,
+    'Explain the theory behind my central hypothesis',
     'Import my review studies onto the graph',
   ]
 
@@ -216,7 +219,7 @@ Be concise and practical. Use markdown (## headings, **bold**, - bullets). Help 
       <div className="ai-thread">
         {messages.length === 0 ? (
           <div className="ai-empty">
-            <b>Ask anything</b> about Brugada Syndrome, your hypotheses, stats, or this page — or ask me to <b>do</b> something (add a study, set the stage, search PubMed).
+            <b>Ask anything</b> about {state.project.code}, its theory, hypotheses, statistics, or this page — or ask me to <b>do</b> something (add a study, set the stage, search PubMed).
             <div className="ai-sugg">
               {suggestions.map((s) => (
                 <button key={s} className="chip-btn" onClick={() => send(s)}>{s}</button>

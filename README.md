@@ -25,7 +25,7 @@ A research project loses grip the same way a race car does — a vague hypothesi
 This is a **frontend-first MVP** — a thinking-and-planning cockpit over one shared graph, not a data-processing backend. Everything is derived from a single seed project object and persisted to `localStorage`.
 
 - **Overview** — project home, rigor score, top issues.
-- **Dashboard** — the Brugada project at a glance: central hypothesis, molecular + clinical axes, planned assays, expected outputs, bottlenecks, next steps.
+- **Dashboard** — select any project to see its own hypothesis, research axes derived from assays, review question and PICO, target measurements, rigor, bottlenecks, and next steps. Empty projects show setup links without seed-project content.
 - **Hypotheses** — falsifiable claims with predicted direction, effect size, and kill-criteria. Add / edit / delete from the UI.
 - **Mechanism Map** — the causal chain, each edge coloured by evidence strength, with a weakest-link callout.
 - **Assays** — the assay ↔ claim matrix with live control / power / tissue-match audits. Add / edit / delete, including the power fields.
@@ -33,8 +33,9 @@ This is a **frontend-first MVP** — a thinking-and-planning cockpit over one sh
 - **Statistical Power** — a two-sample power / sample-size calculator (normal approximation, with the genome-wide multiple-testing tax on α) plus a per-assay power table. This is the same math the rigor monitor uses.
 - **Rigor Monitor** — the signature feature: nine rule-based study-design checks. Toggle pre-registration or set a primary endpoint and watch a flag clear itself.
 - **Knowledge Graph** — all node-types on one draggable, typed graph. Add nodes and edges and delete them without touching code.
-- **BrS Theory** — an **exhaustive** curated reference on Brugada Syndrome: 17 sections in four groups (Foundations · Mechanism · Clinical · Research frontier) covering history, epidemiology, genetics, cellular electrophysiology, the competing mechanisms, the full clinical picture (presentation & overlap syndromes, ECG, provocation, diagnosis, risk, management, special populations) and the epigenetic frontier — with a grouped sticky table of contents, gene/ECG/overlap/Shanghai/risk tables and high-yield / clinical / research callouts. No API key needed.
-- **Knowledge Review** — an AI-powered, high-yield review of Brugada Syndrome (OpenAI, streaming), tied to your project's hypotheses. Topic presets + free-form Q&A. See setup below.
+- **Theory** — a separate chapter and reading progress for each project. BrS-EPI retains the curated Brugada reference, diagrams, citations, and quiz without an API key. Other projects can generate and regenerate an AI draft using their topic, PICO, hypotheses, and saved reference metadata. Drafts are saved in the project, included in export/cloud sync, and remain available after reload. Switching projects or leaving the page cancels generation; failed generation preserves the previous draft. AI drafts require verification against primary sources.
+- **Knowledge Review** — an AI-powered review (OpenAI, streaming) using only the active project's Theory and hypotheses. Topic presets, free-form Q&A, and saved sessions are project-specific. See setup below.
+- **Cloud sync** — exchanges all project data (including generated Theory and reading progress) and LitLink across signed-in devices. Open pages update immediately when a cloud copy is downloaded. Sync checks on sign-in, app resume, reconnect, and every 15 seconds while visible; local edits upload after a short debounce. The cloud icon reports pending, offline, error, conflict, and verified sync states.
 - **✦ Ask AI copilot** — a global, context-aware assistant available on **every page** (floating dock). It knows the current page and your project, and streams answers on BrS science, study design, stats and the app. Uses the same OpenAI key as Knowledge Review.
 
 The UI uses a minimal Williams 1993 livery treatment: flat surfaces, fine borders, slim racing stripes, and restrained colour accents in both Day and Night themes.
@@ -50,6 +51,12 @@ Default model is `gpt-5.1-chat-latest`; switch to `gpt-4o` / `gpt-4o-mini` etc. 
 
 ### The nine sensors
 `unclear_hypothesis` · `weak_mechanistic_chain` · `missing_control` · `assay_mismatch` · `underpowered_design` · `literature_gap` · `statistical_ambiguity` · `infeasible_protocol` · `manuscript_story_weakness` — implemented as pure functions over project state in [`src/lib/suspension.ts`](src/lib/suspension.ts).
+
+### Cloud sync across devices
+
+Configure the same Supabase project and sign into the same account on each device using **☁ Cloud**. Existing installations use the current `db/supabase-schema.sql`; no Realtime setting or database migration is required for two-way sync. After deploying this update, reload the app on every device so an older upload-only client does not overwrite newer changes.
+
+The first connection downloads an existing cloud workspace before uploading anything. If this device has different data, its previous workspace is retained in browser storage and can be downloaded from the Cloud panel. Subsequent syncs compare account-scoped project fingerprints: edits to separate projects merge, while conflicting edits to the same project or LitLink require a choice. Uploads use an atomic `updated_at` condition to detect a competing write and retry. Project selection stays local to each device. Failed reads, writes, validation, or downloads are not shown as synced; **Sync now** retries immediately. Turning auto-sync off pauses both directions.
 
 ## Run it
 

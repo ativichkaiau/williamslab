@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ProjectState, Project, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper, Study, Review } from '../types'
+import type { ProjectState, Project, ProjectTheory, Instability, GraphNode, GraphEdge, Hypothesis, Assay, Paper, Study, Review } from '../types'
 import { seed, blankProject } from '../data/seed'
 import { computeInstabilities, stabilityScore } from './suspension'
+import { WORKSPACE_RESTORED, reportWorkspaceSave } from './cloudSync'
 
 // localStorage-backed, multi-project store. No backend — data lives in the browser.
 const KEY = 'williamslab.app.v2'
@@ -19,7 +20,16 @@ function uid(prefix: string): string {
 }
 
 function normalize(p: ProjectState): ProjectState {
-  return { ...p, activity: p.activity ?? [], project: { ...p.project, stage: p.project.stage ?? 'Protocol' } }
+  const theoryReference = p.project.theoryReference ?? (p.project.id === 'brs-epi' || p.project.id.startsWith('brs-epi_') ? 'brugada' : undefined)
+  let theoryRead = p.theoryRead ?? []
+  // Migrate the former global reading progress only to the original BrS project.
+  if (!p.theoryRead && p.project.id === 'brs-epi') {
+    try {
+      const old: unknown = JSON.parse(localStorage.getItem('williamslab.theory.read') || '[]')
+      if (Array.isArray(old)) theoryRead = old.filter((id): id is string => typeof id === 'string')
+    } catch { /* keep an empty reading list */ }
+  }
+  return { ...p, theoryRead, activity: p.activity ?? [], project: { ...p.project, theoryReference, stage: p.project.stage ?? 'Protocol' } }
 }
 
 function pruneRetiredSeedProjects(projects: ProjectState[]): ProjectState[] {
@@ -44,7 +54,7 @@ function load(): AppState {
   } catch {
     /* ignore corrupt state, fall back to seed */
   }
-  return { projects: [seed], activeId: seed.project.id }
+  return { projects: [normalize(seed)], activeId: seed.project.id }
 }
 
 interface StoreCtx {
@@ -88,6 +98,8 @@ interface StoreCtx {
   createProject: (name: string, code?: string, opts?: { question?: string; index?: string; comparator?: string; outcome?: string }) => string
   patchProjectById: (id: string, patch: Partial<Project>) => void
   updateProject: (patch: Partial<Project>) => void
+  saveTheory: (projectId: string, theory: ProjectTheory) => void
+  setTheoryRead: (projectId: string, ids: string[]) => void
   deleteProject: (id: string) => void
   setStage: (stage: string) => void
   exportActive: () => string
@@ -109,9 +121,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const appRef = useRef(app)
   const past = useRef<AppState[]>([])
   const future = useRef<AppState[]>([])
-  useEffect(() => {
-    appRef.current = app
-  }, [app])
+  const persist = (next: AppState) => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(next))
+      reportWorkspaceSave(KEY, true)
+    } catch { reportWorkspaceSave(KEY, false) }
+  }
 
   // The single mutation entry point. `history` pushes the previous state onto
   // the undo stack (and clears redo); pass false for pure view changes.
@@ -123,16 +138,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     appRef.current = next
     setApp(next)
+    persist(next)
   }
 
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(app))
-      window.dispatchEvent(new Event('williamslab:save')) // cloud auto-sync hook
-    } catch {
-      /* storage may be unavailable; app still works in-memory */
+    // Store initialization/migrations are not user edits. Cloud must read its
+    // existing copy before deciding whether this device has anything to upload.
+    try { localStorage.setItem(KEY, JSON.stringify(appRef.current)); reportWorkspaceSave(KEY, true, false) }
+    catch { reportWorkspaceSave(KEY, false, false) }
+    const reload = () => {
+      const next = load()
+      appRef.current = next
+      past.current = []
+      future.current = []
+      setApp(next)
     }
-  }, [app])
+    const storage = (e: StorageEvent) => { if (e.key === KEY) reload() }
+    window.addEventListener(WORKSPACE_RESTORED, reload)
+    window.addEventListener('storage', storage)
+    return () => {
+      window.removeEventListener(WORKSPACE_RESTORED, reload)
+      window.removeEventListener('storage', storage)
+    }
+  }, [])
 
   const state = app.projects.find((p) => p.project.id === app.activeId) ?? app.projects[0]
   // all existing actions operate on the active project via this shim; no-op
@@ -156,6 +184,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     future.current.push(appRef.current)
     appRef.current = prev
     setApp(prev)
+    persist(prev)
   }
   const redo = () => {
     if (!future.current.length) return
@@ -163,6 +192,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     past.current.push(appRef.current)
     appRef.current = next
     setApp(next)
+    persist(next)
   }
   // prepend an activity entry (capped) — bundle into the same state update
   const act = (s: ProjectState, kind: string, text: string) => [{ id: uid('a'), ts: Date.now(), kind, text }, ...s.activity].slice(0, 60)
@@ -331,6 +361,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return id
     },
     updateProject: (patch) => setState((s) => ({ ...s, project: { ...s.project, ...patch } })),
+    // Bind asynchronous generation to its originating project, even after a switch.
+    saveTheory: (projectId, theory) => {
+      const a = appRef.current
+      if (!a.projects.some((p) => p.project.id === projectId)) return
+      apply({ ...a, projects: a.projects.map((p) => p.project.id === projectId
+        ? { ...p, theory, theoryRead: [], activity: act(p, 'theory', 'Generated project theory') }
+        : p) })
+    },
+    setTheoryRead: (projectId, theoryRead) => {
+      const a = appRef.current
+      if (!a.projects.some((p) => p.project.id === projectId)) return
+      apply({ ...a, projects: a.projects.map((p) => p.project.id === projectId ? { ...p, theoryRead } : p) })
+    },
     patchProjectById: (id, patch) => {
       const a = appRef.current
       apply({ ...a, projects: a.projects.map((p) => (p.project.id === id ? { ...p, project: { ...p.project, ...patch } } : p)) })

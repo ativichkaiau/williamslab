@@ -133,11 +133,9 @@ interface StreamOpts {
   onUsage?: (u: Usage) => void
 }
 
-// Streams a chat completion, calling onToken for each content delta.
-// Returns the full assembled text. Params are chosen to work across
 // Non-streaming single completion — returns the assistant text. Handy for
 // one-shot structured jobs (relevance triage, hypothesis critique, …).
-export async function complete(messages: ChatMessage[], model?: string, signal?: AbortSignal, responseFormat?: JsonSchemaResponseFormat): Promise<string> {
+export async function complete(messages: ChatMessage[], model?: string, signal?: AbortSignal, responseFormat?: JsonSchemaResponseFormat, options: { maxCompletionTokens?: number; reasoningEffort?: 'low' } = {}): Promise<string> {
   const key = getKey()
   if (!key) throw new Error('No OpenAI API key set. Open Settings to add one.')
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -145,7 +143,8 @@ export async function complete(messages: ChatMessage[], model?: string, signal?:
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
       model: model ?? getModel(),
-      max_completion_tokens: 1800,
+      max_completion_tokens: options.maxCompletionTokens ?? 1800,
+      ...(options.reasoningEffort ? { reasoning_effort: options.reasoningEffort } : {}),
       messages,
       ...(responseFormat ? { response_format: responseFormat } : {}),
     }),
