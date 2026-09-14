@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import EvidenceLibrary from './pages/EvidenceLibrary'
 import Layout from './components/Layout'
 import Garage from './pages/Garage'
 import PitWall from './pages/PitWall'
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="meta" element={<MetaAnalysis />} />
         <Route path="diagnostic" element={<DiagnosticMA />} />
         <Route path="references" element={<References />} />
+        <Route path="evidence" element={<EvidenceLibrary />} />
         <Route path="manuscript" element={<Manuscript />} />
         <Route path="poster" element={<Poster />} />
         <Route path="reviewers" element={<Reviewers />} />

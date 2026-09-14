@@ -63,7 +63,7 @@ export function collectReferences(state: ProjectState): Reference[] {
   }
   for (const s of state.review.studies) {
     const { title, journal } = parseNote(s.note)
-    raws.push({ kind: 'study', id: s.id, author: s.author, title: title ?? '', year: s.year, journal, pmid: s.pmid })
+    raws.push({ kind: 'study', id: s.id, author: s.author, title: title ?? '', year: s.year, journal, pmid: s.pmid, doi: s.doi })
   }
 
   const merged: Reference[] = []

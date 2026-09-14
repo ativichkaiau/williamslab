@@ -1,0 +1,48 @@
+/* Evidence stays in the reading flow; color is reserved for review status. */
+.evidence-layout{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(320px,1.3fr);gap:24px;align-items:start}
+.evidence-layout>*,.revision-comparison>*,.cohort-comparison>*{min-width:0}
+.evidence-capture{padding:24px}
+.evidence-capture .wrap-gap{margin:12px 0}
+.evidence-library-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.evidence-library-head h2{font-size:19px;white-space:nowrap}
+.evidence-library-head .input{max-width:230px}
+.evidence-library-item{padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--line)}
+.evidence-passage{padding:18px;border:1px solid var(--line);border-radius:8px;background:var(--card);overflow-wrap:anywhere}
+.evidence-source-title{font-size:14px;line-height:1.5;font-weight:600}
+.evidence-passage p{margin:8px 0}
+.exact-passage{margin:16px 0;padding:4px 0 4px 15px;border-left:2px solid var(--blue);white-space:pre-wrap;font-size:14px;line-height:1.7;color:var(--ink)}
+.evidence-facts{display:grid;gap:12px;font-size:13px;margin:16px 0 0}
+.evidence-facts div{display:grid;grid-template-columns:110px 1fr;gap:12px}
+.evidence-facts dt{color:var(--muted)}
+.evidence-facts dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.claim-quote{margin:0 0 16px;padding:16px;border-left:3px solid var(--blue);background:var(--card-2);line-height:1.65;overflow-wrap:anywhere}
+.evidence-link-group{margin:24px 0}.evidence-link-group>div{margin:12px 0}.evidence-link-group h4{font-size:15px}.evidence-link-group p{margin:8px 0}
+.evidence-marker{display:inline-flex;align-items:center;justify-content:center;min-width:28px;min-height:28px;margin:0 0 0 5px;padding:1px 5px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--muted);font:11px var(--mono);cursor:pointer;vertical-align:baseline;transition:background .15s,color .15s}
+.traceable-claim{cursor:pointer}.traceable-claim:hover .evidence-marker,.evidence-marker:focus-visible,.traced .evidence-marker{color:var(--chip-ink);background:var(--chip)}
+.traced{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px}
+.evidence-marker:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.evidence-warning{margin:12px 0;padding:12px 16px;border-left:3px solid var(--amber);background:var(--warn);color:var(--warn-ink);font-size:13px;overflow-wrap:anywhere}
+.evidence-error{color:var(--bad-ink);font-size:13px;margin:12px 0;overflow-wrap:anywhere}
+.evidence-attach,.living-awaiting,.cohort-manual,.cohort-fields,.revision-history,.cohort-history{margin:20px 0;padding-top:14px;border-top:1px solid var(--line)}
+.evidence-attach>summary,.living-theory summary,.cohort-review summary,.cohort-fields>summary,.evidence-layout summary{cursor:pointer;font-size:13px;font-weight:550;padding:6px 0}
+.evidence-attach .field:first-of-type,.cohort-fields .form-row{margin-top:12px}
+.evidence-attach>a{margin:12px 0}
+.publication-watch{border:1px solid var(--line);border-radius:8px;padding:18px 22px;margin:0 0 24px;background:var(--card)}
+.publication-watch>p{margin:10px 0}.publication-watch .wrap-gap{gap:12px}.publication-watch .wrap-gap b{margin-right:auto;font-size:14px}
+.living-theory{margin:24px 0;padding:24px}.living-theory h2,.cohort-review h2{font-size:21px}.living-theory>p,.cohort-review>p{margin:14px 0;max-width:90ch}.living-theory>.wrap-gap:first-child>a{margin-left:auto}
+.living-theory .publication-watch{margin:22px 0 0;background:var(--card-2)}
+.evidence-pending-paper{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13px}.evidence-pending-paper span{min-width:0}.evidence-pending-paper .btn{flex:none}
+.theory-proposal{padding:24px 0;border-top:1px solid var(--line);margin-top:20px}.theory-proposal h3{font-size:18px}.theory-proposal>p{margin:12px 0;font-size:14px;line-height:1.7}
+.revision-comparison{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:18px 0;border:1px solid var(--line);border-radius:8px;padding:20px;background:var(--card-2)}
+.revision-comparison>div+div{border-left:2px solid var(--blue);padding-left:22px}.revision-comparison p{font-size:14px;white-space:pre-wrap;line-height:1.7;margin:10px 0 0}
+.theory-evidence-update{padding:20px 24px;margin:22px 0;border-left:3px solid var(--blue);background:var(--card-2);border-radius:0 8px 8px 0}
+.theory-evidence-update>.small{margin-bottom:12px}.theory-proposal .form-actions{flex-wrap:wrap}.theory-proposal .form-actions>span{margin-right:auto}
+.revision-history>details{margin:10px 0}.revision-history>details>summary{color:var(--muted)}
+.evidence-claim-row{display:flex;flex-direction:column;align-items:flex-start;gap:5px;width:100%;padding:14px 0;border:0;border-bottom:1px solid var(--line);color:var(--ink);background:none;text-align:left;font:13px var(--sans);cursor:pointer}.evidence-claim-row>span:last-child{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cohort-review{padding:24px;margin:0 0 24px}.cohort-candidate{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0;border-top:1px solid var(--line);font-size:14px}.cohort-candidate>div{min-width:0}.cohort-candidate .btn{flex:none}.cohort-candidate p{margin:6px 0}.cohort-groups{margin:20px 0}.cohort-groups h3{font-size:16px;margin-bottom:14px}.cohort-history p{margin:14px 0}
+.cohort-comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}.cohort-comparison .card{padding:18px}.cohort-comparison .btn{margin-top:16px}.cohort-comparison .evidence-facts div{grid-template-columns:1fr;gap:4px}.cohort-comparison h4{font-size:16px}
+.pdf-passage-picker{margin:12px 0;padding:14px;border:1px solid var(--line);border-radius:6px;background:var(--card-2)}.pdf-passage-picker>.btn{margin:10px 0}.pdf-passage-picker textarea{font-size:12px}
+@media(max-width:1050px){.evidence-layout{grid-template-columns:1fr}.evidence-layout>.evidence-capture{max-width:none}}
+@media(max-width:650px){.revision-comparison,.cohort-comparison{grid-template-columns:1fr;gap:16px}.revision-comparison>div+div{border-left:0;border-top:2px solid var(--blue);padding:16px 0 0}.evidence-capture,.living-theory,.cohort-review{padding:18px}.evidence-library-head,.cohort-candidate{align-items:flex-start;flex-direction:column}.evidence-library-head .input{max-width:none}.evidence-pending-paper{align-items:flex-start}.evidence-facts div{grid-template-columns:1fr;gap:4px}.publication-watch{padding:16px}.theory-evidence-update{padding:16px}}
+@media(prefers-reduced-motion:reduce){.evidence-marker{transition:none}}
+@media print{[data-evidence-ui],.modal-overlay{display:none!important}.traced{text-decoration:none}}

@@ -5,6 +5,7 @@ import { Kicker, Rule } from '../components/ui'
 import { Modal, Field } from '../components/Modal'
 import { NODE_COLORS, nodeColor } from '../lib/palette'
 import type { GraphNode, NodeType, EdgeRel, Evidence } from '../types'
+import { analysisIncluded } from '../lib/cohorts'
 
 const NODE_TYPES = Object.keys(NODE_COLORS) as NodeType[]
 const RELS: EdgeRel[] = ['encodes', 'regulates', 'loops_to', 'deposited_on', 'represses', 'reduces', 'measured_by', 'performed_in', 'modulates', 'unmasks', 'associated_with', 'predicts', 'tested_by', 'supports', 'refutes', 'visualizes', 'argues']
@@ -20,7 +21,7 @@ export default function Graph() {
   const [hidden, setHidden] = useState<Set<NodeType>>(new Set())
   const [note, setNote] = useState('')
 
-  const inclCount = state.review.studies.filter((s) => s.include).length
+  const inclCount = state.review.studies.filter(analysisIncluded).length
   const matchN = useMemo(() => {
     const t = q.trim().toLowerCase()
     if (!t) return 0

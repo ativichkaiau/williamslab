@@ -62,6 +62,7 @@ const NAV = [
     items: [
       { to: '/graph', label: 'Knowledge Graph', icon: '⬡', color: '#4f46e5' },
       { to: '/theory', label: 'Theory', icon: '§', color: '#db2777' },
+      { to: '/evidence', label: 'Evidence', icon: '↗', color: '#0d9488' },
       { to: '/review', label: 'Knowledge Review', icon: '✦', color: '#1746d1' },
     ],
   },
@@ -94,6 +95,7 @@ const TITLES: Record<string, string> = {
   '/suspension': 'Rigor Monitor',
   '/graph': 'Knowledge Graph',
   '/theory': 'Theory',
+  '/evidence': 'Evidence',
   '/review': 'Knowledge Review',
 }
 

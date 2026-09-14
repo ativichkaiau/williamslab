@@ -3,6 +3,7 @@ import type { ProjectState, Project, ProjectTheory, Instability, GraphNode, Grap
 import { seed, blankProject } from '../data/seed'
 import { computeInstabilities, stabilityScore } from './suspension'
 import { WORKSPACE_RESTORED, reportWorkspaceSave } from './cloudSync'
+import { analysisIncluded, enforceCohorts } from './cohorts'
 
 // localStorage-backed, multi-project store. No backend — data lives in the browser.
 const KEY = 'williamslab.app.v2'
@@ -29,7 +30,7 @@ function normalize(p: ProjectState): ProjectState {
       if (Array.isArray(old)) theoryRead = old.filter((id): id is string => typeof id === 'string')
     } catch { /* keep an empty reading list */ }
   }
-  return { ...p, theoryRead, activity: p.activity ?? [], project: { ...p.project, theoryReference, stage: p.project.stage ?? 'Protocol' } }
+  return { ...p, review: { ...p.review, studies: enforceCohorts(p.review.studies) }, theoryRead, activity: p.activity ?? [], project: { ...p.project, theoryReference, stage: p.project.stage ?? 'Protocol' } }
 }
 
 function pruneRetiredSeedProjects(projects: ProjectState[]): ProjectState[] {
@@ -100,6 +101,7 @@ interface StoreCtx {
   updateProject: (patch: Partial<Project>) => void
   saveTheory: (projectId: string, theory: ProjectTheory) => void
   setTheoryRead: (projectId: string, ids: string[]) => void
+  updateResearch: (projectId: string, updater: (p: ProjectState) => ProjectState, activity: string) => void
   deleteProject: (id: string) => void
   setStage: (stage: string) => void
   exportActive: () => string
@@ -125,12 +127,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(KEY, JSON.stringify(next))
       reportWorkspaceSave(KEY, true)
-    } catch { reportWorkspaceSave(KEY, false) }
+      return true
+    } catch { reportWorkspaceSave(KEY, false); return false }
   }
 
   // The single mutation entry point. `history` pushes the previous state onto
   // the undo stack (and clears redo); pass false for pure view changes.
-  const apply = (next: AppState, history = true) => {
+  const apply = (next: AppState, history = true, requireSave = false) => {
+    next = { ...next, projects: next.projects.map((p) => ({ ...p, review: { ...p.review, studies: enforceCohorts(p.review.studies) } })) }
+    if (requireSave && !persist(next)) throw new Error('Device storage is full or unavailable. This change was not saved. Export a backup or free storage, then retry.')
     if (history) {
       past.current.push(appRef.current)
       if (past.current.length > 60) past.current.shift()
@@ -138,7 +143,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     appRef.current = next
     setApp(next)
-    persist(next)
+    if (!requireSave) persist(next)
   }
 
   useEffect(() => {
@@ -241,7 +246,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // materialise the included review studies as Paper nodes, each linked to a
     // shared outcome node — so the meta-analysis evidence lives on the graph too
     importStudiesToGraph: () => {
-      const incl = state.review.studies.filter((st) => st.include)
+      const incl = state.review.studies.filter(analysisIncluded)
       if (!incl.length) return 0
       const outLabel = state.review.outcomeLabel || 'Outcome'
       const existingOutcome = state.nodes.find((n) => n.type === 'ClinicalPhenotype' && n.label === outLabel)
@@ -361,12 +366,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return id
     },
     updateProject: (patch) => setState((s) => ({ ...s, project: { ...s.project, ...patch } })),
+    updateResearch: (projectId, updater, description) => {
+      const a = appRef.current
+      const current = a.projects.find((p) => p.project.id === projectId)
+      if (!current) throw new Error('This project is no longer available.')
+      const updated = updater(current)
+      if (updated === current) return
+      const next = { ...updated, activity: act(current, 'evidence', description) }
+      apply({ ...a, projects: a.projects.map((p) => p.project.id === projectId ? next : p) }, true, true)
+    },
     // Bind asynchronous generation to its originating project, even after a switch.
     saveTheory: (projectId, theory) => {
       const a = appRef.current
       if (!a.projects.some((p) => p.project.id === projectId)) return
       apply({ ...a, projects: a.projects.map((p) => p.project.id === projectId
-        ? { ...p, theory, theoryRead: [], activity: act(p, 'theory', 'Generated project theory') }
+        ? { ...p, theory, theoryUpdates: {}, evidence: p.evidence ? { ...p.evidence, assessments: [] } : undefined, theoryRead: [], activity: act(p, 'theory', 'Generated project theory') }
         : p) })
     },
     setTheoryRead: (projectId, theoryRead) => {

@@ -1,6 +1,7 @@
 import type { ProjectState, Instability, Severity } from '../types'
 import { assayPowerReport, fmtAlpha } from './power'
 import { computeMeta } from './metaAnalysis'
+import { analysisIncluded } from './cohorts'
 
 // ============================================================
 // Rigor Monitor — the study-design check engine.
@@ -196,7 +197,7 @@ export function computeInstabilities(s: ProjectState): Instability[] {
   // 10 · systematic-review methodological gaps (only when a review is under way)
   const rv = s.review
   if (rv.studies.length > 0) {
-    const incl = rv.studies.filter((st) => st.include)
+    const incl = rv.studies.filter(analysisIncluded)
     const meta = incl.length >= 2 ? computeMeta(incl, rv.model, rv.effect) : null
     const dbs = new Set(rv.searches.map((x) => x.db).filter(Boolean))
     const srma = (key: string, severity: Severity, signal: string, comment: string, repair: string) =>

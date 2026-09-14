@@ -6,7 +6,10 @@ import { studyEffect, measureInfo, fmt } from '../lib/metaAnalysis'
 import { RobPlot } from '../components/srmaPlots'
 import { parseStudies, CSV_TEMPLATE, type ImportResult } from '../lib/importStudies'
 import { complete, parseJsonLoose, hasKey, getModel } from '../lib/openai'
-import type { Study, RobLevel } from '../types'
+import type { Study, RobLevel, CohortProfile } from '../types'
+import { CohortFields, CohortReviewPanel } from '../components/CohortReview'
+import { ProjectTabs } from '../components/ProjectTabs'
+import { analysisIncluded } from '../lib/cohorts'
 
 const numStr = (v: unknown) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? '' : String(v))
 
@@ -17,6 +20,8 @@ type Draft = {
   author: string
   year: string
   pmid: string
+  doi: string
+  cohort: CohortProfile
   design: string
   subgroup: string
   expEvents: string
@@ -38,6 +43,7 @@ const str = (v: number | undefined) => (v === undefined ? '' : String(v))
 function toDraft(s: Study, domains: string[]): Draft {
   return {
     author: s.author, year: String(s.year), pmid: s.pmid ?? '', design: s.design ?? '', subgroup: s.subgroup ?? '',
+    doi: s.doi ?? '', cohort: s.cohort ?? {},
     expEvents: str(s.expEvents), expTotal: str(s.expTotal), ctrlEvents: str(s.ctrlEvents), ctrlTotal: str(s.ctrlTotal),
     mean1: str(s.mean1), sd1: str(s.sd1), n1: str(s.n1), mean2: str(s.mean2), sd2: str(s.sd2), n2: str(s.n2),
     include: s.include, rob: Object.fromEntries(domains.map((d) => [d, s.rob?.[d] ?? 'some'])), note: s.note ?? '',
@@ -45,6 +51,11 @@ function toDraft(s: Study, domains: string[]): Draft {
 }
 
 export default function Studies() {
+  const { state } = useStore()
+  return <ProjectStudies key={state.project.id} />
+}
+
+function ProjectStudies() {
   const { state, addStudy, addStudies, updateStudy, removeStudy } = useStore()
   const r = state.review
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null)
@@ -73,13 +84,14 @@ export default function Studies() {
     setImp(null)
   }
   const binary = measureInfo(r.effect).binary
-  const blank: Draft = { author: '', year: '2024', pmid: '', design: 'cohort', subgroup: '', expEvents: '', expTotal: '', ctrlEvents: '', ctrlTotal: '', mean1: '', sd1: '', n1: '', mean2: '', sd2: '', n2: '', include: true, rob: Object.fromEntries(r.robDomains.map((d) => [d, 'some'])), note: '' }
+  const blank: Draft = { author: '', year: String(new Date().getFullYear()), pmid: '', doi: '', cohort: {}, design: 'cohort', subgroup: '', expEvents: '', expTotal: '', ctrlEvents: '', ctrlTotal: '', mean1: '', sd1: '', n1: '', mean2: '', sd2: '', n2: '', include: true, rob: Object.fromEntries(r.robDomains.map((d) => [d, 'some'])), note: '' }
 
   function save() {
     if (!editing) return
     const d = editing.draft
     const patch: Partial<Study> = {
       author: d.author || 'Unknown', year: +d.year || new Date().getFullYear(), pmid: d.pmid || undefined, design: d.design || undefined, subgroup: d.subgroup.trim() || undefined,
+      doi: d.doi.trim() || undefined, cohort: d.cohort,
       expEvents: d.expEvents === '' ? undefined : Math.max(0, Math.round(+d.expEvents)),
       expTotal: d.expTotal === '' ? undefined : Math.max(0, Math.round(+d.expTotal)),
       ctrlEvents: d.ctrlEvents === '' ? undefined : Math.max(0, Math.round(+d.ctrlEvents)),
@@ -171,6 +183,8 @@ export default function Studies() {
         </div>
       )}
 
+      <ProjectTabs />
+      <CohortReviewPanel onEdit={(s) => setEditing({ id: s.id, draft: toDraft(s, r.robDomains) })} />
       <div className="tbl-scroll">
         <table>
           <thead>
@@ -181,9 +195,10 @@ export default function Studies() {
               const eff = studyEffect(s, r.effect)
               return (
                 <tr key={s.id} style={s.include ? undefined : { opacity: 0.5 }}>
-                  <td><input type="checkbox" checked={s.include} onChange={(e) => updateStudy(s.id, { include: e.target.checked })} /></td>
+                  <td><input type="checkbox" aria-label={`Include ${s.author} ${s.year}`} checked={s.include} disabled={!!s.cohortPrimaryId && s.cohortPrimaryId !== s.id} title={s.cohortPrimaryId && s.cohortPrimaryId !== s.id ? 'Secondary report — change the cohort selection above to include it.' : 'Include in pooled analysis'} onChange={(e) => updateStudy(s.id, { include: e.target.checked })} /></td>
                   <td>
                     <b>{s.author} {s.year}</b>
+                    {s.cohortPrimaryId && <div className="small muted">{s.cohortPrimaryId === s.id ? 'Selected cohort report' : 'Linked secondary report'}</div>}
                     {s.pmid && <div className="small mono"><a href={`https://pubmed.ncbi.nlm.nih.gov/${s.pmid}/`} target="_blank" rel="noreferrer">PMID {s.pmid} ↗</a></div>}
                   </td>
                   <td className="muted">{s.design ?? '—'}</td>
@@ -210,7 +225,7 @@ export default function Studies() {
         <span className="small">Risk of bias:</span>
         {LEVELS.map((l) => <span key={l} className="flex small" style={{ gap: 6 }}><span className="rob-dot" style={{ background: ROB_COLOR[l] }} />{l}</span>)}
         <span className="spacer" />
-        <span className="small">{r.studies.filter((s) => s.include).length} of {r.studies.length} included</span>
+        <span className="small">{r.studies.filter(analysisIncluded).length} of {r.studies.length} included</span>
       </div>
 
       <div className="card lg" style={{ marginTop: 16 }}>
@@ -229,6 +244,8 @@ export default function Studies() {
             <Field label="Design"><input className="input" value={editing.draft.design} onChange={(e) => set({ design: e.target.value })} placeholder="prospective cohort" /></Field>
             <Field label="Subgroup" hint="for “Custom subgroup” meta-analysis"><input className="input" value={editing.draft.subgroup} onChange={(e) => set({ subgroup: e.target.value })} placeholder="e.g. SCN5A+ / pediatric" /></Field>
           </div>
+          <Field label="DOI"><input className="input" value={editing.draft.doi} onChange={(e) => set({ doi: e.target.value })} /></Field>
+          <CohortFields value={editing.draft.cohort} onChange={(cohort) => set({ cohort })} />
           {binary ? (
             <>
               <div className="form-row">
@@ -267,7 +284,7 @@ export default function Studies() {
             </div>
           </Field>
           <label className={`check${editing.draft.include ? ' on' : ''}`} style={{ marginBottom: 12 }}>
-            <input type="checkbox" checked={editing.draft.include} onChange={(e) => set({ include: e.target.checked })} /> Include in meta-analysis
+            <input type="checkbox" checked={editing.draft.include} disabled={!!r.studies.find((s) => s.id === editing.id && s.cohortPrimaryId && s.cohortPrimaryId !== s.id)} onChange={(e) => set({ include: e.target.checked })} /> Include in meta-analysis
           </label>
           <div className="form-actions">
             <button className="btn ghost" onClick={() => setEditing(null)}>Cancel</button>

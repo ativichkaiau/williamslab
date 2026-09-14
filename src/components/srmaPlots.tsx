@@ -1,6 +1,7 @@
 import type { MetaResult } from '../lib/metaAnalysis'
 import { fmt } from '../lib/metaAnalysis'
 import type { Review, Study, RobLevel } from '../types'
+import { analysisIncluded } from '../lib/cohorts'
 
 const sans = { fontFamily: 'var(--sans)' } as const
 const mono = { fontFamily: 'var(--mono)' } as const
@@ -145,7 +146,7 @@ export function FunnelPlot({ result, imputed = [], adjustedPool }: { result: Met
 
 // ---------------- Risk-of-bias summary (traffic light + bar) ----------------
 export function RobPlot({ studies, domains }: { studies: Study[]; domains: string[] }) {
-  const incl = studies.filter((s) => s.include)
+  const incl = studies.filter(analysisIncluded)
   const overall = (s: Study): RobLevel => {
     const vals = domains.map((d) => s.rob?.[d])
     return vals.includes('high') ? 'high' : vals.includes('some') ? 'some' : 'low'

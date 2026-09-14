@@ -1,4 +1,5 @@
 import type { Study, EffectMeasure, Review, GradeJudgment } from '../types'
+import { analysisIncluded } from './cohorts'
 
 // ============================================================
 // Meta-analysis engine. Supports four effect measures:
@@ -64,7 +65,7 @@ function effectPool(s: Study, m: EffectMeasure): { pool: number; se: number } | 
 }
 
 export function usable(s: Study, m: EffectMeasure): boolean {
-  return s.include && effectPool(s, m) !== null
+  return analysisIncluded(s) && effectPool(s, m) !== null
 }
 
 // per-study effect + 95% CI (for the extraction table)
@@ -111,7 +112,7 @@ export interface MetaResult {
 export function computeMeta(studies: Study[], model: 'random' | 'fixed', measure: EffectMeasure): MetaResult {
   const info = measureInfo(measure)
   const raw = studies
-    .filter((s) => s.include)
+    .filter(analysisIncluded)
     .map((s) => ({ s, e: effectPool(s, measure) }))
     .filter((x): x is { s: Study; e: { pool: number; se: number } } => x.e !== null)
     .map((x) => ({ s: x.s, pool: x.e.pool, se: x.e.se, w: 1 / (x.e.se * x.e.se) }))
@@ -264,7 +265,7 @@ export interface IntegrityIssue { study: string; level: 'error' | 'warn'; msg: s
 export function dataIntegrity(studies: Study[], measure: EffectMeasure): IntegrityIssue[] {
   const out: IntegrityIssue[] = []
   for (const s of studies) {
-    if (!s.include) continue
+    if (!analysisIncluded(s)) continue
     const lbl = `${s.author} ${s.year}`
     if (measure === 'SMD') {
       if (!hasCont(s)) out.push({ study: lbl, level: 'warn', msg: 'no continuous data (mean/SD/n) for SMD' })
@@ -524,7 +525,7 @@ export interface GradeResult {
 const dropOf = (j: GradeJudgment) => (j === 'very serious' ? 2 : j === 'serious' ? 1 : 0)
 
 export function autoGrade(review: Review, meta: MetaResult, egger: EggerResult | null) {
-  const incl = review.studies.filter((s) => s.include)
+  const incl = review.studies.filter(analysisIncluded)
   const highFrac = incl.length ? incl.filter((s) => Object.values(s.rob || {}).includes('high')).length / incl.length : 0
   const rob: GradeJudgment = highFrac > 0.5 ? 'very serious' : highFrac > 0 ? 'serious' : 'not serious'
   const inconsistency: GradeJudgment = meta.I2 >= 75 ? 'very serious' : meta.I2 >= 50 ? 'serious' : 'not serious'

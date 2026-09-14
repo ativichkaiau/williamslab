@@ -4,6 +4,7 @@ import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard, SevDot } from '../components/ui'
 import { INSTABILITY_LABEL } from '../lib/palette'
 import { STAGES } from '../types'
+import { analysisIncluded } from '../lib/cohorts'
 
 function rel(ts: number, now: number): string {
   const s = Math.max(0, Math.round((now - ts) / 1000))
@@ -35,7 +36,7 @@ export default function Garage() {
 
   // % complete derived from real project signals, not a hardcoded number
   const rv = state.review
-  const incl = rv.studies.filter((s) => s.include)
+  const incl = rv.studies.filter(analysisIncluded)
   const signals: { label: string; done: boolean }[] = [
     { label: 'Central hypothesis defined', done: state.project.centralHypothesis.trim().length > 20 },
     { label: 'Hypotheses on the graph', done: state.hypotheses.length > 0 },

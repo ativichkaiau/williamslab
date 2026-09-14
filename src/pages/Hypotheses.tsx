@@ -7,6 +7,7 @@ import { INSTABILITY_LABEL } from '../lib/palette'
 import { computeMeta, fmt } from '../lib/metaAnalysis'
 import { streamChat, hasKey, getModel } from '../lib/openai'
 import type { Hypothesis, HypothesisStatus, HypEvidence } from '../types'
+import { analysisIncluded } from '../lib/cohorts'
 
 type Draft = {
   label: string
@@ -48,7 +49,7 @@ export default function Hypotheses() {
 
   const r = state.review
   const meta = useMemo(() => computeMeta(r.studies, r.model, r.effect), [r])
-  const inclStudies = useMemo(() => r.studies.filter((s) => s.include), [r.studies])
+  const inclStudies = useMemo(() => r.studies.filter(analysisIncluded), [r.studies])
   const studyLabel = (id: string) => {
     const s = r.studies.find((x) => x.id === id)
     return s ? `${s.author} ${s.year}` : 'study'

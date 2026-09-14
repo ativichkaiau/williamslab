@@ -7,6 +7,7 @@ import { computeMeta, measureInfo, fmt } from '../lib/metaAnalysis'
 import { planPhases } from '../lib/assayPlan'
 import { STAGES } from '../types'
 import type { ProjectState } from '../types'
+import { analysisIncluded } from '../lib/cohorts'
 
 function rigorColor(v: number) {
   return v >= 0.75 ? 'var(--green)' : v >= 0.5 ? 'var(--amber)' : 'var(--red)'
@@ -16,7 +17,7 @@ function metrics(p: ProjectState) {
   const inst = computeInstabilities(p)
   const rigor = stabilityScore(inst)
   const openFlags = inst.filter((i) => i.status === 'open').length
-  const included = p.review.studies.filter((s) => s.include)
+  const included = p.review.studies.filter(analysisIncluded)
   const meta = included.length >= 2 ? computeMeta(p.review.studies, p.review.model, p.review.effect) : null
   const plan = planPhases(p.assays)
   const stageIdx = Math.max(0, STAGES.indexOf((p.project.stage ?? 'Idea') as (typeof STAGES)[number]))

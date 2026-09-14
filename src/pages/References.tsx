@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { Kicker, Rule, StatCard } from '../components/ui'
 import { collectReferences, toBibtex, toRis, vancouver } from '../lib/references'
@@ -46,6 +47,7 @@ export default function References() {
             <p>Every citeable work — graph references and included studies, merged by PMID/DOI — with stable citation keys. Export the whole library as BibTeX or RIS, or copy a single citation into the manuscript.</p>
           </div>
           <div className="row-actions" style={{ flex: 'none', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <Link className="btn ghost sm" to="/evidence">Evidence library →</Link>
             <button className="btn primary sm" onClick={() => download(toBibtex(refs), `${slug}.bib`, 'application/x-bibtex')} disabled={!refs.length}>⤓ BibTeX</button>
             <button className="btn ghost sm" onClick={() => download(toRis(refs), `${slug}.ris`, 'application/x-research-info-systems')} disabled={!refs.length}>⤓ RIS</button>
             <button className="btn ghost sm" onClick={() => copy(refs.map((r, i) => vancouver(r, i + 1)).join('\n'), 'all')} disabled={!refs.length}>{copied === 'all' ? 'Copied ✓' : 'Copy list'}</button>
@@ -95,6 +97,7 @@ export default function References() {
                       </td>
                       <td>
                         <div className="flex" style={{ gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          <Link className="btn ghost sm" to={`/evidence?reference=${encodeURIComponent(r.id)}`}>Add passage</Link>
                           <button className="btn ghost sm" title="Copy pandoc citation for the manuscript" onClick={() => copy(`[@${r.citeKey}]`, `cite-${r.id}`)}>{copied === `cite-${r.id}` ? '✓' : `[@${r.citeKey}]`}</button>
                           <button className="btn ghost sm" title="Copy the BibTeX entry" onClick={() => copy(toBibtex([r]), `bib-${r.id}`)}>{copied === `bib-${r.id}` ? 'Copied ✓' : 'BibTeX'}</button>
                           <button className="btn ghost sm" title="Copy the formatted reference" onClick={() => copy(vancouver(r, i + 1).replace(/^\d+\.\s/, ''), `van-${r.id}`)}>{copied === `van-${r.id}` ? 'Copied ✓' : 'Cite'}</button>

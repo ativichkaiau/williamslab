@@ -6,6 +6,7 @@ import { streamChat, chatWithTools, hasKey, getModel, type ChatMessage, type Too
 import { retrieve, groundingBlock } from '../lib/theoryRag'
 import { searchPubmed } from '../lib/pubmed'
 import { STAGES } from '../types'
+import { analysisIncluded } from '../lib/cohorts'
 
 type Msg = { role: 'user' | 'assistant'; content: string; sources?: string[] }
 
@@ -88,7 +89,7 @@ Review question: ${state.review.question || 'Not defined'}
 Central hypothesis: "${state.project.centralHypothesis}"
 Working hypotheses:
 ${hyps}
-Review: ${state.review.studies.filter((s) => s.include).length} included studies.
+Review: ${state.review.studies.filter(analysisIncluded).length} included studies.
 
 You can act on the project with tools: add_study, add_hypothesis, set_stage, import_studies_to_graph, search_pubmed. When the user asks you to do one of these, call the tool and then confirm briefly what you did. Do not fabricate study numbers — only add a study with counts the user gave you.
 

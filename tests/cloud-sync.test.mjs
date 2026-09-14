@@ -55,6 +55,9 @@ test('two devices exchange project content, generated theory, progress, and LitL
   await ipad.sync.sync()
   ipad.data.local.app.projects[0].theory = { title: 'From iPad', sections: [] }
   ipad.data.local.app.projects[0].theoryRead = ['section-1']
+  ipad.data.local.app.projects[0].evidence = { passages: [{ id: 'source', text: 'Exact evidence passage' }], claims: [{ id: 'claim', links: [{ passageId: 'source', stance: 'supports' }] }], revisions: [{ id: 'revision', status: 'approved' }], notices: [], assessments: [], autoDraft: true }
+  ipad.data.local.app.projects[0].theoryUpdates = { 'section-1': 'Reviewed update' }
+  ipad.data.local.app.projects[0].cohortReviews = [{ id: 'cohort', studyIds: ['report-a', 'report-b'], primaryId: 'report-a' }]
   ipad.data.local.litlink = { cohort: 'iPad cohort', groups: [] }
   await ipad.sync.sync()
   await desktop.sync.sync()

@@ -6,6 +6,7 @@ export interface PdfExtract {
   text: string
   pages: number
   chars: number
+  pageTexts: string[]
 }
 
 export async function extractPdfText(file: File, onProgress?: (page: number, total: number) => void): Promise<PdfExtract> {
@@ -41,5 +42,5 @@ export async function extractPdfText(file: File, onProgress?: (page: number, tot
   }
   await doc.destroy()
   const text = parts.join('\n\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
-  return { text, pages, chars: text.length }
+  return { text, pages, chars: text.length, pageTexts: parts }
 }

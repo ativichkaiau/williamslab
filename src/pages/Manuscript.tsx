@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { Kicker, Rule } from '../components/ui'
 import { Markdown } from '../components/Markdown'
@@ -7,6 +7,9 @@ import { computeMeta, eggersTest, leaveOneOut, computeGrade, trimAndFill } from 
 import { buildMarkdown, EXPORT_CSS } from '../lib/manuscript'
 import { collectReferences, referenceListMd, toBibtex, toRis } from '../lib/references'
 import { streamChat, hasKey, getModel, type ChatMessage } from '../lib/openai'
+import { TraceableText } from '../components/Evidence'
+import { ProjectTabs } from '../components/ProjectTabs'
+import { evidenceAppendix } from '../lib/evidence'
 
 function download(content: string, name: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }))
@@ -18,6 +21,11 @@ function download(content: string, name: string, type: string) {
 }
 
 export default function Manuscript() {
+  const { state } = useStore()
+  return <ProjectManuscript key={state.project.id} />
+}
+
+function ProjectManuscript() {
   const { state } = useStore()
   const r = state.review
   const meta = useMemo(() => computeMeta(r.studies, r.model, r.effect), [r.studies, r.model, r.effect])
@@ -33,15 +41,19 @@ export default function Manuscript() {
   const narrative = (splitIdx >= 0 ? md.slice(0, splitIdx) : md).replace(/^#\s.*\n+/, '')
   const checklistMd = splitIdx >= 0 ? md.slice(splitIdx) : ''
   // References sit after the Discussion/figures, before the PRISMA-checklist appendix
-  const exportMd = splitIdx >= 0 ? `${md.slice(0, splitIdx)}${refsMd}\n${md.slice(splitIdx)}` : `${md}\n\n${refsMd}`
+  const traceMd = evidenceAppendix(state, 'manuscript', narrative)
+  const exportMd = (splitIdx >= 0 ? `${md.slice(0, splitIdx)}${refsMd}\n${md.slice(splitIdx)}` : `${md}\n\n${refsMd}`) + traceMd
   const slug = r.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
 
   const previewRef = useRef<HTMLDivElement | null>(null)
   const [copied, setCopied] = useState(false)
 
   function downloadHtml() {
-    const inner = previewRef.current?.innerHTML ?? ''
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${r.title}</title><style>${EXPORT_CSS}</style></head><body>${inner}</body></html>`
+    const preview = previewRef.current?.cloneNode(true) as HTMLElement | undefined
+    preview?.querySelectorAll('[data-evidence-ui],.modal-overlay').forEach((el) => el.remove())
+    const inner = preview?.innerHTML ?? ''
+    const title = r.title.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!))
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${EXPORT_CSS}</style></head><body>${inner}</body></html>`
     download(html, `${slug}.html`, 'text/html')
   }
 
@@ -49,6 +61,7 @@ export default function Manuscript() {
   const [aiText, setAiText] = useState('')
   const [aiOn, setAiOn] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => abortRef.current?.abort(), [])
   async function polish() {
     if (aiOn) return
     if (!hasKey()) { setAiText('_Set an OpenAI key in Knowledge Review → Settings._'); return }
@@ -84,17 +97,19 @@ export default function Manuscript() {
         </div>
       </div>
 
+      <ProjectTabs />
+      <p className="small muted">Click a claim or its ↗ marker to inspect and attach source passages. Evidence links are saved with this project.</p>
       {aiText && (
         <div className="card lg rail" style={{ marginBottom: 16 }}>
           <div className="card-h"><span className="sq" style={{ background: 'var(--accent, var(--blue))' }} />AI-POLISHED ABSTRACT &amp; DISCUSSION</div>
-          <Markdown text={aiText} />
+          <TraceableText document="manuscript" sectionId="polished"><Markdown text={aiText} /></TraceableText>
         </div>
       )}
 
       <div className="card lg">
         <div className="manuscript" ref={previewRef}>
           <h1>{r.title}</h1>
-          <Markdown text={narrative} />
+          <TraceableText document="manuscript" sectionId="narrative"><Markdown text={narrative} /></TraceableText>
           <div className="fig-cap">Figure 1. PRISMA 2020 flow diagram.</div>
           <figure><PrismaFlow prisma={r.prisma} /></figure>
           <div className="fig-cap">Figure 2. Forest plot of the pooled {r.effect}.</div>
@@ -105,6 +120,7 @@ export default function Manuscript() {
           <figure><RobPlot studies={r.studies} domains={r.robDomains} /></figure>
           {refsMd && <Markdown text={refsMd} />}
           <Markdown text={checklistMd} />
+          {traceMd && <Markdown text={traceMd} />}
         </div>
       </div>
     </>

@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { StoreProvider } from './lib/store'
 import './index.css'
+import './evidence.css'
 
 // HashRouter keeps routing in the URL fragment (e.g. /#/graph), so a full
 // reload of any route always serves index.html — no server rewrite needed

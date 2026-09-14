@@ -2,6 +2,7 @@ import { useStore } from '../lib/store'
 import { Link } from 'react-router-dom'
 import { Kicker, Rule, AssayBadge, StatCard } from '../components/ui'
 import { ProjectTabs } from '../components/ProjectTabs'
+import { analysisIncluded } from '../lib/cohorts'
 
 function sevRank(s: 'low' | 'med' | 'high') {
   return s === 'high' ? 3 : s === 'med' ? 2 : 1
@@ -43,7 +44,7 @@ export default function PitWall() {
       <div className="project-caption"><b>{state.project.code}</b><span>{state.project.domain || 'Research project'}</span><span className="pill">{state.project.stage ?? 'Idea'}</span></div>
       <div className="grid g4 overview-stats" key={state.project.id}>
         <StatCard value={state.hypotheses.length} label="Hypotheses" sub="in this project" />
-        <StatCard value={state.review.studies.filter((s) => s.include).length} label="Included studies" sub={`${state.papers.length} saved references`} />
+        <StatCard value={state.review.studies.filter(analysisIncluded).length} label="Included studies" sub={`${state.papers.length} saved references`} />
         <StatCard value={state.assays.length} label="Assays" sub={`${state.assays.filter((a) => a.status === 'done').length} completed`} />
         <StatCard value={`${Math.round(stability * 100)}%`} label="Project rigor" sub={`${open.length} open findings`} />
       </div>

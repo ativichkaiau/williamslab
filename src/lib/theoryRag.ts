@@ -33,9 +33,13 @@ export const CHUNKS: TheoryChunk[] = THEORY.map((s) => ({
   text: extractText(s.body).replace(/\s+/g, ' ').trim(),
 }))
 
-export function theoryChunks(state: ProjectState): TheoryChunk[] {
+export function baseTheoryChunks(state: ProjectState): TheoryChunk[] {
   if (hasCuratedTheory(state.project)) return CHUNKS
   return (state.theory?.sections ?? []).map(({ id, title, group, body }) => ({ id, title, group, text: body }))
+}
+
+export function theoryChunks(state: ProjectState): TheoryChunk[] {
+  return baseTheoryChunks(state).map((s) => ({ ...s, text: s.text + (state.theoryUpdates?.[s.id] ? `\n\nReviewed evidence update:\n${state.theoryUpdates[s.id]}` : '') }))
 }
 
 const STOP = new Set(['the', 'and', 'for', 'are', 'with', 'that', 'this', 'from', 'what', 'how', 'why', 'does', 'can', 'you', 'your', 'about', 'into', 'over', 'per', 'via', 'has', 'have', 'was', 'were', 'a', 'an', 'of', 'in', 'on', 'to', 'is', 'it', 'or', 'vs', 'me'])

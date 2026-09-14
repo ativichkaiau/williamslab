@@ -34,6 +34,9 @@ This is a **frontend-first MVP** — a thinking-and-planning cockpit over one sh
 - **Rigor Monitor** — the signature feature: nine rule-based study-design checks. Toggle pre-registration or set a primary endpoint and watch a flag clear itself.
 - **Knowledge Graph** — all node-types on one draggable, typed graph. Add nodes and edges and delete them without touching code.
 - **Theory** — a separate chapter and reading progress for each project. BrS-EPI retains the curated Brugada reference, diagrams, citations, and quiz without an API key. Other projects can generate and regenerate an AI draft using their topic, PICO, hypotheses, and saved reference metadata. Drafts are saved in the project, included in export/cloud sync, and remain available after reload. Switching projects or leaving the page cancels generation; failed generation preserves the previous draft. AI drafts require verification against primary sources.
+- **Evidence tracing** — save a verbatim passage from pasted text or a selectable PDF excerpt with its page/section, study design, limitations, DOI/PMID, and source provenance. Click a claim in Theory or the manuscript to attach supporting, conflicting, or contextual evidence; exact-text anchors prevent links silently following rewritten prose. Manuscript exports include a trace appendix.
+- **Living Theory** — source passages can automatically queue a strictly structured AI review of new evidence. Proposed chapter updates show the current reviewed update, the proposed text, the reason, and each source link. Approval is explicit, guarded against changed chapters/source records/publication notices, and retains a revision history. Crossref’s Retraction Watch data are checked by DOI and surfaced as review alerts; a failed check remains unknown rather than “safe.”
+- **Study & cohort links** — candidate overlapping reports are flagged using trial identifiers, cohort/site/population details, recruitment periods, sample size, and corroborating author signals. You decide whether reports are distinct or linked, then select the one report used for the current outcome while retaining secondary reports and the decision history. The meta-analysis engine and its diagnostics enforce the selection.
 - **Knowledge Review** — an AI-powered review (OpenAI, streaming) using only the active project's Theory and hypotheses. Topic presets, free-form Q&A, and saved sessions are project-specific. See setup below.
 - **Cloud sync** — exchanges all project data (including generated Theory and reading progress) and LitLink across signed-in devices. Open pages update immediately when a cloud copy is downloaded. Sync checks on sign-in, app resume, reconnect, and every 15 seconds while visible; local edits upload after a short debounce. The cloud icon reports pending, offline, error, conflict, and verified sync states.
 - **✦ Ask AI copilot** — a global, context-aware assistant available on **every page** (floating dock). It knows the current page and your project, and streams answers on BrS science, study design, stats and the app. Uses the same OpenAI key as Knowledge Review.
@@ -94,6 +97,10 @@ src/
     brsReview.ts      # Brugada review presets + context-aware system prompt
     store.tsx         # localStorage-backed React store with full CRUD
     palette.ts        # Williams 1993 livery tokens
+    evidence.ts       # immutable source passages and exact claim anchors
+    livingTheory.ts   # validated, reviewable Theory revisions
+    cohorts.ts        # cohort overlap signals and one-report pooling rules
+    publicationNotices.ts # Crossref / Retraction Watch checks
   components/         # Layout (app shell), GraphView (SVG graph), Modal, Markdown, ui
   pages/             # Overview(Garage), Dashboard(PitWall), Hypotheses, Mechanism,
                      # Assays, Literature(Radar), Power, Rigor(Suspension), Graph, Review

@@ -89,6 +89,9 @@ export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: Egge
     ...meta.rows.map((x) => `| ${x.label} | ${binary ? `${x.expEvents}/${x.expTotal}` : x.expTotal} | ${binary ? `${x.ctrlEvents}/${x.ctrlTotal}` : x.ctrlTotal} | ${fmt(x.est)} [${fmt(x.low)}, ${fmt(x.high)}] | ${fmt(x.weight, 1)}% |`),
   ].join('\n')
   const gradeDrops = grade.domains.filter((d) => d.drop > 0).map((d) => `${d.label.toLowerCase()} (${d.judgment})`)
+  const linkedGroups = [...new Set(r.studies.map((s) => s.cohortPrimaryId).filter(Boolean))]
+  const secondaryReports = r.studies.filter((s) => s.cohortPrimaryId && s.cohortPrimaryId !== s.id)
+  const cohortMethod = linkedGroups.length ? `\n\n**Multiple reports.** ${linkedGroups.length} group(s) of potentially overlapping reports were reviewed and linked. One report per group was selected for this outcome; ${secondaryReports.length} secondary report(s) were retained in the library and excluded from pooling to avoid counting participants more than once. Selection decisions are recorded in the cohort review history. PRISMA counts require separate reconciliation at the study level.` : ''
 
   const checklist = PRISMA_CHECKLIST.map((s) => `**${s.section}**\n${s.items.map((it) => `- [x] ${it.n}. ${it.item}`).join('\n')}`).join('\n\n')
 
@@ -106,7 +109,7 @@ export function buildMarkdown(state: ProjectState, meta: MetaResult, egger: Egge
 
 ## 1. Introduction
 
-Brugada Syndrome is an inherited arrhythmia syndrome in which risk stratification remains challenging. ${r.question} This review synthesises the available evidence.
+${r.question || state.project.centralHypothesis} This review synthesises the available evidence for ${state.project.name}.
 
 **Objective (PICO).** Population: ${r.pico.p}. Intervention/exposure: ${r.pico.i}. Comparator: ${r.pico.c}. Outcome: ${r.pico.o}.
 
@@ -120,7 +123,7 @@ Brugada Syndrome is an inherited arrhythmia syndrome in which risk stratificatio
 
 **Selection process.** Title/abstract and full-text screening were performed in a dedicated screener. ${p.dbRecords + p.otherRecords} records were identified; ${p.duplicates} duplicates were removed; ${p.screened} were screened; ${p.fullText} full texts were assessed; ${p.included} met inclusion (Figure 1).
 
-**Data items and extraction.** For each study we extracted ${extractPhrase}.
+**Data items and extraction.** For each study we extracted ${extractPhrase}.${cohortMethod}
 
 **Risk of bias.** Assessed${r.robTool ? ` with ${r.robTool}` : ''} across ${r.robDomains.join(', ')} (low / some / high).
 

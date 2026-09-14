@@ -11,6 +11,8 @@ import { generateTheory, hasCuratedTheory } from '../lib/projectTheory'
 import { hasKey, getModel } from '../lib/openai'
 import { Markdown } from '../components/Markdown'
 import { ProjectTabs } from '../components/ProjectTabs'
+import { LivingTheory } from '../components/LivingTheory'
+import { TraceableText } from '../components/Evidence'
 
 // --- per-section citations + live "latest on PubMed" ---
 function SectionCitations({ id }: { id: string }) {
@@ -221,6 +223,7 @@ function ProjectTheoryPage() {
         </div>
       )}
 
+      <LivingTheory />
       {sections.length > 0 && <TheoryReader key={`${state.project.id}-${draft?.generatedAt ?? 'curated'}`} sections={sections} curated={curated} />}
       {!curated && draft && draft.sources.length > 0 && (
         <div className="card theory-sources">
@@ -237,6 +240,7 @@ function ProjectTheoryPage() {
 }
 
 function TheoryReader({ sections, curated }: { sections: { id: string; title: string; group: string; body: ReactNode }[]; curated: boolean }) {
+  const { state } = useStore()
   const [active, setActive] = useState(sections[0]?.id ?? '')
   const [q, setQ] = useState('')
   const [quiz, setQuiz] = useState(false)
@@ -271,7 +275,7 @@ function TheoryReader({ sections, curated }: { sections: { id: string; title: st
       idx[s.id] = `${s.title} ${s.group} ${el?.textContent ?? ''}`.toLowerCase()
     })
     setIndex(idx)
-  }, [sections])
+  }, [sections, state.theoryUpdates])
 
   // scroll-spy — re-observe whenever the rendered set changes
   useEffect(() => {
@@ -346,7 +350,8 @@ function TheoryReader({ sections, curated }: { sections: { id: string; title: st
                       {read.has(s.id) ? '✓ Read' : 'Mark as read'}
                     </button>
                   </div>
-                  <div className="prose">{s.body}</div>
+                  <div className="prose"><TraceableText document="theory" sectionId={s.id}>{s.body}</TraceableText></div>
+                  {state.theoryUpdates?.[s.id] && <div className="theory-evidence-update"><div className="small mono muted">REVIEWED EVIDENCE UPDATE</div><TraceableText document="theory" sectionId={`${s.id}:update`}><Markdown text={state.theoryUpdates[s.id]} /></TraceableText></div>}
                   {curated && <SectionCitations id={s.id} />}
                 </section>
               )

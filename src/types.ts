@@ -184,6 +184,10 @@ export interface Study {
   author: string
   year: number
   pmid?: string
+  doi?: string
+  cohort?: CohortProfile
+  // A secondary report remains in the library but cannot enter the current pool.
+  cohortPrimaryId?: string
   design?: string
   // 2×2 for a binary outcome (OR / RR / RD): exposed = index, ctrl = comparator
   expEvents?: number
@@ -288,6 +292,9 @@ export interface ProjectState {
   project: Project
   theory?: ProjectTheory
   theoryRead?: string[]
+  evidence?: EvidenceWorkspace
+  theoryUpdates?: Record<string, string>
+  cohortReviews?: CohortReview[]
   nodes: GraphNode[]
   edges: GraphEdge[]
   hypotheses: Hypothesis[]
@@ -297,4 +304,93 @@ export interface ProjectState {
   activity: ActivityEntry[]
   // manually-acknowledged/resolved instabilities keyed by id (rules recompute the rest)
   instabilityOverrides: Record<string, 'acknowledged' | 'resolved'>
+}
+
+export interface EvidencePassage {
+  id: string
+  referenceId: string
+  title: string
+  doi?: string
+  pmid?: string
+  text: string // verbatim user-supplied text or a selection from extracted PDF text
+  locator: string // page, section, paragraph, table, etc.
+  origin: 'paste' | 'pdf'
+  fileName?: string
+  page?: number
+  design: string
+  limitations: string
+  createdAt: number
+}
+
+export type EvidenceStance = 'supports' | 'conflicts' | 'context'
+export interface EvidenceLink {
+  passageId: string
+  stance: EvidenceStance
+  reason: string
+}
+export interface EvidenceClaim {
+  id: string
+  document: 'theory' | 'manuscript'
+  sectionId: string
+  text: string // exact displayed text; changed prose does not inherit an old link
+  links: EvidenceLink[]
+  updatedAt: number
+}
+export interface PublicationNotice {
+  doi?: string // notice DOI, distinct from the affected paper's DOI
+  type: string
+  title: string
+  date?: string
+  source: string
+}
+export interface NoticeCheck {
+  doi: string // affected paper
+  checkedAt: number
+  notices: PublicationNotice[]
+  error?: string
+}
+export interface TheoryRevision {
+  id: string
+  sectionId: string
+  sectionTitle: string
+  baseline: string
+  before: string
+  paragraphs: { text: string; links: EvidenceLink[] }[]
+  reason: string
+  sourceVersions: Record<string, string>
+  status: 'pending' | 'approved' | 'rejected'
+  createdAt: number
+  reviewedAt?: number
+  model: string
+}
+export interface TheoryAssessment {
+  id: string
+  sourceVersions: Record<string, string>
+  summary: string
+  createdAt: number
+}
+export interface EvidenceWorkspace {
+  passages: EvidencePassage[]
+  claims: EvidenceClaim[]
+  revisions: TheoryRevision[]
+  assessments: TheoryAssessment[]
+  notices: NoticeCheck[]
+  autoDraft: boolean
+}
+export interface CohortProfile {
+  registration?: string
+  name?: string
+  centers?: string
+  recruitmentStart?: string
+  recruitmentEnd?: string
+  population?: string
+}
+export interface CohortReview {
+  id: string
+  studyIds: string[]
+  primaryId?: string
+  decision: 'linked' | 'distinct' | 'reopened'
+  reason: string
+  fingerprint: string
+  createdAt: number
 }

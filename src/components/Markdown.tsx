@@ -24,7 +24,7 @@ function inline(text: string, keyBase: string): React.ReactNode[] {
 const cells = (line: string) => line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map((c) => c.trim())
 const isSep = (line: string) => /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(line) && line.includes('-')
 
-export function Markdown({ text }: { text: string }) {
+export function Markdown({ text, renderClaim = (children) => children }: { text: string; renderClaim?: (children: React.ReactNode) => React.ReactNode }) {
   const lines = text.split('\n')
   const blocks: React.ReactNode[] = []
   let listItems: string[] | null = null
@@ -32,7 +32,7 @@ export function Markdown({ text }: { text: string }) {
 
   const flush = () => {
     if (listItems && listItems.length) {
-      const items = listItems.map((it, i) => <li key={i}>{inline(it, `li-${blocks.length}-${i}`)}</li>)
+      const items = listItems.map((it, i) => <li key={i}>{renderClaim(inline(it, `li-${blocks.length}-${i}`))}</li>)
       blocks.push(listType === 'ul' ? <ul key={blocks.length} className="md-ul">{items}</ul> : <ol key={blocks.length} className="md-ol">{items}</ol>)
     }
     listItems = null
@@ -55,7 +55,7 @@ export function Markdown({ text }: { text: string }) {
         <div key={blocks.length} className="md-table-wrap">
           <table className="md-table">
             <thead><tr>{header.map((h, i) => <th key={i}>{inline(h, `th-${idx}-${i}`)}</th>)}</tr></thead>
-            <tbody>{rows.map((rw, ri) => <tr key={ri}>{rw.map((c, ci) => <td key={ci}>{inline(c, `td-${ri}-${ci}`)}</td>)}</tr>)}</tbody>
+            <tbody>{rows.map((rw, ri) => <tr key={ri}>{rw.map((c, ci) => <td key={ci}>{renderClaim(inline(c, `td-${ri}-${ci}`))}</td>)}</tr>)}</tbody>
           </table>
         </div>,
       )
@@ -77,7 +77,7 @@ export function Markdown({ text }: { text: string }) {
       flush()
     } else {
       flush()
-      blocks.push(<p key={blocks.length} className="md-p">{inline(line, `p-${idx}`)}</p>)
+      blocks.push(<p key={blocks.length} className="md-p">{renderClaim(inline(line, `p-${idx}`))}</p>)
     }
   }
   flush()
