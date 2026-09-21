@@ -7,6 +7,7 @@ import CommandPalette from './CommandPalette'
 import Cloud from './Cloud'
 import { Rule } from './ui'
 import { useLiveryMotion } from '../lib/motion'
+import { useTheme, type ThemePreference } from '../lib/theme'
 import type { SyncStatus } from '../lib/cloudSync'
 
 // g-chord destinations (press "g" then the key)
@@ -137,12 +138,7 @@ export default function Layout() {
   const nav = useNavigate()
   // close the mobile drawer whenever the route changes
   useEffect(() => setNavOpen(false), [loc.pathname])
-  const [theme, setTheme] = useState<'day' | 'night'>(
-    () => (document.documentElement.getAttribute('data-theme') as 'day' | 'night') || 'day',
-  )
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
+  const { preference, theme, setThemePreference } = useTheme()
 
   // keyboard shortcuts (undo/redo, help, g-chord navigation)
   const storeRef = useRef(store)
@@ -151,7 +147,7 @@ export default function Layout() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
-      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
       const mod = e.metaKey || e.ctrlKey
       if (mod && (e.key === 'z' || e.key === 'Z')) {
         if (typing) return // leave native text undo alone
@@ -293,9 +289,17 @@ export default function Layout() {
               </span>
               {Math.round(stability * 100)}%
             </span>
-            <button className="toggle" type="button" onClick={() => setTheme(theme === 'day' ? 'night' : 'day')} aria-label={`Switch to ${theme === 'day' ? 'night' : 'day'} theme`} aria-pressed={theme === 'night'}>
-              {theme === 'day' ? '☀︎ Day' : '☾ Night'}
-            </button>
+            <select
+              className="toggle theme-select"
+              aria-label="Color theme"
+              title={preference === 'auto' ? `Auto follows your device · currently ${theme}` : `${theme === 'day' ? 'Day' : 'Night'} theme`}
+              value={preference}
+              onChange={(event) => setThemePreference(event.target.value as ThemePreference)}
+            >
+              <option value="auto">{theme === 'night' ? '☾' : '☀︎'} Auto</option>
+              <option value="day">☀︎ Day</option>
+              <option value="night">☾ Night</option>
+            </select>
           </div>
           <i className="tb-progress" aria-hidden="true" />
         </div>
@@ -311,7 +315,7 @@ export default function Layout() {
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        onToggleTheme={() => setTheme(theme === 'day' ? 'night' : 'day')}
+        onSetTheme={setThemePreference}
         onOpenCopilot={() => window.dispatchEvent(new CustomEvent('wl-open-copilot'))}
       />
       <Cloud open={cloudOpen} onClose={() => setCloudOpen(false)} onSyncStatus={setCloudStatus} />

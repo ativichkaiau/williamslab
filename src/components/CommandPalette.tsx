@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { theoryChunks } from '../lib/theoryRag'
+import type { ThemePreference } from '../lib/theme'
 
 interface Cmd {
   id: string
@@ -51,7 +52,7 @@ function score(hay: string, q: string): number {
   return 200 - gaps
 }
 
-export default function CommandPalette({ open, onClose, onToggleTheme, onOpenCopilot }: { open: boolean; onClose: () => void; onToggleTheme: () => void; onOpenCopilot: () => void }) {
+export default function CommandPalette({ open, onClose, onSetTheme, onOpenCopilot }: { open: boolean; onClose: () => void; onSetTheme: (preference: ThemePreference) => void; onOpenCopilot: () => void }) {
   const { state, projects, switchProject, undo, redo, canUndo, canRedo, reset } = useStore()
   const nav = useNavigate()
   const [q, setQ] = useState('')
@@ -77,7 +78,9 @@ export default function CommandPalette({ open, onClose, onToggleTheme, onOpenCop
     const c: Cmd[] = []
     PAGES.forEach((p) => c.push({ id: `pg-${p.to}`, group: 'Go to', label: p.label, icon: p.icon, run: () => go(p.to) }))
     c.push({ id: 'act-ai', group: 'Actions', label: 'Ask the AI copilot', icon: '✦', kw: 'chat assistant', run: () => { onOpenCopilot(); onClose() } })
-    c.push({ id: 'act-theme', group: 'Actions', label: 'Toggle day / night theme', icon: '☾', kw: 'dark light mode', run: () => { onToggleTheme(); onClose() } })
+    c.push({ id: 'act-theme-auto', group: 'Actions', label: 'Auto theme · follow device', icon: '◐', kw: 'system automatic dark light mode appearance', run: () => { onSetTheme('auto'); onClose() } })
+    c.push({ id: 'act-theme-day', group: 'Actions', label: 'Use day theme', icon: '☀︎', kw: 'light mode appearance', run: () => { onSetTheme('day'); onClose() } })
+    c.push({ id: 'act-theme-night', group: 'Actions', label: 'Use night theme', icon: '☾', kw: 'dark mode appearance', run: () => { onSetTheme('night'); onClose() } })
     if (canUndo) c.push({ id: 'act-undo', group: 'Actions', label: 'Undo last edit', icon: '↶', run: () => { undo(); onClose() } })
     if (canRedo) c.push({ id: 'act-redo', group: 'Actions', label: 'Redo', icon: '↷', run: () => { redo(); onClose() } })
     c.push({ id: 'act-reset', group: 'Actions', label: 'Reset project to seed data', icon: '⟲', kw: 'clear', run: () => { if (confirm('Reset all edits back to the seed project?')) reset(); onClose() } })
@@ -88,7 +91,7 @@ export default function CommandPalette({ open, onClose, onToggleTheme, onOpenCop
     ;(state.review.screening ?? []).forEach((rec) => c.push({ id: `sc-${rec.id}`, group: 'Screening', label: rec.title, sub: rec.pmid ? `PMID ${rec.pmid}` : undefined, icon: '☑', run: () => go('/screening') }))
     theoryChunks(state).forEach((sec) => c.push({ id: `th-${sec.id}`, group: 'Theory', label: sec.title, sub: sec.group, icon: '§', run: () => go('/theory', sec.id) }))
     return c
-  }, [state, projects, canUndo, canRedo]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, projects, canUndo, canRedo, onSetTheme]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => {
     const query = q.trim().toLowerCase()

@@ -2,6 +2,16 @@
 <html lang="en" data-theme="day">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Apply the saved choice before styles load; Auto follows this device.
+      (() => {
+        let preference = 'auto'
+        try { preference = localStorage.getItem('williamslab.theme') || 'auto' } catch {}
+        document.documentElement.dataset.theme = preference === 'day' || preference === 'night'
+          ? preference
+          : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day'
+      })()
+    </script>
     <link rel="icon" type="image/png" href="/williams.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="WilliamsLab — a translational-research operating system. Stabilize the unknown. Ship the signal." />
