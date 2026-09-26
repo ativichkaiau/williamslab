@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { Markdown } from './Markdown'
+import { Portal } from './Portal'
 import { streamChat, chatWithTools, hasKey, getModel, type ChatMessage, type ToolDef } from '../lib/openai'
 import { retrieve, groundingBlock } from '../lib/theoryRag'
 import { searchPubmed } from '../lib/pubmed'
@@ -199,68 +200,72 @@ Be concise and practical. Use markdown (## headings, **bold**, - bullets). Help 
 
   if (!open) {
     return (
-      <button className="ai-fab" onClick={() => setOpen(true)} aria-label="Open AI copilot">
-        <span className="spark">✦</span> Ask AI
-        <span className="rdot" />
-      </button>
+      <Portal>
+        <button className="ai-fab" onClick={() => setOpen(true)} aria-label="Open AI copilot">
+          <span className="spark">✦</span> Ask AI
+          <span className="rdot" />
+        </button>
+      </Portal>
     )
   }
 
   return (
-    <div className="ai-panel" role="dialog" aria-label="AI copilot">
-      <div className="ai-head">
-        <div className="avatar">✦</div>
-        <div className="t">Research copilot<small>{page} · {getModel()}</small></div>
-        <span className="sp" />
-        <button className={`tool-toggle${tools ? ' on' : ''}`} onClick={() => setTools((v) => !v)} title="Let the copilot act on your project (add study, set stage, search PubMed…)">⚙ Tools {tools ? 'on' : 'off'}</button>
-        {messages.length > 0 && <button className="ai-x" onClick={() => setMessages([])} title="Clear" style={{ marginRight: 6 }}>⟲</button>}
-        <button className="ai-x" onClick={() => setOpen(false)} aria-label="Close">✕</button>
-      </div>
+    <Portal>
+      <div className="ai-panel" role="dialog" aria-label="AI copilot">
+        <div className="ai-head">
+          <div className="avatar">✦</div>
+          <div className="t">Research copilot<small>{page} · {getModel()}</small></div>
+          <span className="sp" />
+          <button className={`tool-toggle${tools ? ' on' : ''}`} onClick={() => setTools((v) => !v)} title="Let the copilot act on your project (add study, set stage, search PubMed…)">⚙ Tools {tools ? 'on' : 'off'}</button>
+          {messages.length > 0 && <button className="ai-x" onClick={() => setMessages([])} title="Clear" style={{ marginRight: 6 }}>⟲</button>}
+          <button className="ai-x" onClick={() => setOpen(false)} aria-label="Close">✕</button>
+        </div>
 
-      <div className="ai-thread">
-        {messages.length === 0 ? (
-          <div className="ai-empty">
-            <b>Ask anything</b> about {state.project.code}, its theory, hypotheses, statistics, or this page — or ask me to <b>do</b> something (add a study, set the stage, search PubMed).
-            <div className="ai-sugg">
-              {suggestions.map((s) => (
-                <button key={s} className="chip-btn" onClick={() => send(s)}>{s}</button>
-              ))}
+        <div className="ai-thread">
+          {messages.length === 0 ? (
+            <div className="ai-empty">
+              <b>Ask anything</b> about {state.project.code}, its theory, hypotheses, statistics, or this page — or ask me to <b>do</b> something (add a study, set the stage, search PubMed).
+              <div className="ai-sugg">
+                {suggestions.map((s) => (
+                  <button key={s} className="chip-btn" onClick={() => send(s)}>{s}</button>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : (
-          messages.map((m, i) => (
-            <div key={i} className={`ai-msg ${m.role}`}>
-              {m.role === 'assistant' ? (m.content ? <Markdown text={m.content} /> : <span className="typing">…</span>) : m.content}
-              {m.role === 'assistant' && m.sources && m.sources.length > 0 && (
-                <div className="msg-meta">{m.sources.map((s) => <span key={s} className="src-chip">§ {s}</span>)}</div>
-              )}
-            </div>
-          ))
-        )}
-        <div ref={endRef} />
-      </div>
+          ) : (
+            messages.map((m, i) => (
+              <div key={i} className={`ai-msg ${m.role}`}>
+                {m.role === 'assistant' ? (m.content ? <Markdown text={m.content} /> : <span className="typing">…</span>) : m.content}
+                {m.role === 'assistant' && m.sources && m.sources.length > 0 && (
+                  <div className="msg-meta">{m.sources.map((s) => <span key={s} className="src-chip">§ {s}</span>)}</div>
+                )}
+              </div>
+            ))
+          )}
+          <div ref={endRef} />
+        </div>
 
-      <div className="ai-foot">
-        <textarea
-          className="textarea"
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              send(input)
-            }
-          }}
-          placeholder={tools ? 'Ask or instruct the copilot…' : 'Ask the copilot…'}
-        />
-        {streaming ? (
-          <button className="btn ghost sm" onClick={() => abortRef.current?.abort()}>Stop</button>
-        ) : (
-          <button className="btn primary sm" onClick={() => send(input)} disabled={!input.trim()}>Send</button>
-        )}
+        <div className="ai-foot">
+          <textarea
+            className="textarea"
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                send(input)
+              }
+            }}
+            placeholder={tools ? 'Ask or instruct the copilot…' : 'Ask the copilot…'}
+          />
+          {streaming ? (
+            <button className="btn ghost sm" onClick={() => abortRef.current?.abort()}>Stop</button>
+          ) : (
+            <button className="btn primary sm" onClick={() => send(input)} disabled={!input.trim()}>Send</button>
+          )}
+        </div>
+        <div className="ai-note">{tools ? 'Tools on · the copilot can edit your project' : 'Educational · verify against primary sources'}</div>
       </div>
-      <div className="ai-note">{tools ? 'Tools on · the copilot can edit your project' : 'Educational · verify against primary sources'}</div>
-    </div>
+    </Portal>
   )
 }

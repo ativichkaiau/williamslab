@@ -1,0 +1,200 @@
+/* ============================================================
+   Depth — the 3D interface (lib/dimension.ts).
+
+   Everything here is scoped to html[data-dim="3d"]: the flat app is
+   exactly the original design, and one attribute swaps between them.
+
+   Material language, lit from above:
+   · slabs   — cards and tiles; a machined lower edge + contact shadow
+   · keycaps — buttons; a hard edge that collapses when pressed
+   · wells   — inputs; recessed into the surface
+   · floor   — the plane the interface stands on (DepthStage)
+
+   The rest state is always transform:none, so text being read stays
+   crisp. At rest, depth comes from light and edges; real 3D happens
+   under the pointer (lib/tilt.ts) and in motion.
+   ============================================================ */
+
+html{--vt-stage:#dfe4ee}
+html[data-theme="night"]{--vt-stage:#020308}
+
+html[data-dim="3d"]{
+  --edge:#d5dbe6; --edge-2:#c5cedc;
+  --drop:rgba(20,34,68,.13); --drop-2:rgba(20,34,68,.24);
+  --glint:rgba(255,255,255,.95);
+  --shine:rgba(47,107,255,.07); --shade:rgba(10,31,107,.05);
+  --key-navy:#04113f;
+  --floor-line:rgba(10,31,107,.10); --horizon:rgba(47,107,255,.10); --horizon-line:rgba(47,107,255,.22);
+  --lift-face:#ffffff;
+  --track-b:rgba(10,31,107,.16); --track-r:rgba(226,0,26,.14); --track-y:rgba(255,204,0,.22);
+
+  /* entrances come up out of the floor instead of sliding up the page */
+  --lv-section-from:perspective(1400px) translate3d(0,64px,-240px) rotateX(20deg);
+  --lv-rise-from:perspective(1400px) translate3d(0,44px,-260px) rotateX(18deg);
+  --cmdk-from:perspective(1400px) translate3d(0,-44px,-180px) rotateX(-24deg);
+}
+html[data-dim="3d"][data-theme="night"]{
+  --edge:#0a0d13; --edge-2:#050609;
+  --drop:rgba(0,0,0,.45); --drop-2:rgba(0,0,0,.68);
+  --glint:rgba(255,255,255,.06);
+  --shine:rgba(140,175,255,.16); --shade:rgba(0,0,0,.28);
+  --key-navy:#010516;
+  --floor-line:rgba(96,138,255,.16); --horizon:rgba(47,107,255,.17); --horizon-line:rgba(120,160,255,.45);
+  --lift-face:#20252f;
+  --track-b:rgba(47,107,255,.30); --track-r:rgba(255,40,70,.26); --track-y:rgba(255,204,0,.26);
+}
+
+/* ---------- the floor ---------- */
+.depth-stage{position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden;
+  perspective:640px; perspective-origin:calc(50% + var(--sway,0px)) 30%;
+  background:radial-gradient(95% 50% at 50% 30%, var(--horizon), transparent 72%)}
+.depth-floor,.depth-track{position:absolute; left:-110vw; right:-110vw; bottom:-2px; height:280vh;
+  transform-origin:50% 100%; transform:rotateX(79deg)}
+.depth-floor{
+  background-image:linear-gradient(var(--floor-line) 2px, transparent 2px), linear-gradient(90deg, var(--floor-line) 2px, transparent 2px);
+  background-size:96px 96px; background-position:50% var(--floor-y,0px), 50% 0;
+  -webkit-mask-image:linear-gradient(to top, #000 0%, #000 30%, transparent 94%);
+  mask-image:linear-gradient(to top, #000 0%, #000 30%, transparent 94%)}
+/* The livery, painted down the floor like a track. It lives only in the
+   distance: near the viewer the page covers the floor except for thin gaps
+   between cards, and a stripe glimpsed through a 16px gap reads as a
+   rendering fault rather than a road. */
+.depth-track{
+  background-image:linear-gradient(90deg,
+    transparent calc(50% + 250px), var(--track-b) calc(50% + 250px) calc(50% + 350px),
+    transparent calc(50% + 350px) calc(50% + 366px), var(--track-r) calc(50% + 366px) calc(50% + 392px),
+    transparent calc(50% + 392px) calc(50% + 408px), var(--track-y) calc(50% + 408px) calc(50% + 434px),
+    transparent calc(50% + 434px));
+  -webkit-mask-image:linear-gradient(to top, transparent 0%, transparent 52%, #000 72%, #000 82%, transparent 97%);
+  mask-image:linear-gradient(to top, transparent 0%, transparent 52%, #000 72%, #000 82%, transparent 97%)}
+/* a lit horizon line where the floor meets the sky */
+.depth-horizon{position:absolute; left:0; right:0; top:calc(30% - 1px); height:2px;
+  background:linear-gradient(90deg, transparent, var(--horizon-line) 30%, var(--horizon-line) 70%, transparent);
+  box-shadow:0 0 22px 4px var(--horizon); opacity:.9}
+
+/* ---------- slabs ---------- */
+html[data-dim="3d"] :is(.card,.stat,.overview-stats,.preset,.screen-rec,.finding,.tbl-scroll,.theory-sec,
+  .project-tab,.quiz-panel,.theory-controls,.graph-controls,.publication-watch,.evidence-passage,.graph-svg){
+  box-shadow:inset 0 1px 0 var(--glint), 0 1px 0 var(--edge), 0 2px 0 var(--edge), 0 3px 0 var(--edge-2), 0 14px 26px -16px var(--drop);
+  transition:background-color .24s, border-color .24s, box-shadow .5s cubic-bezier(.2,.8,.2,1), transform .75s cubic-bezier(.2,.8,.2,1)}
+/* surfaces set into another surface get a hairline edge, not a second slab */
+html[data-dim="3d"] :is(.card,.theory-sec,.overview-stats,.quiz-panel,.screen-rec) :is(.card,.stat,.tbl-scroll,.pico-cell,.preset,.quiz-opt,.session-item,.evidence-passage){
+  box-shadow:inset 0 1px 0 var(--glint), 0 1px 0 var(--edge), 0 2px 0 var(--edge-2);
+  transition:translate .45s cubic-bezier(.2,.8,.2,1), box-shadow .35s, background-color .24s}
+html[data-dim="3d"] .overview-stats{overflow:visible}
+html[data-dim="3d"] .overview-stats .stat{box-shadow:none}
+
+/* the slab under the pointer (lib/tilt.ts sets --rx/--ry/--mx/--my/--tp) */
+html[data-dim="3d"] .tilting{position:relative; z-index:3;
+  transform:perspective(var(--tp,1200px)) translateZ(12px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transform-style:preserve-3d; will-change:transform;
+  background-image:radial-gradient(130% 130% at var(--mx,50%) var(--my,50%), var(--shine), transparent 45%, var(--shade));
+  border-color:color-mix(in srgb, var(--accent,var(--blue)) 30%, var(--line));
+  box-shadow:inset 0 1px 0 var(--glint), 0 1px 0 var(--edge), 0 2px 0 var(--edge), 0 3px 0 var(--edge), 0 4px 0 var(--edge-2), 0 30px 50px -22px var(--drop-2);
+  transition:background-color .24s, border-color .24s, box-shadow .25s ease-out, transform .16s ease-out}
+/* keep the 3D context alive down to whatever is lifting off the slab */
+html[data-dim="3d"] .tilting :has(.lifted){transform-style:preserve-3d}
+html[data-dim="3d"] .tilting .lifted{translate:0 0 46px; background-color:var(--lift-face);
+  box-shadow:inset 0 1px 0 var(--glint), 0 1px 0 var(--edge), 0 2px 0 var(--edge), 0 3px 0 var(--edge), 0 4px 0 var(--edge-2), 0 26px 40px -16px var(--drop-2)}
+html[data-dim="3d"] .overview-stats .stat.lifted{border-radius:var(--radius)}
+/* the card's header rides a little above its slab */
+html[data-dim="3d"] .card-h{transition:translate .5s cubic-bezier(.2,.8,.2,1)}
+html[data-dim="3d"] .tilting > .card-h{translate:0 0 18px}
+
+/* ---------- keycaps ---------- */
+html[data-dim="3d"] .btn.primary{box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 3px 0 var(--key-navy), 0 10px 18px -10px rgba(10,31,107,.55)}
+html[data-dim="3d"] :is(.btn.ghost,.chip-btn,.stage-pill,.toggle,.proj-chip,.fig-btn,.he-mini,.read-toggle,.tool-toggle,
+  .type-chip,.saved-chip,.quiz-opt,.cmdk-foot kbd,.kbd-row kbd),
+html[data-dim="3d"] .icon-btn:not(.topbar .icon-btn){
+  box-shadow:inset 0 1px 0 var(--glint), 0 2px 0 var(--edge-2)}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  html[data-dim="3d"] :is(.btn.ghost,.chip-btn,.stage-pill,.toggle,.proj-chip,.fig-btn,.he-mini):hover:not(:disabled){
+    box-shadow:inset 0 1px 0 var(--glint), 0 4px 0 var(--edge-2), 0 10px 16px -10px var(--drop-2)}
+  html[data-dim="3d"] .btn.primary:hover:not(:disabled){
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 5px 0 var(--key-navy), 0 16px 24px -12px rgba(10,31,107,.6)}
+}
+/* pressed: the key travels down onto its edge */
+html[data-dim="3d"] :is(.btn,.icon-btn,.chip-btn,.stage-pill,.toggle,.proj-chip,.fig-btn,.he-mini,.seg-b):active:not(:disabled){
+  translate:0 2px; scale:1; box-shadow:inset 0 2px 5px rgba(0,0,0,.14)}
+html[data-dim="3d"] .btn.primary:active:not(:disabled){box-shadow:inset 0 2px 6px rgba(0,0,0,.4), 0 1px 0 var(--key-navy)}
+
+/* segmented controls are a recessed channel; the chosen key is pressed in */
+html[data-dim="3d"] .seg{box-shadow:inset 0 2px 4px rgba(10,20,50,.08), 0 1px 0 var(--glint)}
+html[data-dim="3d"] .seg-b.on{box-shadow:inset 0 2px 6px rgba(0,0,0,.3)}
+
+/* ---------- wells ---------- */
+html[data-dim="3d"] :is(.input,.select,.textarea){box-shadow:inset 0 2px 3px rgba(18,32,60,.08)}
+html[data-dim="3d"][data-theme="night"] :is(.input,.select,.textarea){box-shadow:inset 0 2px 5px rgba(0,0,0,.4)}
+html[data-dim="3d"] :is(.input,.select,.textarea):focus{box-shadow:inset 0 2px 3px rgba(18,32,60,.08), 0 0 0 3px color-mix(in srgb,var(--blue) 18%, transparent)}
+
+/* ---------- the shell ---------- */
+html[data-dim="3d"] .sidebar{z-index:6;
+  box-shadow:1px 0 0 var(--edge), 3px 0 0 var(--edge), 4px 0 0 var(--edge-2), 28px 0 46px -32px var(--drop-2)}
+html[data-dim="3d"] .topbar{box-shadow:0 1px 0 var(--edge), 0 3px 0 var(--edge-2), 0 22px 34px -30px var(--drop-2)}
+html[data-dim="3d"] .topbar::before{height:4px; box-shadow:0 2px 0 rgba(0,0,0,.2)}
+/* nav items are keys: hover raises one, the current page is pressed in */
+html[data-dim="3d"] .sb-link{transition:background .2s, color .2s, padding-left .25s cubic-bezier(.16,1,.3,1), box-shadow .2s, translate .2s}
+@media(hover:hover) and (pointer:fine){
+  html[data-dim="3d"] .sb-link:not(.active):hover{background:var(--card); translate:0 -1px;
+    box-shadow:inset 0 1px 0 var(--glint), 0 1px 0 var(--edge), 0 2px 0 var(--edge-2), 0 8px 12px -10px var(--drop-2)}
+}
+html[data-dim="3d"] .sb-link.active{box-shadow:inset 0 2px 5px color-mix(in srgb, var(--chip-ink) 22%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--chip-ink) 12%, transparent)}
+
+/* ---------- the page head ---------- */
+/* the livery stripes are extruded bars */
+html[data-dim="3d"] .rule i{box-shadow:0 2px 0 var(--stripe-edge,rgba(0,0,0,.28))}
+html[data-dim="3d"] .rule .b{--stripe-edge:#040f3d}
+html[data-dim="3d"] .rule .r{--stripe-edge:#970012}
+html[data-dim="3d"] .rule .y{--stripe-edge:#b88f00}
+html[data-dim="3d"][data-theme="night"] .rule .b{--stripe-edge:#15378f}
+html[data-dim="3d"] .page-head h1{transform-origin:50% 100%;
+  --lv-heading-from:perspective(1100px) translate3d(0,24px,-170px) rotateX(26deg);
+  --lv-heading-mid:perspective(1100px) translate3d(0,-2px,6px) rotateX(-2deg)}
+/* stat readouts arrive like split-flap digits (and flip again when they change) */
+html[data-dim="3d"] .stat b{transform-origin:50% 0;
+  --lv-heading-from:perspective(420px) rotateX(90deg);
+  --lv-heading-mid:perspective(420px) rotateX(-14deg)}
+
+/* ---------- floating surfaces ---------- */
+html[data-dim="3d"] :is(.modal,.kbd-card,.cmdk,.ai-panel,.proj-menu){
+  box-shadow:inset 0 1px 0 var(--glint), 0 1px 0 var(--edge), 0 2px 0 var(--edge), 0 3px 0 var(--edge), 0 4px 0 var(--edge-2), 0 50px 90px -30px rgba(6,10,26,.55)}
+html[data-dim="3d"] :is(.modal-overlay,.kbd-overlay,.cmdk-overlay){backdrop-filter:blur(6px) saturate(.85)}
+html[data-dim="3d"] .ai-fab{box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 4px 0 var(--key-navy), 0 16px 28px -12px rgba(10,31,107,.6)}
+html[data-dim="3d"] .ai-fab:active{translate:0 3px; box-shadow:inset 0 2px 6px rgba(0,0,0,.4), 0 1px 0 var(--key-navy)}
+
+/* ---------- the 2D ⇄ 3D switch ---------- */
+.dim-toggle{gap:8px}
+.dim-cube{position:relative; width:12px; height:12px; flex:none; transform-style:preserve-3d;
+  transform:rotateX(-26deg) rotateY(40deg)}
+.dim-cube i{position:absolute; inset:0; border:1.5px solid currentColor; border-radius:1px}
+.dim-cube i:nth-child(1){transform:translateZ(6px); background:color-mix(in srgb, var(--blue) 30%, transparent)}
+.dim-cube i:nth-child(2){transform:rotateY(180deg) translateZ(6px)}
+.dim-cube i:nth-child(3){transform:rotateY(90deg) translateZ(6px); background:color-mix(in srgb, var(--red) 34%, transparent)}
+.dim-cube i:nth-child(4){transform:rotateY(-90deg) translateZ(6px)}
+.dim-cube i:nth-child(5){transform:rotateX(90deg) translateZ(6px); background:color-mix(in srgb, var(--yellow) 55%, transparent)}
+.dim-cube i:nth-child(6){transform:rotateX(-90deg) translateZ(6px)}
+@keyframes dim-cube-spin{to{transform:rotateX(-26deg) rotateY(400deg)}}
+html[data-dim="3d"] .dim-cube{animation:dim-cube-spin 9s linear infinite}
+html[data-dim="3d"] .dim-toggle{color:var(--chip-ink); border-color:color-mix(in srgb, var(--chip-ink) 35%, var(--line))}
+/* flat mode: a flat square — the cube folds down to its front face */
+html[data-dim="2d"] .dim-cube{transform:none}
+html[data-dim="2d"] .dim-cube i:not(:first-child){display:none}
+html[data-dim="2d"] .dim-cube i:first-child{transform:none; background:transparent}
+
+/* The swap itself (a View Transition): going 3D, the flat sheet lays down
+   and the machine stands up off it; going 2D, the machine sinks away and the
+   flat sheet drops onto the glass. */
+html[data-dim-swap]::view-transition{background:var(--vt-stage)}
+html[data-dim-swap]::view-transition-group(root){animation-duration:1s}
+@keyframes dim-lay-down{55%{opacity:0}to{transform:perspective(1800px) rotateX(74deg) translateY(6%); opacity:0}}
+@keyframes dim-stand-up{from{transform:perspective(1800px) translateZ(-90px) rotateX(-50deg); opacity:0}25%{opacity:1}}
+@keyframes dim-sink{50%{opacity:0}to{transform:perspective(1800px) translateZ(-460px) rotateX(12deg); opacity:0}}
+@keyframes dim-drop-flat{from{transform:perspective(1800px) translateZ(240px); opacity:0}30%{opacity:1}}
+html[data-dim-swap="3d"]::view-transition-old(root){transform-origin:50% 100%; animation:dim-lay-down .5s cubic-bezier(.55,0,.8,.2) both}
+html[data-dim-swap="3d"]::view-transition-new(root){transform-origin:50% 100%; animation:dim-stand-up .85s .16s cubic-bezier(.16,1,.3,1) both}
+html[data-dim-swap="2d"]::view-transition-old(root){transform-origin:50% 60%; animation:dim-sink .55s cubic-bezier(.55,0,.8,.2) both}
+html[data-dim-swap="2d"]::view-transition-new(root){animation:dim-drop-flat .6s .12s cubic-bezier(.16,1,.3,1) both}
+
+@media print{
+  .depth-stage{display:none}
+}

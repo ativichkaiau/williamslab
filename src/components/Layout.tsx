@@ -7,6 +7,10 @@ import CommandPalette from './CommandPalette'
 import Cloud from './Cloud'
 import { Rule } from './ui'
 import { useLiveryMotion } from '../lib/motion'
+import { useDim, toggleDim } from '../lib/dimension'
+import { useTiltField } from '../lib/tilt'
+import DepthStage from './DepthStage'
+import { Portal } from './Portal'
 import { useTheme, type ThemePreference } from '../lib/theme'
 import type { SyncStatus } from '../lib/cloudSync'
 
@@ -17,6 +21,7 @@ const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: '⌘/Ctrl + ⇧ + Z', label: 'Redo' },
   { keys: '⌘/Ctrl + K', label: 'Open the command palette' },
   { keys: 'g then o / r / t / k / m / s', label: 'Go to Overview / Review / Theory / Graph / Meta / Studies' },
+  { keys: '⇧ + D', label: 'Swap between 3D and flat 2D' },
   { keys: '?', label: 'Show this shortcuts panel' },
   { keys: 'Esc', label: 'Close panels' },
 ]
@@ -172,6 +177,11 @@ export default function Layout() {
         setHelp((h) => !h)
         return
       }
+      if (e.key === 'D' && e.shiftKey) {
+        e.preventDefault()
+        toggleDim()
+        return
+      }
       if (e.key === 'Escape') {
         setHelp(false)
         setProjMenu(false)
@@ -197,13 +207,20 @@ export default function Layout() {
   }, [nav])
 
   useLiveryMotion(loc.pathname)
+  useTiltField()
+  const dim = useDim()
 
   const openFlags = instabilities.filter((i) => i.status === 'open').length
   const title = TITLES[loc.pathname] ?? 'WilliamsLab'
   const accent = ACCENT[loc.pathname] ?? '#1746d1'
+  // Overlays portal out to <body>, outside .main — give them the accent too.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', accent)
+  }, [accent])
 
   return (
     <div className="shell">
+      <DepthStage />
       {navOpen && <div className="sb-drawer-backdrop" onClick={() => setNavOpen(false)} />}
       <aside className={`sidebar${navOpen ? ' open' : ''}`}>
         <div className="sb-brand">
@@ -289,6 +306,16 @@ export default function Layout() {
               </span>
               {Math.round(stability * 100)}%
             </span>
+            <button
+              type="button"
+              className="toggle dim-toggle"
+              onClick={toggleDim}
+              aria-pressed={dim === '3d'}
+              title={dim === '3d' ? 'Flatten to 2D (⇧D)' : 'Stand up in 3D (⇧D)'}
+            >
+              <span className="dim-cube" aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
+              {dim === '3d' ? '3D' : '2D'}
+            </button>
             <select
               className="toggle theme-select"
               aria-label="Color theme"
@@ -321,22 +348,24 @@ export default function Layout() {
       <Cloud open={cloudOpen} onClose={() => setCloudOpen(false)} onSyncStatus={setCloudStatus} />
 
       {help && (
-        <div className="kbd-overlay" onClick={() => setHelp(false)}>
-          <div className="kbd-card" onClick={(e) => e.stopPropagation()}>
-            <div className="kbd-head">
-              <b>Keyboard shortcuts</b>
-              <button className="ai-x" onClick={() => setHelp(false)} aria-label="Close">✕</button>
-            </div>
-            <div className="kbd-list">
-              {SHORTCUTS.map((s) => (
-                <div className="kbd-row" key={s.label}>
-                  <kbd>{s.keys}</kbd>
-                  <span>{s.label}</span>
-                </div>
-              ))}
+        <Portal>
+          <div className="kbd-overlay" onClick={() => setHelp(false)}>
+            <div className="kbd-card" onClick={(e) => e.stopPropagation()}>
+              <div className="kbd-head">
+                <b>Keyboard shortcuts</b>
+                <button className="ai-x" onClick={() => setHelp(false)} aria-label="Close">✕</button>
+              </div>
+              <div className="kbd-list">
+                {SHORTCUTS.map((s) => (
+                  <div className="kbd-row" key={s.label}>
+                    <kbd>{s.keys}</kbd>
+                    <span>{s.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   )

@@ -57,7 +57,7 @@ export function SevDot({ severity, label }: { severity: Severity; label?: string
 export function StatCard({ value, label, sub, tone }: { value: React.ReactNode; label: string; sub?: string; tone?: string }) {
   return (
     <div className="stat" style={tone ? { '--stat-tone': tone } as CSSProperties : undefined}>
-      <b>{value}</b>
+      <b key={typeof value === 'string' || typeof value === 'number' ? value : undefined}>{value}</b>
       <span>{label}</span>
       {sub && <div className="sub">{sub}</div>}
     </div>

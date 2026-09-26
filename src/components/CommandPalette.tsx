@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../lib/store'
 import { theoryChunks } from '../lib/theoryRag'
 import type { ThemePreference } from '../lib/theme'
+import { Portal } from './Portal'
+import { setDim, useDim } from '../lib/dimension'
 
 interface Cmd {
   id: string
@@ -55,6 +57,7 @@ function score(hay: string, q: string): number {
 export default function CommandPalette({ open, onClose, onSetTheme, onOpenCopilot }: { open: boolean; onClose: () => void; onSetTheme: (preference: ThemePreference) => void; onOpenCopilot: () => void }) {
   const { state, projects, switchProject, undo, redo, canUndo, canRedo, reset } = useStore()
   const nav = useNavigate()
+  const dim = useDim()
   const [q, setQ] = useState('')
   const [sel, setSel] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -78,6 +81,9 @@ export default function CommandPalette({ open, onClose, onSetTheme, onOpenCopilo
     const c: Cmd[] = []
     PAGES.forEach((p) => c.push({ id: `pg-${p.to}`, group: 'Go to', label: p.label, icon: p.icon, run: () => go(p.to) }))
     c.push({ id: 'act-ai', group: 'Actions', label: 'Ask the AI copilot', icon: '✦', kw: 'chat assistant', run: () => { onOpenCopilot(); onClose() } })
+    c.push(dim === '3d'
+      ? { id: 'act-dim', group: 'Actions', label: 'Flatten to 2D', icon: '▭', kw: 'flat 3d dimension depth mode interface', run: () => { onClose(); setDim('2d') } }
+      : { id: 'act-dim', group: 'Actions', label: 'Stand up in 3D', icon: '⬚', kw: '3d dimension depth mode interface', run: () => { onClose(); setDim('3d') } })
     c.push({ id: 'act-theme-auto', group: 'Actions', label: 'Auto theme · follow device', icon: '◐', kw: 'system automatic dark light mode appearance', run: () => { onSetTheme('auto'); onClose() } })
     c.push({ id: 'act-theme-day', group: 'Actions', label: 'Use day theme', icon: '☀︎', kw: 'light mode appearance', run: () => { onSetTheme('day'); onClose() } })
     c.push({ id: 'act-theme-night', group: 'Actions', label: 'Use night theme', icon: '☾', kw: 'dark mode appearance', run: () => { onSetTheme('night'); onClose() } })
@@ -91,7 +97,7 @@ export default function CommandPalette({ open, onClose, onSetTheme, onOpenCopilo
     ;(state.review.screening ?? []).forEach((rec) => c.push({ id: `sc-${rec.id}`, group: 'Screening', label: rec.title, sub: rec.pmid ? `PMID ${rec.pmid}` : undefined, icon: '☑', run: () => go('/screening') }))
     theoryChunks(state).forEach((sec) => c.push({ id: `th-${sec.id}`, group: 'Theory', label: sec.title, sub: sec.group, icon: '§', run: () => go('/theory', sec.id) }))
     return c
-  }, [state, projects, canUndo, canRedo, onSetTheme]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, projects, canUndo, canRedo, onSetTheme, dim]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => {
     const query = q.trim().toLowerCase()
@@ -121,41 +127,43 @@ export default function CommandPalette({ open, onClose, onSetTheme, onOpenCopilo
   })
 
   return (
-    <div className="cmdk-overlay" onClick={onClose}>
-      <div className="cmdk" onClick={(e) => e.stopPropagation()}>
-        <input
-          ref={inputRef}
-          className="cmdk-input"
-          placeholder="Search pages, studies, hypotheses, actions…"
-          value={q}
-          onChange={(e) => { setQ(e.target.value); setSel(0) }}
-          onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(results.length - 1, s + 1)) }
-            else if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(0, s - 1)) }
-            else if (e.key === 'Enter') { e.preventDefault(); results[sel]?.run() }
-            else if (e.key === 'Escape') { e.preventDefault(); onClose() }
-          }}
-        />
-        <div className="cmdk-list" ref={listRef}>
-          {results.length === 0 ? (
-            <div className="cmdk-empty">No matches for “{q}”.</div>
-          ) : (
-            groups.map((g) => (
-              <div key={g.group}>
-                <div className="cmdk-group">{g.group}</div>
-                {g.items.map(({ cmd, i }) => (
-                  <button key={cmd.id} data-i={i} className={`cmdk-item${i === sel ? ' on' : ''}`} onClick={() => cmd.run()} onMouseMove={() => setSel(i)}>
-                    <span className="cmdk-ic">{cmd.icon}</span>
-                    <span className="cmdk-label">{cmd.label}</span>
-                    {cmd.sub && <span className="cmdk-sub">{cmd.sub}</span>}
-                  </button>
-                ))}
-              </div>
-            ))
-          )}
+    <Portal>
+      <div className="cmdk-overlay" onClick={onClose}>
+        <div className="cmdk" onClick={(e) => e.stopPropagation()}>
+          <input
+            ref={inputRef}
+            className="cmdk-input"
+            placeholder="Search pages, studies, hypotheses, actions…"
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setSel(0) }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.min(results.length - 1, s + 1)) }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(0, s - 1)) }
+              else if (e.key === 'Enter') { e.preventDefault(); results[sel]?.run() }
+              else if (e.key === 'Escape') { e.preventDefault(); onClose() }
+            }}
+          />
+          <div className="cmdk-list" ref={listRef}>
+            {results.length === 0 ? (
+              <div className="cmdk-empty">No matches for “{q}”.</div>
+            ) : (
+              groups.map((g) => (
+                <div key={g.group}>
+                  <div className="cmdk-group">{g.group}</div>
+                  {g.items.map(({ cmd, i }) => (
+                    <button key={cmd.id} data-i={i} className={`cmdk-item${i === sel ? ' on' : ''}`} onClick={() => cmd.run()} onMouseMove={() => setSel(i)}>
+                      <span className="cmdk-ic">{cmd.icon}</span>
+                      <span className="cmdk-label">{cmd.label}</span>
+                      {cmd.sub && <span className="cmdk-sub">{cmd.sub}</span>}
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="cmdk-foot"><kbd>↑↓</kbd> navigate <kbd>↵</kbd> open <kbd>esc</kbd> close</div>
         </div>
-        <div className="cmdk-foot"><kbd>↑↓</kbd> navigate <kbd>↵</kbd> open <kbd>esc</kbd> close</div>
       </div>
-    </div>
+    </Portal>
   )
 }
