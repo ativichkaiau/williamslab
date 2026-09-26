@@ -810,7 +810,7 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 /* the Ask-AI FAB sits above the drawer (z 80 > 70); fade it out while the
    drawer is open so it never floats over the nav */
 .ai-fab{ transition:opacity .2s ease, transform .18s ease }
-.shell:has(.sidebar.open) .ai-fab{ opacity:0; pointer-events:none; transform:translateY(10px) }
+body:has(.sidebar.open) .ai-fab{ opacity:0; pointer-events:none; transform:translateY(10px) }
 
 /* Trigger on touch (any size, so iPad landscape at 1024px is covered) OR on a
    narrow viewport (matches the 960px drawer breakpoint; also catches touch
@@ -857,7 +857,7 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 @keyframes lv-in{from{opacity:0; transform:translateY(14px)}to{opacity:1; transform:none}}
 @keyframes lv-pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes lv-drift{0%,55%,100%{translate:0}25%{translate:7px 0}}
-@keyframes lv-heading{from{opacity:0; transform:translateY(20px)}70%{opacity:1; transform:translateY(-2px)}to{opacity:1; transform:none}}
+@keyframes lv-heading{from{opacity:0; transform:var(--lv-heading-from,translateY(20px))}70%{opacity:1; transform:var(--lv-heading-mid,translateY(-2px))}to{opacity:1; transform:none}}
 @keyframes lv-hatch{to{background-position:16px 0}}
 @keyframes lv-sweep{0%{transform:translateX(-110%); opacity:0}8%{opacity:.9}36%{transform:translateX(410%); opacity:0}100%{transform:translateX(410%); opacity:0}}
 
@@ -898,10 +898,8 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 .tb-progress{position:absolute; left:0; right:0; bottom:-1px; height:2px; transform-origin:0 50%;
   transform:scaleX(var(--scroll-progress,0)); pointer-events:none;
   background:linear-gradient(90deg,var(--navy),var(--blue) 55%,var(--red) 82%,var(--yellow))}
-@keyframes lv-section{from{opacity:0; transform:translateY(28px)}to{opacity:1; transform:none}}
+@keyframes lv-section{from{opacity:0; transform:var(--lv-section-from,translateY(28px))}to{opacity:1; transform:none}}
 .lv-show{animation:lv-section .75s var(--reveal-delay,0ms) cubic-bezier(.16,1,.3,1) backwards}
-/* Fixed dialogs must never inherit an in-flight surface transform. */
-.lv-show:has(.modal-overlay){animation:none}
 
 /* Child entrances restart with their surface, including sections reached
    later in a long page. Pending sections keep their normal readable styles. */
@@ -909,12 +907,12 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 .stat.lv-pending :is(b,span,.sub){animation:none}
 
 @keyframes lv-pop{from{opacity:0; transform:scale(.4)}to{opacity:1; transform:none}}
-@keyframes lv-rise{from{opacity:0; transform:translateY(24px) scale(.96)}to{opacity:1; transform:none}}
+@keyframes lv-rise{from{opacity:0; transform:var(--lv-rise-from,translateY(24px) scale(.96))}to{opacity:1; transform:none}}
 /* Same move, but never invisible at rest. A hidden or occluded document pauses
    animations, and a paused animation holds its from-state — with opacity 0 that
    turns a dialog into a grey screen with nothing on it. Surfaces you have to
    read and click use this instead, so the worst case is dim, not gone. */
-@keyframes lv-rise-safe{from{opacity:.55; transform:translateY(24px) scale(.96)}to{opacity:1; transform:none}}
+@keyframes lv-rise-safe{from{opacity:.55; transform:var(--lv-rise-from,translateY(24px) scale(.96))}to{opacity:1; transform:none}}
 @keyframes lv-fade{from{opacity:0}to{opacity:1}}
 
 /* the page-header cascade continues past the h1 */
@@ -1044,7 +1042,7 @@ button, a, .toggle, .gauge{ touch-action:manipulation }
 .content.lv-route{animation:lv-route-in .36s ease both}
 
 /* ---- transient surfaces ---- */
-@keyframes cmdk-drop{from{opacity:.55; transform:translateY(-12px) scale(.98)}to{opacity:1; transform:none}}
+@keyframes cmdk-drop{from{opacity:.55; transform:var(--cmdk-from,translateY(-12px) scale(.98))}to{opacity:1; transform:none}}
 .cmdk-overlay{animation:lv-fade .16s ease both}
 .cmdk{animation:cmdk-drop .36s cubic-bezier(.16,1.15,.3,1) both}
 

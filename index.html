@@ -10,6 +10,12 @@
         document.documentElement.dataset.theme = preference === 'day' || preference === 'night'
           ? preference
           : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day'
+        // 3D unless the saved choice is flat, or the device asks for less motion.
+        let dim = null
+        try { dim = localStorage.getItem('williamslab.dim') } catch {}
+        document.documentElement.dataset.dim = dim === '2d' || dim === '3d'
+          ? dim
+          : window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '2d' : '3d'
       })()
     </script>
     <link rel="icon" type="image/png" href="/williams.png" />

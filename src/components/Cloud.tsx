@@ -7,6 +7,7 @@ import {
 } from '../lib/supabase'
 import { watchWorkspaceSync, type Resolution, type SyncStatus } from '../lib/cloudSync'
 import { download } from '../lib/reviewSessions'
+import { Portal } from './Portal'
 
 const AUTOSYNC_LS = 'williamslab.cloud.autosync'
 
@@ -137,94 +138,96 @@ export default function Cloud({ open, onClose, onSyncStatus }: { open: boolean; 
 
   if (!open) return null
   return (
-    <div className="kbd-overlay" onClick={onClose}>
-      <div className="kbd-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
-        <div className="kbd-head">
-          <b>☁ Cloud sync &amp; sharing</b>
-          <button className="ai-x" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div style={{ padding: '4px 2px' }}>
-          {!configured ? (
-            <>
-              <p className="small" style={{ marginBottom: 12 }}>Bring your own free <b>Supabase</b> project — your data stays in your account. Run <span className="mono">db/supabase-schema.sql</span> once in the Supabase SQL editor, then paste the project URL and the <b>anon</b> public key (it’s RLS-protected — safe on the client; never the service_role secret).</p>
-              <label className="fld"><span className="fld-l">Project URL</span><input className="input mono" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" /></label>
-              <label className="fld"><span className="fld-l">Anon public key</span><input className="input mono" value={key} onChange={(e) => setKey(e.target.value)} placeholder="eyJhbGciOi…" /></label>
-              <button className="btn primary sm" onClick={saveConfig}>Connect</button>
-            </>
-          ) : !email ? (
-            <>
-              <p className="small" style={{ marginBottom: 8 }}>✓ Connected <span className="muted">({source === 'env' ? 'from environment' : 'this device'})</span>. Sign in to sync across devices.</p>
-              <p className="small muted" style={{ marginBottom: 10 }}>Email links return to <span className="mono" style={{ wordBreak: 'break-all' }}>{authRedirectTo()}</span>. Supabase ignores that unless it is listed in <b>Authentication → URL Configuration</b> — add it under <b>Redirect URLs</b> and set <b>Site URL</b> to your deployed address, or links bounce to <span className="mono">localhost:3000</span>.</p>
-              <label className="fld"><span className="fld-l">Email</span><input className="input" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="you@example.com" /></label>
-              <div className="seg" style={{ marginBottom: 10 }}>
-                <button className={`seg-b${method === 'password' ? ' on' : ''}`} onClick={() => setMethod('password')}>Password</button>
-                <button className={`seg-b${method === 'code' ? ' on' : ''}`} onClick={() => setMethod('code')}>Email code</button>
-              </div>
-
-              {method === 'password' ? (
-                <>
-                  <label className="fld"><span className="fld-l">Password</span><input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pwSignIn()} placeholder="••••••••" /></label>
-                  <div className="wrap-gap">
-                    <button className="btn primary sm" onClick={pwSignIn} disabled={busy === 'pw' || !loginEmail.trim() || !password}>{busy === 'pw' ? '…' : 'Sign in'}</button>
-                    <button className="btn ghost sm" onClick={pwSignUp} disabled={busy === 'pw' || !loginEmail.trim() || password.length < 6}>Create account</button>
-                    {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
-                  </div>
-                  <p className="small muted" style={{ marginTop: 8 }}>No email needed — turn off <b>Confirm email</b> once in Supabase (Authentication → Providers → Email), then <b>Create account</b>. Avoids the email rate limit entirely.</p>
-                </>
-              ) : (
-                <>
-                  {sent && (
-                    <label className="fld"><span className="fld-l">6-digit code from the email</span>
-                      <div className="flex" style={{ gap: 8 }}>
-                        <input className="input mono" style={{ letterSpacing: '0.3em', maxWidth: 140 }} inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => e.key === 'Enter' && verifyCode()} placeholder="123456" />
-                        <button className="btn primary sm" onClick={verifyCode} disabled={busy === 'verify' || code.length < 6}>{busy === 'verify' ? 'Verifying…' : 'Verify code'}</button>
-                      </div>
-                    </label>
-                  )}
-                  <div className="wrap-gap">
-                    <button className={`btn sm ${sent ? 'ghost' : 'primary'}`} onClick={sendLink} disabled={busy === 'login' || !loginEmail.trim()}>{busy === 'login' ? 'Sending…' : sent ? 'Resend' : 'Send code'}</button>
-                    {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
-                  </div>
-                  <p className="small muted" style={{ marginTop: 8 }}>Built-in email is rate-limited (~2–4/hour). If it’s exhausted, use <b>Password</b> above, or set up custom SMTP in Supabase. Add <span className="mono">{'{{ .Token }}'}</span> to the Magic Link email template to see the code.</p>
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="kv"><span className="k">Signed in</span><span className="val"><b>{email}</b></span></div>
-              <div className="kv"><span className="k">Sync status</span><span className="val" role="status" style={{ color: syncStatus.phase === 'synced' ? 'var(--green)' : ['error', 'conflict', 'offline'].includes(syncStatus.phase) ? 'var(--red)' : 'var(--muted)' }}>{syncStatus.message}</span></div>
-              {syncStatus.checkedAt && <div className="kv"><span className="k">Last checked</span><span className="val">{new Date(syncStatus.checkedAt).toLocaleString()}</span></div>}
-              <div className="kv"><span className="k">Auto-sync</span><span className="val"><label style={{ cursor: 'pointer' }}><input type="checkbox" checked={autoSync} onChange={toggleAuto} /> exchange changes across devices</label></span></div>
-              <p className="small muted">{autoSync ? 'Updates download when you open or return to the app, and every 15 seconds while it is visible.' : 'Automatic uploads and downloads are paused. Use Sync now to exchange changes.'} Use the same account and Supabase project on each device.</p>
-              <div className="divider" />
-              <div className="wrap-gap" style={{ marginBottom: 10 }}>
-                <button className="btn primary sm" onClick={() => doSync()} disabled={!!busy || syncStatus.phase === 'checking' || !syncRef.current}>{syncStatus.phase === 'checking' ? 'Syncing…' : '↕ Sync now'}</button>
-                <button className="btn ghost sm" onClick={doShare} disabled={!!busy}>{busy === 'share' ? 'Sharing…' : '🔗 Share this project'}</button>
-              </div>
-              {syncStatus.phase === 'conflict' && <div className="card" style={{ padding: 12, marginBottom: 12 }}>
-                <p className="small" style={{ marginBottom: 10 }}>Choose a version for the conflicting items. A local backup is saved before applying the choice.</p>
-                <div className="wrap-gap">
-                  {syncStatus.updatedAt && <button className="btn primary sm" onClick={() => doSync('cloud')}>Use cloud changes</button>}
-                  <button className="btn ghost sm" onClick={() => doSync('local')}>Use this device’s changes</button>
+    <Portal>
+      <div className="kbd-overlay" onClick={onClose}>
+        <div className="kbd-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+          <div className="kbd-head">
+            <b>☁ Cloud sync &amp; sharing</b>
+            <button className="ai-x" onClick={onClose} aria-label="Close">✕</button>
+          </div>
+          <div style={{ padding: '4px 2px' }}>
+            {!configured ? (
+              <>
+                <p className="small" style={{ marginBottom: 12 }}>Bring your own free <b>Supabase</b> project — your data stays in your account. Run <span className="mono">db/supabase-schema.sql</span> once in the Supabase SQL editor, then paste the project URL and the <b>anon</b> public key (it’s RLS-protected — safe on the client; never the service_role secret).</p>
+                <label className="fld"><span className="fld-l">Project URL</span><input className="input mono" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" /></label>
+                <label className="fld"><span className="fld-l">Anon public key</span><input className="input mono" value={key} onChange={(e) => setKey(e.target.value)} placeholder="eyJhbGciOi…" /></label>
+                <button className="btn primary sm" onClick={saveConfig}>Connect</button>
+              </>
+            ) : !email ? (
+              <>
+                <p className="small" style={{ marginBottom: 8 }}>✓ Connected <span className="muted">({source === 'env' ? 'from environment' : 'this device'})</span>. Sign in to sync across devices.</p>
+                <p className="small muted" style={{ marginBottom: 10 }}>Email links return to <span className="mono" style={{ wordBreak: 'break-all' }}>{authRedirectTo()}</span>. Supabase ignores that unless it is listed in <b>Authentication → URL Configuration</b> — add it under <b>Redirect URLs</b> and set <b>Site URL</b> to your deployed address, or links bounce to <span className="mono">localhost:3000</span>.</p>
+                <label className="fld"><span className="fld-l">Email</span><input className="input" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="you@example.com" /></label>
+                <div className="seg" style={{ marginBottom: 10 }}>
+                  <button className={`seg-b${method === 'password' ? ' on' : ''}`} onClick={() => setMethod('password')}>Password</button>
+                  <button className={`seg-b${method === 'code' ? ' on' : ''}`} onClick={() => setMethod('code')}>Email code</button>
                 </div>
-              </div>}
-              {syncRef.current?.latestBackup() && <button className="btn ghost sm" onClick={downloadBackup} style={{ marginBottom: 10 }}>Download previous device copy</button>}
-              {shareLink && (
-                <div className="kv"><span className="k">Share link</span><span className="val" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input className="input mono" style={{ fontSize: 11 }} readOnly value={shareLink} onFocus={(e) => e.target.select()} />
-                  <button className="btn ghost sm" onClick={() => navigator.clipboard?.writeText(shareLink)}>Copy</button>
-                </span></div>
-              )}
-              <div className="divider" />
-              <div className="wrap-gap">
-                <button className="btn ghost sm" onClick={doSignOut}>Sign out</button>
-                {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect cloud</button>}
-              </div>
-            </>
-          )}
-          {msg && <p className="small" style={{ marginTop: 10, color: msg.ok ? 'var(--green)' : 'var(--red)' }}>{msg.text}</p>}
+
+                {method === 'password' ? (
+                  <>
+                    <label className="fld"><span className="fld-l">Password</span><input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pwSignIn()} placeholder="••••••••" /></label>
+                    <div className="wrap-gap">
+                      <button className="btn primary sm" onClick={pwSignIn} disabled={busy === 'pw' || !loginEmail.trim() || !password}>{busy === 'pw' ? '…' : 'Sign in'}</button>
+                      <button className="btn ghost sm" onClick={pwSignUp} disabled={busy === 'pw' || !loginEmail.trim() || password.length < 6}>Create account</button>
+                      {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
+                    </div>
+                    <p className="small muted" style={{ marginTop: 8 }}>No email needed — turn off <b>Confirm email</b> once in Supabase (Authentication → Providers → Email), then <b>Create account</b>. Avoids the email rate limit entirely.</p>
+                  </>
+                ) : (
+                  <>
+                    {sent && (
+                      <label className="fld"><span className="fld-l">6-digit code from the email</span>
+                        <div className="flex" style={{ gap: 8 }}>
+                          <input className="input mono" style={{ letterSpacing: '0.3em', maxWidth: 140 }} inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={(e) => e.key === 'Enter' && verifyCode()} placeholder="123456" />
+                          <button className="btn primary sm" onClick={verifyCode} disabled={busy === 'verify' || code.length < 6}>{busy === 'verify' ? 'Verifying…' : 'Verify code'}</button>
+                        </div>
+                      </label>
+                    )}
+                    <div className="wrap-gap">
+                      <button className={`btn sm ${sent ? 'ghost' : 'primary'}`} onClick={sendLink} disabled={busy === 'login' || !loginEmail.trim()}>{busy === 'login' ? 'Sending…' : sent ? 'Resend' : 'Send code'}</button>
+                      {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect</button>}
+                    </div>
+                    <p className="small muted" style={{ marginTop: 8 }}>Built-in email is rate-limited (~2–4/hour). If it’s exhausted, use <b>Password</b> above, or set up custom SMTP in Supabase. Add <span className="mono">{'{{ .Token }}'}</span> to the Magic Link email template to see the code.</p>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="kv"><span className="k">Signed in</span><span className="val"><b>{email}</b></span></div>
+                <div className="kv"><span className="k">Sync status</span><span className="val" role="status" style={{ color: syncStatus.phase === 'synced' ? 'var(--green)' : ['error', 'conflict', 'offline'].includes(syncStatus.phase) ? 'var(--red)' : 'var(--muted)' }}>{syncStatus.message}</span></div>
+                {syncStatus.checkedAt && <div className="kv"><span className="k">Last checked</span><span className="val">{new Date(syncStatus.checkedAt).toLocaleString()}</span></div>}
+                <div className="kv"><span className="k">Auto-sync</span><span className="val"><label style={{ cursor: 'pointer' }}><input type="checkbox" checked={autoSync} onChange={toggleAuto} /> exchange changes across devices</label></span></div>
+                <p className="small muted">{autoSync ? 'Updates download when you open or return to the app, and every 15 seconds while it is visible.' : 'Automatic uploads and downloads are paused. Use Sync now to exchange changes.'} Use the same account and Supabase project on each device.</p>
+                <div className="divider" />
+                <div className="wrap-gap" style={{ marginBottom: 10 }}>
+                  <button className="btn primary sm" onClick={() => doSync()} disabled={!!busy || syncStatus.phase === 'checking' || !syncRef.current}>{syncStatus.phase === 'checking' ? 'Syncing…' : '↕ Sync now'}</button>
+                  <button className="btn ghost sm" onClick={doShare} disabled={!!busy}>{busy === 'share' ? 'Sharing…' : '🔗 Share this project'}</button>
+                </div>
+                {syncStatus.phase === 'conflict' && <div className="card" style={{ padding: 12, marginBottom: 12 }}>
+                  <p className="small" style={{ marginBottom: 10 }}>Choose a version for the conflicting items. A local backup is saved before applying the choice.</p>
+                  <div className="wrap-gap">
+                    {syncStatus.updatedAt && <button className="btn primary sm" onClick={() => doSync('cloud')}>Use cloud changes</button>}
+                    <button className="btn ghost sm" onClick={() => doSync('local')}>Use this device’s changes</button>
+                  </div>
+                </div>}
+                {syncRef.current?.latestBackup() && <button className="btn ghost sm" onClick={downloadBackup} style={{ marginBottom: 10 }}>Download previous device copy</button>}
+                {shareLink && (
+                  <div className="kv"><span className="k">Share link</span><span className="val" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input className="input mono" style={{ fontSize: 11 }} readOnly value={shareLink} onFocus={(e) => e.target.select()} />
+                    <button className="btn ghost sm" onClick={() => navigator.clipboard?.writeText(shareLink)}>Copy</button>
+                  </span></div>
+                )}
+                <div className="divider" />
+                <div className="wrap-gap">
+                  <button className="btn ghost sm" onClick={doSignOut}>Sign out</button>
+                  {source === 'settings' && <button className="btn ghost sm" onClick={disconnect}>Disconnect cloud</button>}
+                </div>
+              </>
+            )}
+            {msg && <p className="small" style={{ marginTop: 10, color: msg.ok ? 'var(--green)' : 'var(--red)' }}>{msg.text}</p>}
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   )
 }
