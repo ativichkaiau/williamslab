@@ -198,3 +198,41 @@ html[data-dim-swap="2d"]::view-transition-new(root){animation:dim-drop-flat .6s 
 @media print{
   .depth-stage{display:none}
 }
+
+/* ---------- page swap (lib/swap.ts) ----------
+   The root snapshot is exactly what was on screen, so the page rolls away
+   from where you were reading. The shell is captured as separate layers that
+   hold still while the page turns on a drum behind them; the drum's axis sits
+   900px behind the glass, so pages travel along a real arc rather than
+   pivoting on a flat line. */
+html{--sb-w:var(--sidebar)}
+@media(max-width:960px){html{--sb-w:0px}}
+html[data-page-swap] .sidebar{view-transition-name:sidebar}
+html[data-page-swap] .topbar{view-transition-name:topbar}
+html[data-page-swap] .tb-title{view-transition-name:page-title}
+html[data-page-swap] .sb-link.active{view-transition-name:nav-key}
+html[data-page-swap] :is(.ai-fab,.ai-panel){view-transition-name:assistant}
+html[data-page-swap]::view-transition{background:var(--vt-stage)}
+html[data-page-swap]::view-transition-image-pair(root){perspective:1600px;
+  perspective-origin:calc(var(--sb-w) + (100% - var(--sb-w)) / 2) 45%}
+html[data-page-swap]::view-transition-old(root),
+html[data-page-swap]::view-transition-new(root){transform-origin:50% 50% -900px; mix-blend-mode:normal; backface-visibility:hidden}
+@keyframes page-roll-up{to{transform:rotateX(30deg); opacity:0; filter:brightness(.7)}}
+@keyframes page-roll-down{to{transform:rotateX(-30deg); opacity:0; filter:brightness(.7)}}
+@keyframes page-from-below{from{transform:rotateX(-30deg); opacity:0; filter:brightness(.7)}}
+@keyframes page-from-above{from{transform:rotateX(30deg); opacity:0; filter:brightness(.7)}}
+html[data-page-swap="down"]::view-transition-old(root){animation:page-roll-up .48s cubic-bezier(.55,0,.75,.2) both}
+html[data-page-swap="down"]::view-transition-new(root){animation:page-from-below .66s .06s cubic-bezier(.16,1,.3,1) both}
+html[data-page-swap="up"]::view-transition-old(root){animation:page-roll-down .48s cubic-bezier(.55,0,.75,.2) both}
+html[data-page-swap="up"]::view-transition-new(root){animation:page-from-above .66s .06s cubic-bezier(.16,1,.3,1) both}
+/* the shell barely changes — a quick settle, not a crossfade you notice */
+html[data-page-swap]::view-transition-group(sidebar),
+html[data-page-swap]::view-transition-group(topbar),
+html[data-page-swap]::view-transition-group(assistant){animation-duration:.22s}
+/* the topbar title turns over like a split-flap */
+@keyframes flap-away{to{transform:perspective(300px) rotateX(88deg); opacity:.3}}
+@keyframes flap-in{from{transform:perspective(300px) rotateX(-88deg); opacity:.3}}
+html[data-page-swap]::view-transition-old(page-title){transform-origin:50% 100%; animation:flap-away .26s cubic-bezier(.55,0,.8,.2) both}
+html[data-page-swap]::view-transition-new(page-title){transform-origin:50% 0; animation:flap-in .42s .2s cubic-bezier(.16,1.2,.3,1) both}
+/* the pressed nav key slides to its new slot, with a little spring */
+html[data-page-swap]::view-transition-group(nav-key){animation-duration:.5s; animation-timing-function:cubic-bezier(.3,1.35,.5,1)}
